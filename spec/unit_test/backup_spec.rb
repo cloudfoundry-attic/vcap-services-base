@@ -1,4 +1,6 @@
 # Copyright (c) 2009-2011 VMware, Inc.
+
+# for jenkins test
 require 'helper/spec_helper'
 require 'eventmachine'
 
