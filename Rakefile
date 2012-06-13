@@ -2,13 +2,13 @@ require 'rake'
 require 'bundler'
 
 desc "Run specs"
-task "spec" => ["bundler:install:test", "test:spec"]
+task "spec" => ["test:spec"]
 
 desc "Run specs using SimpleCov"
-task "spec:rcov" => ["bundler:install:test", "test:spec:rcov"]
+task "spec:rcov" => ["test:spec:rcov"]
 
 desc "Run ci using SimpleCov"
-task "spec:ci" => ["bundler:install:test", "test:spec:ci"]
+task "spec:ci" => ["test:spec:ci"]
 
 namespace "bundler" do
   gem_helper = Bundler::GemHelper.new(Dir.pwd)
