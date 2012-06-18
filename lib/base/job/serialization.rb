@@ -1,6 +1,7 @@
 # Copyright (c) 2009-2011 VMware, Inc.
 require "resque-status"
 require "fileutils"
+require "tmpdir"
 require "curb"
 require "vcap/logging"
 # explictly import uuid to resolve namespace conflict between uuid and uuidtools gems.
@@ -108,10 +109,8 @@ module VCAP::Services::Base::AsyncJob
 
       # Validate the serialized data file.
       # Sub class should override this method to supply specific validation.
-      def validate_input(file_path)
-        File.open(file_path) do |f|
-          return nil unless f.size > 0
-        end
+      def validate_input(files, manifest)
+        raise "Doesn't contains any snapshot file." if files.empty?
         true
       end
 
@@ -122,6 +121,25 @@ module VCAP::Services::Base::AsyncJob
 
       def get_dump_path(name, snapshot_id)
         snapshot_filepath(@config["snapshots_base_dir"], @config["service_name"], name, snapshot_id)
+      end
+
+      private
+      # validate a package file, subclass should not override this method since packaging is transparent.
+      # To implement customized validation, see +validate_input+
+      def validate_package package_file
+        temp_dir = Dir.mktmpdir(@config[:tmp_dir])
+
+        package = Package.load(temp_dir)
+        manifest = package.manifest
+        files = package.unpack(temp_dir)
+
+        result = validate_input(files, manifest)
+        result
+      rescue => e
+        @logger.error("Failed to validate package file:#{e}")
+        nil
+      ensure
+        FileUtils.rm_rf(temp_dir) if temp_dir
       end
     end
 
@@ -206,14 +224,14 @@ module VCAP::Services::Base::AsyncJob
 
             @snapshot_id = new_snapshot_id
             @snapshot_path = get_dump_path(name, snapshot_id)
-            @snapshot_file = File.join(@snapshot_path, snapshot_filename(name, snapshot_id))
+            @snapshot_file = File.join(@snapshot_path, "#{snapshot_id}.zip")
 
             # clean any data in snapshot folder
             FileUtils.rm_rf(@snapshot_path)
             FileUtils.mkdir_p(@snapshot_path)
 
             fetch_url(url, @snapshot_file)
-            raise ServiceError.new(ServiceError::BAD_SERIALIZED_DATAFILE, url) unless validate_input(@snapshot_file)
+            raise ServiceError.new(ServiceError::BAD_SERIALIZED_DATAFILE, url) unless validate_package(@snapshot_file)
 
             result = execute
             @logger.info("Results of import from url: #{result}")
@@ -222,7 +240,7 @@ module VCAP::Services::Base::AsyncJob
               :snapshot_id => snapshot_id,
               :size => File.open(@snapshot_file) {|f| f.size },
               :date => fmt_time,
-              :file => snapshot_filename(name, snapshot_id)
+              :file => "#{snapshot_id}.zip"
             }
             save_snapshot(name, snapshot)
             @logger.info("Create new snapshot for #{name}:#{snapshot}")
@@ -305,11 +323,11 @@ module VCAP::Services::Base::AsyncJob
             end
 
             raise "Can't find temp file: #{@temp_file_path}" unless File.exists? temp_file_path
-            raise ServiceError.new(ServiceError::BAD_SERIALIZED_DATAFILE, "request") unless validate_input(temp_file_path)
+            raise ServiceError.new(ServiceError::BAD_SERIALIZED_DATAFILE, "request") unless validate_package(temp_file_path)
 
             @snapshot_id = new_snapshot_id
             @snapshot_path = get_dump_path(name, snapshot_id)
-            @snapshot_file = File.join(@snapshot_path, snapshot_filename(name, snapshot_id))
+            @snapshot_file = File.join(@snapshot_path, "#{snapshot_id}.zip")
             # clean any data in snapshot folder
             FileUtils.rm_rf(@snapshot_path)
             FileUtils.mkdir_p(@snapshot_path)
