@@ -20,7 +20,7 @@ module VCAP::Services::Base::AsyncJob
     # ttl        - The max time that a thread can acquire the lock, default 600 seconds. Lock raise +JOB_TIMEOUT+ error once the ttl is exceeded.
     def initialize(name, opts={})
       @name = name
-      @timeout = opts[:timeout] || 10 #seconds
+      @timeout = opts[:timeout] || 20 #seconds
       @expiration = opts[:expiration] || 10  # seconds
       @ttl = opts[:ttl] || 600 # seconds
       @logger = opts[:logger] || make_logger
@@ -85,6 +85,15 @@ module VCAP::Services::Base::AsyncJob
 
     def release_thread t
       @released_thread[t.object_id] = true
+      # make sure refresh thread is terminated.
+      waited = 0
+      while (waited += 1) <= 5
+        # thread is terminated when t.status == nil or false
+        return unless t.status
+        sleep 1
+      end
+      # force terminate after wait 5 seconds.
+      t.exit
     end
 
     def released?
