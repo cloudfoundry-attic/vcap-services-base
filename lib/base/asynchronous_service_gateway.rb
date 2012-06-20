@@ -68,6 +68,7 @@ class VCAP::Services::AsynchronousServiceGateway < Sinatra::Base
       :plan_options => @service[:plan_options],
       :acls => @service[:acls],
       :timeout => @service[:timeout],
+      :provider => @service[:provider],
     }.to_json
 
     @deact_json   = {
