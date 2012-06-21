@@ -14,13 +14,13 @@ module VCAP::Services::Base::AsyncJob
 
     # Options for lock
     # name       - The uuid of the lock
-    # timeout    - The time that waits to acquire the lock, default 10 seconds
+    # timeout    - The time that waits to acquire the lock, default 20 seconds
     # expiration - Lock expires in given seconds if not refreshed, default 10 seconds
     # logger     - The logger..
     # ttl        - The max time that a thread can acquire the lock, default 600 seconds. Lock raise +JOB_TIMEOUT+ error once the ttl is exceeded.
     def initialize(name, opts={})
       @name = name
-      @timeout = opts[:timeout] || 10 #seconds
+      @timeout = opts[:timeout] || 20 #seconds
       @expiration = opts[:expiration] || 10  # seconds
       @ttl = opts[:ttl] || 600 # seconds
       @logger = opts[:logger] || make_logger
@@ -65,7 +65,7 @@ module VCAP::Services::Base::AsyncJob
       rescue Timeout::Error =>e
         raise ServiceError.new(ServiceError::JOB_TIMEOUT, @ttl)
       ensure
-        release_thread(refresh_thread) if refresh_thread
+        release_thread(refresh_thread)
         delete
       end
     end
@@ -84,7 +84,16 @@ module VCAP::Services::Base::AsyncJob
     end
 
     def release_thread t
+      # gracefully terminate refresh thread.
       @released_thread[t.object_id] = true
+      waited = 0
+      while (waited += 1) <= 5
+        # thread is terminated when t.status == nil or false
+        return unless t.status
+        sleep 1
+      end
+      # force terminate after wait 5 seconds.
+      t.exit
     end
 
     def released?
@@ -94,10 +103,9 @@ module VCAP::Services::Base::AsyncJob
     def setup_refresh_thread
       t = Thread.new do
         redis = ::Redis.new(Config.redis_config)
-        sleep_interval = [1.0, @expiration/2].max
+        sleep_interval = [1.0, @expiration/2].max.to_i
         begin
-          loop do
-            break if released?
+          while not released? do
             @logger.debug("Renewing lock #{@name}")
             redis.watch(@name)
             existing_lock = redis.get(@name)
@@ -106,7 +114,10 @@ module VCAP::Services::Base::AsyncJob
             expiration = Time.now.to_f + @expiration + 1
             break unless watch_and_update(redis, expiration)
             @lock_expiration = expiration
-            sleep sleep_interval
+            sleep_interval.times do
+              sleep 1
+              break if released?
+            end
           end
         rescue => e
           @logger.error("Can't renew lock #{@name}, #{e}")

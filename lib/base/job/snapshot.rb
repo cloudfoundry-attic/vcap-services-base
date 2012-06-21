@@ -6,6 +6,8 @@ require "uuid"
 
 $LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..')
 require "service_error"
+$LOAD_PATH.unshift File.join(File.dirname(__FILE__))
+require "package.rb"
 
 module VCAP::Services::Base::AsyncJob
   module Snapshot
@@ -176,7 +178,11 @@ module VCAP::Services::Base::AsyncJob
     class BaseCreateSnapshotJob < SnapshotJob
       # workflow template
       # Sub class should implement execute method which returns hash represents of snapshot like:
-      # {:snapshot_id => 1, :size => 100, :file_name => "my_snapshot.tgz"}
+      # {:snapshot_id => 1,
+      #  :size => 100,
+      #  :files => ["my_snapshot.tgz", "readme.txt"]
+      #  :manifest => {:version => '1', :service => 'mysql'}
+      #  }
       def perform
         begin
           required_options :service_id
@@ -186,6 +192,7 @@ module VCAP::Services::Base::AsyncJob
           @snapshot_id = new_snapshot_id
           lock = create_lock
 
+          @snapshot_files = []
           lock.lock do
             quota = @config["snapshot_quota"]
             if quota
@@ -197,6 +204,26 @@ module VCAP::Services::Base::AsyncJob
             snapshot = execute
             @logger.info("Results of create snapshot: #{snapshot.inspect}")
 
+            # pack snapshot_file into package
+            dump_path = get_dump_path(name, snapshot_id)
+            FileUtils.mkdir_p(dump_path)
+            package_file = "#{snapshot_id}.zip"
+
+            package = Package.new(File.join(dump_path, package_file))
+            package.manifest = snapshot[:manifest]
+            files = Array(snapshot[:files])
+            raise "No snapshot file to package." if files.empty?
+            files.each do |f|
+              full_path = File.join(dump_path, f)
+              @snapshot_files << full_path
+              package.add_files full_path
+            end
+            package.pack(dump_path)
+            @logger.info("Package snapshot file: #{File.join(dump_path, package_file)}")
+
+            # update snapshot metadata for package file
+            snapshot.delete(:files)
+            snapshot[:file] = package_file
             snapshot[:date] = fmt_time
             save_snapshot(name, snapshot)
 
@@ -208,6 +235,7 @@ module VCAP::Services::Base::AsyncJob
           handle_error(e)
         ensure
           set_status({:complete_time => Time.now.to_s})
+          @snapshot_files.each{|f| File.delete(f) if File.exists? f} if @snapshot_files
         end
       end
     end
@@ -244,6 +272,7 @@ module VCAP::Services::Base::AsyncJob
     end
 
     class BaseRollbackSnapshotJob < SnapshotJob
+      attr_reader :manifest, :snapshot_files
       # workflow template
       # Subclass implement execute method which returns true for a successful rollback
       def perform
@@ -255,7 +284,17 @@ module VCAP::Services::Base::AsyncJob
 
           lock = create_lock
 
+          @snapshot_files = []
           lock.lock do
+            # extract origin files from package
+            dump_path = get_dump_path(name, snapshot_id)
+            package_file = "#{snapshot_id}.zip"
+            package = Package.load(File.join(dump_path, package_file))
+            @manifest = package.manifest
+            @snapshot_files = package.unpack(dump_path)
+            @logger.debug("Unpack files from #{package_file}: #{@snapshot_files}")
+            raise "Package file doesn't contain snapshot file." if @snapshot_files.empty?
+
             result = execute
             @logger.info("Results of rollback snapshot: #{result}")
 
@@ -266,6 +305,7 @@ module VCAP::Services::Base::AsyncJob
           handle_error(e)
         ensure
           set_status({:complete_time => Time.now.to_s})
+          @snapshot_files.each{|f| File.delete(f) if File.exists? f} if @snapshot_files
         end
       end
     end
