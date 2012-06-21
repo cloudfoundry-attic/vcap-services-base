@@ -992,6 +992,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
 
   # handle request exception
   def handle_error(e, &blk)
+    @logger.error("[#{service_description}] Unexpected Error: #{e}:[#{e.backtrace.join(" | ")}]")
     if e.instance_of? ServiceError
       blk.call(failure(e))
     else
