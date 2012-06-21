@@ -7,7 +7,7 @@ Gem::Specification.new do |s|
   s.platform     = Gem::Platform::RUBY
   s.summary      = "VCAP services base module"
   s.description  = s.summary
-  s.files        = `git ls-files`.split("\n")
+  s.files        = Dir.glob("lib/**/*")
   s.require_path = [ "lib" ]
   s.author       = "CloudFoundry Services Team"
   s.email        = "cf-services-eng-cn@vmware.com"
@@ -28,4 +28,5 @@ Gem::Specification.new do |s|
   s.add_dependency "resque", "~> 1.20"
   s.add_dependency "resque-status", "~> 0.3.2"
   s.add_dependency "curb", "~> 0.7.16"
+  s.add_dependency "rubyzip", "~> 0.9.8"
 end
