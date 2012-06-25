@@ -2,6 +2,8 @@ require 'base/provisioner'
 
 class ProvisionerTests
 
+  SERVICE_LABEL="Test-1.0"
+
   def self.create_provisioner(options = {})
     ProvisionerTester.new(BaseTests::Options.default(options))
   end
@@ -35,7 +37,6 @@ class ProvisionerTests
   end
 
   class ProvisionerTester < VCAP::Services::Base::Provisioner
-    attr_accessor :prov_svcs
     attr_accessor :varz_invoked
     attr_accessor :prov_svcs
     attr_reader   :staging_orphan_instances
@@ -101,6 +102,7 @@ class ProvisionerTests
     end
     def send_provision_request
       req = VCAP::Services::Api::GatewayProvisionRequest.new
+      req.label = "#{ProvisionerTests::SERVICE_LABEL}"
       req.plan = "free"
       @provisioner.provision_service(req, nil) do |res|
         @instance_id = res['response'][:service_id]
@@ -131,7 +133,7 @@ class ProvisionerTests
     def send_recover_request
       # register a fake callback to provisioner which always return true
       @provisioner.register_update_handle_callback{|handle, &blk| blk.call(true)}
-      @provisioner.recover(@instance_id, "/tmp", [{'service_id' => @instance_id, 'configuration' => {'plan' => 'free'}},{'service_id' => 'fake_uuid', 'configuration' => {}, 'credentials' => {'name' => @instance_id}}]) do |res|
+      @provisioner.recover(@instance_id, "/tmp", [{'service_id' => @instance_id, 'configuration' => {'plan' => 'free', 'version' => '1.0'}},{'service_id' => 'fake_uuid', 'configuration' => {}, 'credentials' => {'name' => @instance_id}}]) do |res|
         @got_recover_response = res['success']
       end
     end
@@ -199,6 +201,7 @@ class ProvisionerTests
     end
     def send_provision_request(plan="free")
       req = VCAP::Services::Api::GatewayProvisionRequest.new
+      req.label = "#{ProvisionerTests::SERVICE_LABEL}"
       req.plan = plan
       @provisioner.provision_service(req, nil) do |res|
         @provision_response = res['success']
@@ -366,7 +369,7 @@ class ProvisionerTests
       "node-#{@id}"
     end
     def announce(reply=nil)
-      a = { :id => node_id, :available_capacity => @score, :plan => @plan, :capacity_unit => 1 }
+      a = { :id => node_id, :available_capacity => @score, :plan => @plan, :capacity_unit => 1, :supported_versions => ["1.0"] }
       @nats.publish(reply||"#{service_name}.announce", a.to_json)
     end
   end
