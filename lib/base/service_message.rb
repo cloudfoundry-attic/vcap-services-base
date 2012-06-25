@@ -8,6 +8,7 @@ module VCAP::Services::Internal
   class ProvisionRequest < ServiceMessage
     required :plan, String
     optional :credentials
+    optional :version
   end
 
   # Node --> Provisioner
