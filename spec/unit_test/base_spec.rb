@@ -9,8 +9,8 @@ describe BaseTests do
     EM.run do
       Do.at(0) { base = BaseTests.create_base }
       Do.at(1) { EM.stop }
+      Do.at(2) { base.node_mbus_connected.should be_true }
     end
-    base.node_mbus_connected.should be_true
   end
 
 end

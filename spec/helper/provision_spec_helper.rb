@@ -2,6 +2,8 @@ require 'base/provisioner'
 
 class ProvisionerTests
 
+  SERVICE_LABEL="Test-1.0"
+
   def self.create_provisioner(options = {})
     ProvisionerTester.new(BaseTests::Options.default(options))
   end
@@ -101,6 +103,7 @@ class ProvisionerTests
     end
     def send_provision_request
       req = VCAP::Services::Api::GatewayProvisionRequest.new
+      req.label = "#{ProvisionerTests::SERVICE_LABEL}"
       req.plan = "free"
       @provisioner.provision_service(req, nil) do |res|
         @instance_id = res['response'][:service_id]
@@ -199,6 +202,7 @@ class ProvisionerTests
     end
     def send_provision_request(plan="free")
       req = VCAP::Services::Api::GatewayProvisionRequest.new
+      req.label = "#{ProvisionerTests::SERVICE_LABEL}"
       req.plan = plan
       @provisioner.provision_service(req, nil) do |res|
         @provision_response = res['success']
@@ -366,7 +370,7 @@ class ProvisionerTests
       "node-#{@id}"
     end
     def announce(reply=nil)
-      a = { :id => node_id, :available_capacity => @score, :plan => @plan, :capacity_unit => 1 }
+      a = { :id => node_id, :available_capacity => @score, :plan => @plan, :capacity_unit => 1, :supported_versions => ["1.0"] }
       @nats.publish(reply||"#{service_name}.announce", a.to_json)
     end
   end

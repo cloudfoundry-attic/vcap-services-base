@@ -114,6 +114,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -126,7 +127,7 @@ describe ProvisionerTests do
           response.credentials = {
               "node_id" => "node-1",
               "name" => "D501B915-5B50-4C3A-93B7-7E0C48B6A9FA"
-          }
+          } 
           callback.call(response.encode)
           "5"
       }
@@ -157,6 +158,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -201,6 +203,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           },
           "node-2" => {
@@ -208,6 +211,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 100,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
 
           }
@@ -244,6 +248,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 1,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -288,6 +293,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -323,6 +329,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -331,8 +338,8 @@ describe ProvisionerTests do
       mock_nats.should_receive(:request).twice.with(any_args()).\
       and_return { |*args|
           provision_request = args[0]
+          callback = args[2]
           if provision_request == "Test.provision.node-1"
-            callback = args[2]
             response = VCAP::Services::Internal::ProvisionResponse.new
             response.success = true
             response.credentials = {
@@ -341,7 +348,6 @@ describe ProvisionerTests do
             }
             callback.call(response.encode)
           else
-            callback = args[2]
             response = VCAP::Services::Internal::SimpleResponse.new
             response.success = true
             callback.call(response.encode)
@@ -378,6 +384,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -446,6 +453,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -492,6 +500,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -549,6 +558,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -594,6 +604,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -643,6 +654,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -695,6 +707,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -740,6 +753,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -800,6 +814,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -852,6 +867,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -896,6 +912,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -940,6 +957,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -1018,6 +1036,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => -1,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -1066,6 +1085,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => -1,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }

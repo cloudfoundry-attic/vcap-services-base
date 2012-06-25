@@ -6,7 +6,7 @@ group :test do
   gem "rake"
   gem "sinatra"
   gem "rspec"
-  gem "rcov"
+#  gem "rcov"
   gem "ci_reporter"
   gem "simplecov"
   gem "simplecov-rcov"

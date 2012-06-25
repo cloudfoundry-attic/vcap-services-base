@@ -13,8 +13,11 @@ describe NodeTests do
       Do.at(0) { provisioner = NodeTests.create_provisioner }
       Do.at(1) { node = NodeTests.create_node }
       Do.at(2) { EM.stop }
+      Do.at(3) {
+        node.announcement_invoked.should be_true
+        provisioner.got_announcement.should be_true
+      }
     end
-    provisioner.got_announcement.should be_true
   end
 
   it "should call varz & report healthz ok" do
@@ -22,10 +25,12 @@ describe NodeTests do
     EM.run do
       Do.at(0) { node = NodeTests.create_node }
       Do.at(12) { EM.stop }
+      Do.at(13) {
+        node.varz_invoked.should be_true
+        node.healthz_ok.should == "ok\n"
+      }
     end
-    node.varz_invoked.should be_true
-    node.healthz_ok.should == "ok\n"
-  end
+ end
 
   it "should announce on request" do
     node = nil
@@ -35,9 +40,11 @@ describe NodeTests do
       Do.at(0) { node = NodeTests.create_node }
       Do.at(1) { provisioner = NodeTests.create_provisioner }
       Do.at(2) { EM.stop }
+      Do.at(3) {
+        node.announcement_invoked.should be_true
+        provisioner.got_announcement.should be_true
+      }
     end
-    node.announcement_invoked.should be_true
-    provisioner.got_announcement.should be_true
   end
 
   it "should announce on identical plan" do
@@ -105,10 +112,12 @@ describe NodeTests do
       # Non-concurrent provision handler won't finish in 10 seconds
       Do.sec(2) { 5.times { provisioner.send_provision_request } }
       Do.sec(20) { EM.stop }
+      Do.sec(21) {
+        node.provision_invoked.should be_true
+        node.provision_times.should == 5
+        provisioner.got_provision_response.should be_true
+      }
     end
-    node.provision_invoked.should be_true
-    node.provision_times.should == 5
-    provisioner.got_provision_response.should be_true
   end
 
   it "should handle error in node provision" do
@@ -196,8 +205,10 @@ describe NodeTests do
       Do.sec(1) { provisioner = NodeTests.create_error_provisioner}
       Do.sec(2) { provisioner.send_provision_request }
       Do.sec(10) { EM.stop }
+      Do.sec(11) {
+        provisioner.response["success"].should be_true
+      }
     end
-    provisioner.response["success"].should be_true
   end
 
   it "should support unprovision" do
@@ -360,8 +371,10 @@ describe NodeTests do
       Do.sec(1) { provisioner = NodeTests.create_error_provisioner}
       Do.sec(2) { provisioner.send_bind_request }
       Do.sec(10) { EM.stop }
+      Do.sec(11) {
+        provisioner.response["success"].should be_true
+      }
     end
-    provisioner.response["success"].should be_true
   end
 
 
