@@ -57,6 +57,7 @@ class VCAP::Services::AsynchronousServiceGateway < Sinatra::Base
     @double_check_orphan_interval = opts[:double_check_orphan_interval] || 300
     @handle_fetched = false
     @fetching_handles = false
+    @version_aliases = opts[:version_aliases]
     @svc_json     = {
       :label  => @service[:label],
       :url    => @service[:url],
@@ -69,6 +70,8 @@ class VCAP::Services::AsynchronousServiceGateway < Sinatra::Base
       :acls => @service[:acls],
       :timeout => @service[:timeout],
       :provider => @service[:provider],
+      :supported_versions => @service[:supported_versions],
+      :version_aliases => @service[:version_aliases]
     }.to_json
 
     @deact_json   = {
@@ -161,7 +164,14 @@ class VCAP::Services::AsynchronousServiceGateway < Sinatra::Base
     @logger.debug("Provision request for label=#{req.label} plan=#{req.plan}")
 
     name, version = VCAP::Services::Api::Util.parse_label(req.label)
-    unless (name == @service[:name]) && (version == @service[:version])
+
+    # TODO: use request version field after updating git reference in Gem file
+    # version = req.version
+
+    # TODO: Versions are just temporarily optional
+    unless (name == @service[:name]) &&
+            (version == @service[:version] ||
+             (@service[:supported_versions] != nil && @service[:supported_versions].include?(version)))
       error_msg = ServiceError.new(ServiceError::UNKNOWN_LABEL).to_hash
       abort_request(error_msg)
     end

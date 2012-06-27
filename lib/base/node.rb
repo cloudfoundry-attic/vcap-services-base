@@ -22,6 +22,9 @@ class VCAP::Services::Base::Node < VCAP::Services::Base::Base
     @fqdn_hosts = options[:fqdn_hosts]
     @op_time_limit = options[:op_time_limit]
 
+    # A default supported version
+    # *NOTE: All services *MUST* override this to provide the actual supported versions
+    @supported_versions = options[:supported_versions] || []
     z_interval = options[:z_interval] || 30
     EM.add_periodic_timer(z_interval) do
       EM.defer { update_varz }
@@ -79,7 +82,9 @@ class VCAP::Services::Base::Node < VCAP::Services::Base::Base
       provision_req = ProvisionRequest.decode(msg)
       plan = provision_req.plan
       credentials = provision_req.credentials
-      credential = provision(plan, credentials)
+      version = provision_req.version
+      @logger.debug("#{service_description}: Provision Request Details - plan=#{plan}, credentials=#{credentials}, version=#{version}")
+      credential = provision(plan, credentials, version)
       credential['node_id'] = @node_id
       response.credentials = credential
       @capacity_lock.synchronize{ @capacity -= capacity_unit }
@@ -379,6 +384,7 @@ class VCAP::Services::Base::Node < VCAP::Services::Base::Base
       a = announcement
       a[:id] = @node_id
       a[:plan] = @plan
+      a[:supported_versions] = @supported_versions
       publish(reply || "#{service_name}.announce", Yajl::Encoder.encode(a))
     end
   rescue => e
@@ -426,7 +432,7 @@ class VCAP::Services::Base::Node < VCAP::Services::Base::Base
 
   # Service Node subclasses must implement the following methods
 
-  # provision(plan) --> {name, host, port, user, password}
+  # provision(plan) --> {name, host, port, user, password}, {version}
   abstract :provision
 
   # unprovision(name) --> void
