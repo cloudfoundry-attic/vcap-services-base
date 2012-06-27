@@ -114,6 +114,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -157,6 +158,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -201,6 +203,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           },
           "node-2" => {
@@ -208,6 +211,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 100,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
 
           }
@@ -244,6 +248,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 1,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -288,6 +293,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -323,6 +329,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -378,6 +385,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -446,6 +454,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -492,6 +501,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -549,6 +559,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -594,6 +605,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -643,6 +655,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -695,6 +708,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -740,6 +754,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -800,6 +815,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -852,6 +868,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -896,6 +913,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -940,6 +958,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => 200,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -1018,6 +1037,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => -1,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }
@@ -1066,6 +1086,7 @@ describe ProvisionerTests do
               "plan" => "free",
               "available_capacity" => -1,
               "capacity_unit" => 1,
+              "supported_versions" => ["1.0"],
               "time" => Time.now.to_i
           }
       }

@@ -32,6 +32,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @instance_handles_CO = {}
     @binding_handles_CO = {}
     @plan_mgmt = options[:plan_management] && options[:plan_management][:plans] || {}
+    @version_aliases = options[:version_aliases]
 
     init_service_extensions
 
@@ -278,6 +279,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @logger.debug("[#{service_description}] Unprovision service #{instance_id}")
     begin
       svc = @prov_svcs[instance_id]
+      @logger.debug("[#{service_description}] Unprovision service #{instance_id} found instance: #{svc}")
       raise ServiceError.new(ServiceError::NOT_FOUND, "instance_id #{instance_id}") if svc.nil?
 
       node_id = svc[:credentials]["node_id"]
@@ -327,51 +329,77 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @logger.debug("[#{service_description}] Attempting to provision instance (request=#{request.extract})")
     subscription = nil
     plan = request.plan || "free"
-    plan_nodes = @nodes.select{ |_, node| node["plan"] == plan }.values
-    @logger.debug("Pick best nodes from: #{plan_nodes}")
+
+    #TODO: Uncomment the below when we update the git ref pointer for vcap_common gem
+    name, version = VCAP::Services::Api::Util.parse_label(request.label) if request.label # TEMPORARY WAY OF GETTING VERSION
+    # version = request.version
+
+    plan_nodes = @nodes.select{ |_, node| node["plan"] == plan}.values
+
+    @logger.debug("[#{service_description}] Picking version nodes from the following #{plan_nodes.count} \'#{plan}\' plan nodes: #{plan_nodes}")
     if plan_nodes.count > 0
       allow_over_provisioning = @plan_mgmt[plan.to_sym] && @plan_mgmt[plan.to_sym][:allow_over_provisioning] || false
-      best_node = plan_nodes.max_by { |node| node_score(node) }
-      if best_node && ( allow_over_provisioning || node_score(best_node) > 0 )
-        best_node = best_node["id"]
-        @logger.debug("[#{service_description}] Provisioning on #{best_node}")
-        prov_req = ProvisionRequest.new
-        prov_req.plan = plan
-        # use old credentials to provision a service if provided.
-        prov_req.credentials = prov_handle["credentials"] if prov_handle
-        @provision_refs[best_node] += 1
-        @nodes[best_node]['available_capacity'] -= @nodes[best_node]['capacity_unit']
-        subscription = nil
-        timer = EM.add_timer(@node_timeout) {
-          @provision_refs[best_node] -= 1
-          @node_nats.unsubscribe(subscription)
-          blk.call(timeout_fail)
-        }
-        subscription =
-          @node_nats.request("#{service_name}.provision.#{best_node}", prov_req.encode) do |msg|
-          @provision_refs[best_node] -= 1
-          EM.cancel_timer(timer)
-          @node_nats.unsubscribe(subscription)
-          response = ProvisionResponse.decode(msg)
-          if response.success
-            @logger.debug("Successfully provision response:[#{response.inspect}]")
-            # credentials is not necessary in cache
-            prov_req.credentials = nil
-            credential = response.credentials
-            svc = {:data => prov_req.dup, :service_id => credential['name'], :credentials => credential}
-            # FIXME: workaround for inconsistant representation of bind handle and provision handle
-            svc_local = {:configuration => prov_req.dup, :service_id => credential['name'], :credentials => credential}
-            @logger.debug("Provisioned #{svc.inspect}")
-            @prov_svcs[svc[:service_id]] = svc_local
-            blk.call(success(svc))
-          else
-            blk.call(wrap_error(response))
+
+      version_nodes = plan_nodes.select{ |node|
+        node["supported_versions"] != nil && node["supported_versions"].include?(version)
+      }
+      @logger.debug("[#{service_description}] #{version_nodes.count} nodes allow provisioning for version: #{version}")
+
+      if version_nodes.count > 0
+
+        best_node = version_nodes.max_by { |node| node_score(node) }
+
+        if best_node && ( allow_over_provisioning || node_score(best_node) > 0 )
+          best_node = best_node["id"]
+          @logger.debug("[#{service_description}] Provisioning on #{best_node}")
+
+          prov_req = ProvisionRequest.new
+          prov_req.plan = plan
+          prov_req.version = version
+          # use old credentials to provision a service if provided.
+          prov_req.credentials = prov_handle["credentials"] if prov_handle
+
+          @provision_refs[best_node] += 1
+          @nodes[best_node]['available_capacity'] -= @nodes[best_node]['capacity_unit']
+          subscription = nil
+
+          timer = EM.add_timer(@node_timeout) {
+            @provision_refs[best_node] -= 1
+            @node_nats.unsubscribe(subscription)
+            blk.call(timeout_fail)
+          }
+
+          subscription = @node_nats.request("#{service_name}.provision.#{best_node}", prov_req.encode) do |msg|
+            @provision_refs[best_node] -= 1
+            EM.cancel_timer(timer)
+            @node_nats.unsubscribe(subscription)
+            response = ProvisionResponse.decode(msg)
+
+            if response.success
+              @logger.debug("Successfully provision response:[#{response.inspect}]")
+
+              # credentials is not necessary in cache
+              prov_req.credentials = nil
+              credential = response.credentials
+              svc = {:data => prov_req.dup, :service_id => credential['name'], :credentials => credential}
+
+              # FIXME: workaround for inconsistant representation of bind handle and provision handle
+              svc_local = {:configuration => prov_req.dup, :service_id => credential['name'], :credentials => credential}
+              @logger.debug("Provisioned: #{svc.inspect}")
+              @prov_svcs[svc[:service_id]] = svc_local
+              blk.call(success(svc))
+            else
+              blk.call(wrap_error(response))
+            end
           end
+        else
+          # No resources
+          @logger.warn("[#{service_description}] Could not find a node to provision")
+          blk.call(internal_fail)
         end
       else
-        # No resources
-        @logger.warn("[#{service_description}] Could not find a node to provision")
-        blk.call(internal_fail)
+        @logger.error("No available nodes supporting version #{version}")
+        blk.call(failure(ServiceError.new(ServiceError::UNSUPPORTED_VERSION, version)))
       end
     else
       @logger.error("Unknown plan(#{plan})")
@@ -541,7 +569,9 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @logger.debug("Provsion handle: #{prov_handle.inspect}. Binding_handles: #{binding_handles.inspect}")
     req = prov_handle["configuration"]
     request = VCAP::Services::Api::GatewayProvisionRequest.new
+    request.label = "SERVICENAME-#{req["version"]}" # TODO: TEMPORARY CHANGE UNTIL WE UPDATE vcap_common gem git ref
     request.plan = req["plan"]
+    # request.version = req["version"] # TODO: Uncomment me after updating vcap_common gem git ref
     provision_service(request, prov_handle) do |msg|
       if msg['success']
         updated_prov_handle = msg['response']

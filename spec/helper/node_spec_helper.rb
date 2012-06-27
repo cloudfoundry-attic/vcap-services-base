@@ -37,6 +37,7 @@ class NodeTests
     attr_accessor :varz_invoked
     attr_reader   :healthz_ok
     SERVICE_NAME = "Test"
+    SERVICE_VERSION = "1.0"
     ID = "node-1"
     def initialize(options)
       super(options)
@@ -62,6 +63,7 @@ class NodeTests
       @plan = options[:plan] || "free"
       @healthz_ok = VCAP::Component.healthz
       @migration_nfs = "/tmp"
+      @supported_versions = [SERVICE_VERSION]
     end
     def service_name
       SERVICE_NAME
@@ -79,7 +81,7 @@ class NodeTests
       @announcement_invoked = true
       Hash.new
     end
-    def provision(plan, credential)
+    def provision(plan, credential, version)
       sleep 5 # Provision takes 5 seconds to finish
       @mutex.synchronize { @provision_times += 1 }
       @provision_invoked = true
@@ -172,6 +174,7 @@ class NodeTests
     def send_provision_request
       req = ProvisionRequest.new
       req.plan = "free"
+      req.version = "1.0"
       @nats.request("#{NodeTester::SERVICE_NAME}.provision.#{NodeTester::ID}", req.encode) {
         @got_provision_response = true
       }
@@ -283,6 +286,7 @@ class NodeTests
       @provision_times = 0
       @migration_nfs = "/tmp"
       @mutex = Mutex.new
+      @supported_versions = ["1.0"]
     end
     def service_name
       SERVICE_NAME
@@ -294,7 +298,7 @@ class NodeTests
     def nats=(mock_nats)
       @node_nats = mock_nats
     end
-    def provision(plan, credential)
+    def provision(plan, credential, version)
       @provision_invoked = true
       raise ServiceError.new(ServiceError::SERVICE_UNAVAILABLE)
     end
@@ -375,6 +379,7 @@ class NodeTests
     def send_provision_request
       req = ProvisionRequest.new
       req.plan = "free"
+      req.version = "1.0"
       @nats.request("#{NodeTester::SERVICE_NAME}.provision.#{NodeTester::ID}", req.encode) do |msg|
         @got_provision_response = true
         @response = msg
