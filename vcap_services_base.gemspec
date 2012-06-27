@@ -29,4 +29,5 @@ Gem::Specification.new do |s|
   s.add_dependency "resque-status", "~> 0.3.2"
   s.add_dependency "curb", "~> 0.7.16"
   s.add_dependency "rubyzip", "~> 0.9.8"
+  s.add_dependency "warden-client", "~> 0.0.2"
 end
