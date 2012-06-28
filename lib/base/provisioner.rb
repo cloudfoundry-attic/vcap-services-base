@@ -329,10 +329,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @logger.debug("[#{service_description}] Attempting to provision instance (request=#{request.extract})")
     subscription = nil
     plan = request.plan || "free"
-
-    #TODO: Uncomment the below when we update the git ref pointer for vcap_common gem
-    name, version = VCAP::Services::Api::Util.parse_label(request.label) if request.label # TEMPORARY WAY OF GETTING VERSION
-    # version = request.version
+    version = request.version
 
     plan_nodes = @nodes.select{ |_, node| node["plan"] == plan}.values
 
@@ -569,9 +566,8 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @logger.debug("Provsion handle: #{prov_handle.inspect}. Binding_handles: #{binding_handles.inspect}")
     req = prov_handle["configuration"]
     request = VCAP::Services::Api::GatewayProvisionRequest.new
-    request.label = "SERVICENAME-#{req["version"]}" # TODO: TEMPORARY CHANGE UNTIL WE UPDATE vcap_common gem git ref
     request.plan = req["plan"]
-    # request.version = req["version"] # TODO: Uncomment me after updating vcap_common gem git ref
+    request.version = req["version"]
     provision_service(request, prov_handle) do |msg|
       if msg['success']
         updated_prov_handle = msg['response']

@@ -161,17 +161,12 @@ class VCAP::Services::AsynchronousServiceGateway < Sinatra::Base
   #
   post '/gateway/v1/configurations' do
     req = VCAP::Services::Api::GatewayProvisionRequest.decode(request_body)
-    @logger.debug("Provision request for label=#{req.label} plan=#{req.plan}")
+    @logger.debug("Provision request for label=#{req.label}, plan=#{req.plan}, version=#{req.version}")
 
     name, version = VCAP::Services::Api::Util.parse_label(req.label)
+    version = req.version
 
-    # TODO: use request version field after updating git reference in Gem file
-    # version = req.version
-
-    # TODO: Versions are just temporarily optional
-    unless (name == @service[:name]) &&
-            (version == @service[:version] ||
-             (@service[:supported_versions] != nil && @service[:supported_versions].include?(version)))
+    unless (name == @service[:name] && @service[:supported_versions].include?(version))
       error_msg = ServiceError.new(ServiceError::UNKNOWN_LABEL).to_hash
       abort_request(error_msg)
     end
