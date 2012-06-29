@@ -166,7 +166,7 @@ class VCAP::Services::AsynchronousServiceGateway < Sinatra::Base
     name, version = VCAP::Services::Api::Util.parse_label(req.label)
     version = req.version
 
-    unless (name == @service[:name] && @service[:supported_versions].include?(version))
+    unless (name == @service[:name])
       error_msg = ServiceError.new(ServiceError::UNKNOWN_LABEL).to_hash
       abort_request(error_msg)
     end
