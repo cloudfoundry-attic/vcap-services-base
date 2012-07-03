@@ -63,7 +63,8 @@ class VCAP::Services::Base::NodeBin
       :max_nats_payload => parse_property(config, "max_nats_payload", Integer, :optional => true),
       :fqdn_hosts => parse_property(config, "fqdn_hosts", Boolean, :optional => true, :default => false),
       :op_time_limit => parse_property(config, "op_time_limit", Integer, :optional => true, :default => 6),
-      :filesystem_quota => parse_property(config, "filesystem_quota", Boolean, :optional => true, :default => false)
+      :filesystem_quota => parse_property(config, "filesystem_quota", Boolean, :optional => true, :default => false),
+      :service_start_timeout => parse_property(config, "service_start_timeout", Integer, :optional => true, :default => 3),
     }
 
     VCAP::Logging.setup_from_config(config["logging"])
