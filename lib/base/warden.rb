@@ -75,13 +75,14 @@ module VCAP::Services::Base::Warden
   end
 
   def migration_check
+    # incase for bosh --recreate, which will delete log dir
+    FileUtils.mkdir_p(base_dir) unless base_dir?
+    FileUtils.mkdir_p(log_dir) unless log_dir?
+
     if image_file?
       unless loop_setup?
         # for case where VM rebooted
         logger.info("Service #{self[:name]} mounting data file")
-        # incase for bosh --recreate, which will delete log dir
-        FileUtils.mkdir_p(base_dir) unless base_dir?
-        FileUtils.mkdir_p(log_dir) unless log_dir?
         loop_setup
       end
     else
