@@ -68,7 +68,7 @@ module VCAP::Services::Base::AsyncJob
 
       def create_lock
         lock_name = "lock:lifecycle:#{name}"
-        ttl = @config[:job_ttl] || 600
+        ttl = @config["job_ttl"] || 600
         lock = Lock.new(lock_name, :logger => @logger, :ttl => ttl)
         lock
       end
@@ -127,7 +127,7 @@ module VCAP::Services::Base::AsyncJob
       # validate a package file, subclass should not override this method since packaging is transparent.
       # To implement customized validation, see +validate_input+
       def validate_package package_file
-        temp_dir = Dir.mktmpdir(@config[:tmp_dir])
+        temp_dir = Dir.mktmpdir(@config["tmp_dir"])
 
         package = Package.load(package_file)
         manifest = package.manifest
