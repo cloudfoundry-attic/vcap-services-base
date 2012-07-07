@@ -116,7 +116,6 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   def pre_send_announcement
     addition_opts = @opts[:additional_options]
     if addition_opts
-      @upload_temp_dir = addition_opts[:upload_temp_dir]
       if addition_opts[:resque]
         # Initial AsyncJob module
         job_repo_setup()
@@ -941,23 +940,6 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     wrap_error(e, &blk)
   end
 
-  def import_from_data(service_id, req, &blk)
-    @logger.debug("import serialized data from request for service_id=#{service_id}")
-    temp_path = File.join(@upload_temp_dir, "#{service_id}.gz")
-    # clean up previous upload
-    FileUtils.rm_rf(temp_path)
-
-    File.open(temp_path, "wb+") do |f|
-      f.write(Base64.decode64(req.data))
-      f.fsync
-    end
-    job_id = import_from_data_job.create(:service_id => service_id, :temp_file_path => temp_path, :node_id => find_node(service_id))
-    job = get_job(job_id)
-    blk.call(success(job))
-  rescue => e
-    handle_error(e, &blk)
-  end
-
   # convert symbol key to string key
   def hash_sym_key_to_str(hash)
     new_hash = {}
@@ -1095,12 +1077,11 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   #
 
   # various lifecycle jobs class
-  abstract :create_snapshot_job, :rollback_snapshot_job, :delete_snapshot_job, :create_serialized_url_job, :import_from_url_job, :import_from_data_job
-
+  abstract :create_snapshot_job, :rollback_snapshot_job, :delete_snapshot_job, :create_serialized_url_job, :import_from_url_job
   # register before filter
   before [:create_snapshot, :get_snapshot, :enumerate_snapshots, :delete_snapshot, :rollback_snapshot],  :before_snapshot_apis
 
-  before [:create_serialized_url, :get_serialized_url, :import_from_url, :import_from_data], :before_serialization_apis
+  before [:create_serialized_url, :get_serialized_url, :import_from_url], :before_serialization_apis
 
   before :job_details, :before_job_apis
 
