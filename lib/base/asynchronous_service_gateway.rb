@@ -345,21 +345,6 @@ class VCAP::Services::AsynchronousServiceGateway < Sinatra::Base
     async_mode
   end
 
-  # Import serialized data from request
-  put "/gateway/v1/configurations/:service_id/serialized/data" do
-    req = VCAP::Services::Api::SerializedData.decode(request_body)
-    service_id = params["service_id"]
-    @logger.info("Import data from request for service_id=#{service_id}")
-    @provisioner.import_from_data(service_id, req) do |msg|
-      if msg['success']
-        async_reply(VCAP::Services::Api::Job.new(msg['response']).encode)
-      else
-        async_reply_error(msg['response'])
-      end
-    end
-    async_mode
-  end
-
   # Get Job details
   get "/gateway/v1/configurations/:service_id/jobs/:job_id" do
     service_id = params["service_id"]
