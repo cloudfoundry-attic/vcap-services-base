@@ -53,7 +53,7 @@ module VCAP::Services::Base::Utils
     @instance_parallel_start_count = 5 if @instance_parallel_start_count.nil?
     start = 0
     while start < all_instances.size
-      instances = all_instance.slice(start, [@instance_parallel_start_count, all_instances.size - start].min)
+      instances = all_instances.slice(start, [@instance_parallel_start_count, all_instances.size - start].min)
       start = start + @instance_parallel_start_count
       for instance in instances
         @capacity -= capacity_unit
