@@ -854,6 +854,18 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     handle_error(e, &blk)
   end
 
+  # Update the name of a snapshot
+  def update_snapshot_name(service_id, snapshot_id, name, &blk)
+    @logger.debug("Update name of snapshot=#{snapshot_id} for service_id=#{service_id} to '#{name}'")
+    svc = @prov_svcs[service_id]
+    raise ServiceError.new(ServiceError::NOT_FOUND, service_id) unless svc
+
+    update_name(service_id, snapshot_id, name)
+    blk.call(success())
+  rescue => e
+    handle_error(e, &blk)
+  end
+
   # Get all snapshots related to an instance
   #
   def enumerate_snapshots(service_id, &blk)
@@ -1073,7 +1085,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   # various lifecycle jobs class
   abstract :create_snapshot_job, :rollback_snapshot_job, :delete_snapshot_job, :create_serialized_url_job, :import_from_url_job
   # register before filter
-  before [:create_snapshot, :get_snapshot, :enumerate_snapshots, :delete_snapshot, :rollback_snapshot],  :before_snapshot_apis
+  before [:create_snapshot, :get_snapshot, :enumerate_snapshots, :delete_snapshot, :rollback_snapshot, :update_snapshot_name],  :before_snapshot_apis
 
   before [:create_serialized_url, :get_serialized_url, :import_from_url], :before_serialization_apis
 

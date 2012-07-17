@@ -269,6 +269,22 @@ class VCAP::Services::AsynchronousServiceGateway < Sinatra::Base
     async_mode
   end
 
+  # Update snapshot name
+  post "/gateway/v1/configurations/:service_id/snapshots/:snapshot_id/name" do
+    req = VCAP::Services::Api::UpdateSnapshotNameRequest.decode(request_body)
+    service_id = params["service_id"]
+    snapshot_id = params["snapshot_id"]
+    @logger.info("Update name of snapshot=#{snapshot_id} for service_id=#{service_id} to '#{req.name}'")
+    @provisioner.update_snapshot_name(service_id, snapshot_id, req.name) do |msg|
+      if msg['success']
+        async_reply
+      else
+        async_reply_error(msg['response'])
+      end
+    end
+    async_mode
+  end
+
   # Enumreate snapshot
   get "/gateway/v1/configurations/:service_id/snapshots" do
     service_id = params["service_id"]
