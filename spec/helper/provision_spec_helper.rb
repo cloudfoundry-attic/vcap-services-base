@@ -104,6 +104,7 @@ class ProvisionerTests
       req = VCAP::Services::Api::GatewayProvisionRequest.new
       req.label = "#{ProvisionerTests::SERVICE_LABEL}"
       req.plan = "free"
+      req.version = "1.0"
       @provisioner.provision_service(req, nil) do |res|
         @instance_id = res['response'][:service_id]
         @got_provision_response = res['success']
@@ -203,6 +204,7 @@ class ProvisionerTests
       req = VCAP::Services::Api::GatewayProvisionRequest.new
       req.label = "#{ProvisionerTests::SERVICE_LABEL}"
       req.plan = plan
+      req.version = "1.0"
       @provisioner.provision_service(req, nil) do |res|
         @provision_response = res['success']
         @error_msg = res['response']
