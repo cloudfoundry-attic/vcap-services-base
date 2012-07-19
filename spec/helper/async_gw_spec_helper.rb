@@ -60,7 +60,9 @@ class AsyncGatewayTests
                       :version => '1.0',
                       :description => 'sample desc',
                       :plans => ['free'],
-                      :tags => ['nosql']
+                      :tags => ['nosql'],
+                      :supported_versions => ["1.0"],
+                      :version_alias => {}
                     },
         :token   => @token,
         :provisioner => @sp,
@@ -111,7 +113,8 @@ class AsyncGatewayTests
         :label => @label,
         :name  => 'service',
         :email => "foobar@abc.com",
-        :plan  => "free"
+        :plan  => "free",
+        :version => "1.0"
       ).encode
       http = EM::HttpRequest.new("http://localhost:#{GW_PORT}/gateway/v1/configurations").post(gen_req(msg))
       http.callback {
