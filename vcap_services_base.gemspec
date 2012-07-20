@@ -6,11 +6,12 @@ Gem::Specification.new do |s|
   s.version      = VCAP::Services::Base::VERSION
   s.platform     = Gem::Platform::RUBY
   s.summary      = "VCAP services base module"
-  s.description  = s.summary
+  s.description  = "Base class/module to develop CloudFoundry service"
+  s.homepage     = "https://github.com/cloudfoundry/vcap-services-base"
   s.files        = Dir.glob("lib/**/*")
   s.require_path = [ "lib" ]
   s.author       = "CloudFoundry Services Team"
-  s.email        = "cf-services-eng-cn@vmware.com"
+  s.email        = "cf-services@rbcon.com"
 
   s.add_dependency "nats", "~> 0.4.22.beta.8"
   s.add_dependency "datamapper", "~> 1.1.0"
@@ -20,7 +21,7 @@ Gem::Specification.new do |s|
   s.add_dependency "json", "~> 1.4.6"
   s.add_dependency "uuidtools", "~> 2.1.2"
   s.add_dependency "ruby-hmac", "~> 0.4.0"
-  s.add_dependency "em-http-request", "~> 0.3.0"
+  s.add_dependency "em-http-request", "~> 1.0.0.beta.3"
   s.add_dependency "sinatra", "~> 1.2.3"
   s.add_dependency "thin", "~> 1.3.1"
   s.add_dependency "vcap_common", ">= 1.0.8"
