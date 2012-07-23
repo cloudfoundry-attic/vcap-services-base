@@ -4,8 +4,25 @@ class BaseTests
 
   module Options
 
+    def self.nats_uri
+      uri = "nats://localhost:4222"
+      if ENV["CLOUD_FOUNDRY_CONFIG_PATH"]
+        config = YAML.load_file(File.join(ENV["CLOUD_FOUNDRY_CONFIG_PATH"],
+                                          "nats_server/nats_server.yml"))
+        if config['net']
+          if (auth = config['authorization']) && auth['user']
+            uri = "nats://#{auth['user']}:#{auth['password']}@"\
+                  "#{config['net']}:#{config['port']}"
+          else
+            uri = "nats://#{config['net']}:#{config['port']}"
+          end
+        end
+      end
+      uri
+    end
+
     LOGGER = Logger.new(STDOUT)
-    NATS_URI = "nats://localhost:4222"
+    NATS_URI = nats_uri
     IP_ROUTE = "127.0.0.1"
     NODE_TIMEOUT = 5
     PLAN = "free"
