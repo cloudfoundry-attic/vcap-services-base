@@ -43,15 +43,26 @@ namespace "bundler" do
 end
 
 namespace "test" do
+  def run_spec
+    Dir.chdir("spec")
+    if `ps a | grep nats-server | grep -v grep` == ""
+      sh "nats-server &"
+      yield
+      sh "pkill -f nats-server"
+    else
+      yield
+    end
+  end
+
   task "spec" do |t|
-    sh("cd spec && ../bin/nats-util start && rake spec && ../bin/nats-util stop")
+    run_spec { sh "rake spec" }
   end
 
   task "spec:rcov" do |t|
-    sh("cd spec && ../bin/nats-util start && rake simcov && ../bin/nats-util stop")
+    run_spec { sh "rake simcov" }
   end
 
   task "spec:ci" do |t|
-    sh("cd spec && ../bin/nats-util start && rake spec:ci && ../bin/nats-util stop")
+    run_spec { sh "rake spec:ci" }
   end
 end
