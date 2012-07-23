@@ -1,5 +1,6 @@
 # Copyright (c) 2009-2011 VMware, Inc.
 require "warden/client"
+require "warden/protocol"
 require "utils"
 
 module VCAP::Services::Base::Warden
@@ -109,8 +110,15 @@ module VCAP::Services::Base::Warden
   end
 
   def run
-    self[:container], self[:ip] = container_start(service_script, [[base_dir, "/store/instance", {"mode" => "rw"}],
-                                                                   [log_dir, "/store/log", {"mode" => "rw"}]])
+    data_bind = Warden::Protocol::CreateRequest::BindMount.new
+    data_bind.src_path = base_dir
+    data_bind.dst_path = "/store/instance"
+    data_bind.mode = Warden::Protocol::CreateRequest::BindMount::Mode::RW
+    log_bind = Warden::Protocol::CreateRequest::BindMount.new
+    log_bind.src_path = log_dir
+    log_bind.dst_path = "/store/log"
+    log_bind.mode = Warden::Protocol::CreateRequest::BindMount::Mode::RW
+    self[:container], self[:ip] = container_start(service_script, [data_bind, log_bind])
     save!
     map_port(self[:port], self[:ip], service_port)
     true
@@ -131,28 +139,38 @@ module VCAP::Services::Base::Warden
   # warden container operation helper
   def container_start(cmd, bind_mounts=[])
     warden = self.class.warden_connect
+    req = Warden::Protocol::CreateRequest.new
     unless bind_mounts.empty?
-      req = ["create", {"bind_mounts" => bind_mounts}]
-    else
-      req = ["create"]
+      req.bind_mounts = bind_mounts;
     end
-    handle = warden.call(req)
-    req = ["info", handle]
-    info = warden.call(req)
-    ip = info["container_ip"]
-    req = ["spawn", handle, cmd]
-    warden.call(req)
+    rsp = warden.call(req)
+    handle = rsp.handle
+    req = Warden::Protocol::InfoRequest.new
+    req.handle = handle
+    rsp = warden.call(req)
+    ip = rsp.container_ip
+    req = Warden::Protocol::SpawnRequest.new
+    req.handle = handle
+    req.script = cmd
+    rsp = warden.call(req)
     warden.disconnect
     sleep 1
     [handle, ip]
   end
 
-  def container_stop(handle)
+  def container_stop(handle, force=true)
     warden = self.class.warden_connect
-    req = ["stop", handle]
+    req = Warden::Protocol::StopRequest.new
+    req.handle = handle
+    unless force
+      req.background = true
+    end
     warden.call(req)
-    req = ["destroy", handle]
-    warden.call(req)
+    if force
+      req = Warden::Protocol::DestroyRequest.new
+      req.handle = handle
+      warden.call(req)
+    end
     warden.disconnect
     true
   end
@@ -164,7 +182,8 @@ module VCAP::Services::Base::Warden
 
     begin
       warden = self.class.warden_connect
-      req = ["info", handle]
+      req = Warden::Protocol::InfoRequest.new
+      req.handle = handle
       warden.call(req)
       return true
     rescue => e
