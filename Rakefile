@@ -44,14 +44,26 @@ end
 
 namespace "test" do
   task "spec" do |t|
-    sh("cd spec && ../bin/nats-util start && rake spec && ../bin/nats-util stop")
+    sh("if which nats-server > /dev/null; then
+          cd spec && (nats-server &) && rake spec && pkill -f nats-server
+        else
+          cd spec && ../bin/nats-util start && rake spec && ../bin/nats-util stop
+        fi")
   end
 
   task "spec:rcov" do |t|
-    sh("cd spec && ../bin/nats-util start && rake simcov && ../bin/nats-util stop")
+    sh("if which nats-server > /dev/null; then
+          cd spec && (nats-server &) && rake simcov && pkill -f nats-server
+        else
+          cd spec && ../bin/nats-util start && rake simcov && ../bin/nats-util stop
+        fi")
   end
 
   task "spec:ci" do |t|
-    sh("cd spec && ../bin/nats-util start && rake spec:ci && ../bin/nats-util stop")
+    sh("if which nats-server > /dev/null; then
+          cd spec && (nats-server &) && rake spec:ci && pkill -f nats-server
+        else
+          cd spec && ../bin/nats-util start && rake spec:ci && ../bin/nats-util stop
+        fi")
   end
 end
