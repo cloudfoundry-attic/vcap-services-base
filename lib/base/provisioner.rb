@@ -125,6 +125,29 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     end
   end
 
+  # udpate version information of existing instances
+  def update_version_info(current_version)
+    @logger.debug("[#{service_description}] Update version of existing instances to '#{current_version}'")
+    @prov_svcs.each do |service_id, handle|
+      next unless service_id == handle[:credentials]["name"]
+      next if handle[:configuration].has_key? "version"
+
+      updated_prov_handle = {}
+      # update_handle_callback need string as key
+      handle.each {|k, v| updated_prov_handle[k.to_s] = v.deep_dup}
+
+      updated_prov_handle["configuration"]["version"] = current_version
+      @logger.debug("[#{service_description}] trying to update handle: #{updated_prov_handle}")
+      @update_handle_callback.call(updated_prov_handle) do |res|
+        if res
+          @logger.info("Successful update version of handle:#{updated_prov_handle}")
+        else
+          @logger.error("Failed to update version of handle:#{handle}")
+        end
+      end
+    end
+  end
+
   def on_connect_node
     @logger.debug("[#{service_description}] Connected to node mbus..")
     %w[announce node_handles handles update_service_handle].each do |op|
