@@ -105,7 +105,6 @@ class VCAP::Services::Base::Gateway
              :plan_management => @config[:plan_management],
              :service => @config[:service],
              :download_url_template => @config[:download_url_template],
-             :version_aliases => @config[:version_aliases]
            )
       sg = async_gateway_class.new(
              :proxy   => @config[:proxy],
@@ -118,8 +117,6 @@ class VCAP::Services::Base::Gateway
              :check_orphan_interval => @config[:check_orphan_interval],
              :double_check_orphan_interval => @config[:double_check_orphan_interval],
              :api_extensions => @config[:api_extensions],
-             :supported_versions => @config[:supported_versions],
-             :version_aliases => @config[:version_aliases]
            )
       Thin::Server.start(@config[:host], @config[:port], sg)
     end
