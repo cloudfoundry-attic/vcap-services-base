@@ -50,6 +50,17 @@ module VCAP::Services::Base::Utils
   end
 
   def start_instances(all_instances)
+    # check the existence of warden socket before the start of provision
+    return unless all_instances
+    begin
+      warden = ProvisionedService.warden_connect
+      warden.disconnect
+    rescue
+      @logger.warn("The service node is waiting for the preparation of warden socket")
+      sleep 0.5
+      retry
+    end
+
     @instance_parallel_start_count = 5 if @instance_parallel_start_count.nil?
     start = 0
     while start < all_instances.size
