@@ -125,6 +125,50 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     end
   end
 
+  # udpate version information of existing instances
+  def update_version_info(current_version)
+    @logger.debug("[#{service_description}] Update version of existing instances to '#{current_version}'")
+
+    updated_prov_handles = []
+    @prov_svcs.each do |service_id, handle|
+      next unless service_id == handle[:credentials]["name"]
+      next if handle[:configuration].has_key? "version"
+
+      updated_prov_handle = {}
+      # update_handle_callback need string as key
+      handle.each {|k, v| updated_prov_handle[k.to_s] = v.deep_dup}
+      updated_prov_handle["configuration"]["version"] = current_version
+
+      updated_prov_handles << updated_prov_handle
+    end
+
+    f = Fiber.new do
+      failed, successful = 0, 0
+      updated_prov_handles.each do |handle|
+        @logger.debug("[#{service_description}] trying to update handle: #{handle}")
+        # NOTE: serialized update_handle in case CC/router overload
+        res = fiber_update_handle(handle)
+        if res
+          @logger.info("Successful update version of handle:#{handle}")
+          successful += 1
+        else
+          @logger.error("Failed to update version of handle:#{handle}")
+          failed += 1
+        end
+      end
+      @logger.info("Result of update handle version: #{successful} successful, #{failed} failed.")
+    end
+    f.resume
+  end
+
+  def fiber_update_handle(updated_handle)
+    f = Fiber.current
+
+    @update_handle_callback.call(updated_handle) {|res| f.resume(res)}
+
+    Fiber.yield
+  end
+
   def on_connect_node
     @logger.debug("[#{service_description}] Connected to node mbus..")
     %w[announce node_handles handles update_service_handle].each do |op|
