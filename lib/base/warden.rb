@@ -9,9 +9,13 @@ module VCAP::Services::Base::Warden
 
   module ClassMethods
     def warden_connect
-      warden_client = Warden::Client.new("/tmp/warden.sock")
-      warden_client.connect
-      warden_client
+      begin
+        warden_client = Warden::Client.new("/tmp/warden.sock")
+        warden_client.connect
+        warden_client
+      rescue => e
+        nil
+      end
     end
 
     attr_reader :base_dir, :log_dir, :image_dir, :max_db_size, :logger, :quota
@@ -111,6 +115,7 @@ module VCAP::Services::Base::Warden
   def run
     self[:container], self[:ip] = container_start(service_script, [[base_dir, "/store/instance", {"mode" => "rw"}],
                                                                    [log_dir, "/store/log", {"mode" => "rw"}]])
+    return false unless self[:container] && self[:ip]
     save!
     map_port(self[:port], self[:ip], service_port)
     true
@@ -131,6 +136,7 @@ module VCAP::Services::Base::Warden
   # warden container operation helper
   def container_start(cmd, bind_mounts=[])
     warden = self.class.warden_connect
+    return nil unless warden
     unless bind_mounts.empty?
       req = ["create", {"bind_mounts" => bind_mounts}]
     else
@@ -149,6 +155,7 @@ module VCAP::Services::Base::Warden
 
   def container_stop(handle)
     warden = self.class.warden_connect
+    return false unless warden
     req = ["stop", handle]
     warden.call(req)
     req = ["destroy", handle]
