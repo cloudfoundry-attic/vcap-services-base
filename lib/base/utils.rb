@@ -52,6 +52,8 @@ module VCAP::Services::Base::Utils
   def start_instances(all_instances)
     @instance_parallel_start_count = 5 if @instance_parallel_start_count.nil?
     start = 0
+    check_set = Set.new
+    check_lock = Mutex.new
     while start < all_instances.size
       instances = all_instances.slice(start, [@instance_parallel_start_count, all_instances.size - start].min)
       start = start + @instance_parallel_start_count
@@ -70,20 +72,31 @@ module VCAP::Services::Base::Utils
         end
 
         instance.migration_check()
-
-        begin
-          instance.run
-        rescue => e
-          @logger.error("Error starting instance #{instance.name}: #{e}")
+        check_set << instance.name
+      end
+      threads = (1..instances.size).collect do |i|
+        Thread.new(instances[i - 1]) do |t_instance|
+          next unless check_set.include?(t_instance.name)
+          begin
+            t_instance.run
+          rescue => e
+            check_lock.synchronize {check_set.delete(t_instance.name)}
+            @logger.error("Error starting instance #{t_instance.name}: #{e}")
+          end
+          @service_start_timeout.times do
+            sleep 1
+            if is_service_started(t_instance)
+              check_lock.synchronize {check_set.delete(t_instance.name)}
+              @logger.info("Successfully start provisioned instance #{t_instance.name}")
+              break
+            end
+          end
         end
       end
-      for instance in instances
-        unless wait_service_start(instance)
-          @logger.error("Failed to finish starting #{instance.name}: #{e}")
-          instance.stop
-        end
-        @logger.info("Successfully start provisioned instance #{instance.name}")
-      end
+      threads.each {|t| t.join}
+    end
+    check_set.each do |name|
+      @logger.error("Timeout to wait for starting provisioned instance #{name}")
     end
   end
 
