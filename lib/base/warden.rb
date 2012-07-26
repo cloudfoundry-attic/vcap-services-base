@@ -4,6 +4,9 @@ require "warden/protocol"
 require "utils"
 
 module VCAP::Services::Base::Warden
+
+  @@iptables_lock = Mutex.new
+
   def self.included(base)
     base.extend(ClassMethods)
   end
@@ -224,13 +227,11 @@ module VCAP::Services::Base::Warden
     # Errors which appear to be caused by invalid or abused command line parameters cause an exit code of 2,
     # and other errors cause an exit code of 1.
     #
-    # we add a retry here, since iptables may return resource unavailable temporary error for mulitple
-    # iptables command issued at very close time.
-    5.times do
+    # We add a thread lock here, since iptables may return resource unavailable temporary in multi-threads
+    # iptables command issued.
+    @@iptables_lock.synchronize do
       ret = self.class.sh(cmd, :raise => false)
       logger.warn("cmd \"#{cmd}\" invalid") if ret == 2
-      break unless ret == 1
-      sleep 0.2
     end
   end
 
