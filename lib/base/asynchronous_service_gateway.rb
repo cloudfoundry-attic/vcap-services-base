@@ -57,7 +57,7 @@ class VCAP::Services::AsynchronousServiceGateway < Sinatra::Base
     @double_check_orphan_interval = opts[:double_check_orphan_interval] || 300
     @handle_fetched = false
     @fetching_handles = false
-    @version_aliases = opts[:version_aliases]
+    @version_aliases = @service[:version_aliases] || {}
     @svc_json     = {
       :label  => @service[:label],
       :url    => @service[:url],

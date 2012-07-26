@@ -32,7 +32,6 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @instance_handles_CO = {}
     @binding_handles_CO = {}
     @plan_mgmt = options[:plan_management] && options[:plan_management][:plans] || {}
-    @version_aliases = options[:version_aliases]
 
     init_service_extensions
 
