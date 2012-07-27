@@ -421,12 +421,9 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
               # credentials is not necessary in cache
               prov_req.credentials = nil
               credential = response.credentials
-              svc = {:data => prov_req.dup, :service_id => credential['name'], :credentials => credential}
-
-              # FIXME: workaround for inconsistant representation of bind handle and provision handle
-              svc_local = {:configuration => prov_req.dup, :service_id => credential['name'], :credentials => credential}
+              svc = {:configuration => prov_req.dup, :service_id => credential['name'], :credentials => credential}
               @logger.debug("Provisioned: #{svc.inspect}")
-              @prov_svcs[svc[:service_id]] = svc_local
+              @prov_svcs[svc[:service_id]] = svc
               blk.call(success(svc))
             else
               blk.call(wrap_error(response))
@@ -615,9 +612,6 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     provision_service(request, prov_handle) do |msg|
       if msg['success']
         updated_prov_handle = msg['response']
-        # transfrom handle format
-        updated_prov_handle[:configuration] = updated_prov_handle[:data]
-        updated_prov_handle.delete(:data)
         updated_prov_handle = hash_sym_key_to_str(updated_prov_handle)
         @logger.info("Recover: Success re-provision instance. Updated handle:#{updated_prov_handle}")
         @update_handle_callback.call(updated_prov_handle) do |update_res|

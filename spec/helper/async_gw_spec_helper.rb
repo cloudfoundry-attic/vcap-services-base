@@ -120,7 +120,7 @@ class AsyncGatewayTests
       http.callback {
         @provision_http_code = http.response_header.status
         if @provision_http_code == 200
-          res = VCAP::Services::Api::GatewayProvisionResponse.decode(http.response)
+          res = VCAP::Services::Api::GatewayHandleResponse.decode(http.response)
           @last_service_id = res.service_id
         end
       }
@@ -152,7 +152,7 @@ class AsyncGatewayTests
       http.callback {
         @bind_http_code = http.response_header.status
         if @bind_http_code == 200
-          res = VCAP::Services::Api::GatewayBindResponse.decode(http.response)
+          res = VCAP::Services::Api::GatewayHandleResponse.decode(http.response)
           @last_bind_id = res.service_id
         end
       }
@@ -333,7 +333,7 @@ class AsyncGatewayTests
   class NiceProvisioner < MockProvisioner
     def provision_service(request, prov_handle=nil, &blk)
       @got_provision_request = true
-      blk.call(success({:data => {}, :service_id => SERV_ID, :credentials => {}}))
+      blk.call(success({:configuration => {}, :service_id => SERV_ID, :credentials => {}}))
     end
 
     def unprovision_service(instance_id, &blk)
@@ -449,7 +449,7 @@ class AsyncGatewayTests
       EM.add_timer(@timeout) do
         blk.call(
           success({
-            :data => {},
+            :configuration => {},
             :service_id => SERV_ID,
             :credentials => {}
             }
