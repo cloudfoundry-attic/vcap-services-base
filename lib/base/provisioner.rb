@@ -377,12 +377,9 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
               # credentials is not necessary in cache
               prov_req.credentials = nil
               credential = response.credentials
-              svc = {:data => prov_req.dup, :service_id => credential['name'], :credentials => credential}
-
-              # FIXME: workaround for inconsistant representation of bind handle and provision handle
-              svc_local = {:configuration => prov_req.dup, :service_id => credential['name'], :credentials => credential}
+              svc = {:configuration => prov_req.dup, :service_id => credential['name'], :credentials => credential}
               @logger.debug("Provisioned: #{svc.inspect}")
-              @prov_svcs[svc[:service_id]] = svc_local
+              @prov_svcs[svc[:service_id]] = svc
               blk.call(success(svc))
             else
               blk.call(wrap_error(response))
