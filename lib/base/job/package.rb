@@ -21,10 +21,11 @@ module VCAP::Services::Base::AsyncJob
       end
     end
 
-    def initialize(zipfile)
+    def initialize(zipfile, opts={})
       @zipfile = zipfile
       @files = {}
       @manifest = {}
+      @filemode = opts[:mode] || 0644
     end
 
     def add_files(files)
@@ -65,6 +66,12 @@ module VCAP::Services::Base::AsyncJob
         @files.each do |f, path|
           zf.add("#{CONTENT_FOLDER}/#{f}", path)
         end
+      end
+
+      begin
+        File.chmod(@filemode, @zipfile)
+      rescue => e
+        raise "Fail to change the mode of #{@zipfile} to #{@filemode.to_s(8)}: #{e}"
       end
     end
 

@@ -95,4 +95,25 @@ describe VCAP::Services::Base::AsyncJob::Package do
       FileUtils.rm_rf temp_dir if temp_dir
     end
   end
+
+  it "should create package file with proper permission mode" do
+    temp_file = Tempfile.new("all.zip")
+    package = VCAP::Services::Base::AsyncJob::Package.new(temp_file.path)
+    package.add_files([
+      assets_path("test.sql"),
+    ])
+    package.pack force=true
+
+    # default file mode is 0644
+    File.stat(temp_file).mode.should == 0100644
+
+    mode = 0600
+    package = VCAP::Services::Base::AsyncJob::Package.new(temp_file.path, :mode => mode)
+    package.add_files([
+      assets_path("test.sql"),
+    ])
+    package.pack force=true
+
+    File.stat(temp_file).mode.should == 0100000 + mode
+  end
 end
