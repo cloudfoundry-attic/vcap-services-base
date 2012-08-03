@@ -128,12 +128,23 @@ module VCAP::Services::Base::Warden
     container_running?(self[:container])
   end
 
-  def stop
+  def pre_stop
     unmap_port(self[:port], self[:ip], service_port)
-    container_stop(self[:container])
+    container_stop(self[:container], false)
+    true
+  end
+
+  def post_stop
+    container_destroy(self[:container])
     self[:container] = ''
     save
     true
+  end
+
+  def stop
+    unmap_port(self[:port], self[:ip], service_port)
+    container_stop(self[:container])
+    post_stop
   end
 
   # warden container operation helper
@@ -162,15 +173,17 @@ module VCAP::Services::Base::Warden
     warden = self.class.warden_connect
     req = Warden::Protocol::StopRequest.new
     req.handle = handle
-    unless force
-      req.background = true
-    end
+    req.background = !force
     warden.call(req)
-    if force
-      req = Warden::Protocol::DestroyRequest.new
-      req.handle = handle
-      warden.call(req)
-    end
+    warden.disconnect
+    true
+  end
+
+  def container_destroy(handle)
+    warden = self.class.warden_connect
+    req = Warden::Protocol::DestroyRequest.new
+    req.handle = handle
+    warden.call(req)
     warden.disconnect
     true
   end
