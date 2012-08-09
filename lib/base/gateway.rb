@@ -87,6 +87,7 @@ class VCAP::Services::Base::Gateway
     @config[:port] ||= VCAP.grab_ephemeral_port
     @config[:service][:label] = "#{@config[:service][:name]}-#{@config[:service][:version]}"
     @config[:service][:url]   = "http://#{@config[:host]}:#{@config[:port]}"
+    @config[:service][:version_aliases] ||= {}
     node_timeout = @config[:node_timeout] || 5
     cloud_controller_uri = @config[:cloud_controller_uri] || "api.vcap.me"
 
