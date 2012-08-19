@@ -770,7 +770,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     raise ServiceError.new(ServiceError::NOT_FOUND, service_id) unless svc
 
     plan = find_service_plan(svc)
-    extensions_enabled?(plan, :snapshot)
+    extensions_enabled?(plan, :snapshot, &blk)
   rescue => e
     handle_error(e, &blk)
     nil # terminate evoke chain
@@ -792,7 +792,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     raise ServiceError.new(ServiceError::NOT_FOUND, service_id) unless svc
 
     plan = find_service_plan(svc)
-    extensions_enabled?(plan, :serialization)
+    extensions_enabled?(plan, :serialization, &blk)
   rescue => e
     handle_error(e, &blk)
     nil # terminate evoke chain
@@ -805,15 +805,20 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     raise ServiceError.new(ServiceError::NOT_FOUND, service_id) unless svc
 
     plan = find_service_plan(svc)
-    extensions_enabled?(plan, :job)
+    extensions_enabled?(plan, :job, &blk)
   rescue => e
     handle_error(e, &blk)
     nil # terminate evoke chain
   end
 
-  def extensions_enabled?(plan, extension)
-    raise ServiceError.new(ServiceError::EXTENSION_NOT_IMPL, extension) unless (@extensions[plan.to_sym] && @extensions[plan.to_sym][extension.to_sym])
-    true
+  def extensions_enabled?(plan, extension, &blk)
+    unless (@extensions[plan.to_sym] && @extensions[plan.to_sym][extension.to_sym])
+      @logger.warn("Extension #{extension} is not enabled for plan #{plan}")
+      blk.call(failure(ServiceError.new(ServiceError::EXTENSION_NOT_IMPL, extension)))
+      nil
+    else
+      true
+    end
   end
 
   # Create a create_snapshot job and return the job object.
