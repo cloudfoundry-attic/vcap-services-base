@@ -102,16 +102,20 @@ class VCAP::Services::AsynchronousServiceGateway < Sinatra::Base
 
     # Add any necessary handles we don't know about
     update_callback = Proc.new do |resp|
-      @provisioner.update_handles(resp.handles)
-      @handle_fetched = true
-      EM.cancel_timer(@fetch_handle_timer)
+      begin
+        @provisioner.update_handles(resp.handles)
+        @handle_fetched = true
+        EM.cancel_timer(@fetch_handle_timer)
 
-      # TODO remove it when we finish the migration
-      current_version = @version_aliases && @version_aliases[:current]
-      if current_version
-        @provisioner.update_version_info(current_version)
-      else
-        @logger.info("No current version alias is supplied, skip update version in CCDB.")
+        # TODO remove it when we finish the migration
+        current_version = @version_aliases && @version_aliases[:current]
+        if current_version
+          @provisioner.update_version_info(current_version)
+        else
+          @logger.info("No current version alias is supplied, skip update version in CCDB.")
+        end
+      rescue => e
+        @logger.error("Unexpected error during update handles: #{e}")
       end
     end
     @fetch_handle_timer = EM.add_periodic_timer(@handle_fetch_interval) { fetch_handles(&update_callback) }

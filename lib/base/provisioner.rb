@@ -87,6 +87,11 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   def update_handles(handles)
     @logger.info("[#{service_description}] Updating #{handles.size} handles")
     handles.each do |handle|
+      unless verify_handle_format(handle)
+        @logger.warn("Skip not well-formed handle:#{handle}.")
+        next
+      end
+
       h = handle.deep_dup
       @prov_svcs[h['service_id']] = {
         :configuration => h['configuration'],
@@ -95,6 +100,17 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
       }
     end
     @logger.info("[#{service_description}] Handles updated")
+  end
+
+  def verify_handle_format(handle)
+    return nil unless handle
+    return nil unless handle.is_a? Hash
+
+    VCAP::Services::Api::ServiceHandle.new(handle)
+    true
+  rescue => e
+    @logger.error("Verify handle #{handle} failed:#{e}")
+    return nil
   end
 
   def find_all_bindings(name)

@@ -61,4 +61,10 @@ module VCAP::Services::Internal
     # A list of orphan bindings credentials
     required :orphan_binding_list
   end
+
+  class ServiceHandle < ServiceMessage
+    required :service_id,     String
+    required :configuration,  Hash
+    required :credentials,    Hash
+  end
 end
