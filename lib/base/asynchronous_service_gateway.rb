@@ -58,7 +58,7 @@ class VCAP::Services::AsynchronousServiceGateway < Sinatra::Base
     @handle_fetched = false
     @fetching_handles = false
     @version_aliases = @service[:version_aliases] || {}
-    @svc_json     = {
+    @svc_json     = VCAP::Services::Api::ServiceOfferingRequest.new({
       :label  => @service[:label],
       :url    => @service[:url],
       :plans  => @service[:plans],
@@ -69,17 +69,19 @@ class VCAP::Services::AsynchronousServiceGateway < Sinatra::Base
       :plan_options => @service[:plan_options],
       :acls => @service[:acls],
       :timeout => @service[:timeout],
-      :provider => @service[:provider],
+      :provider => @service[:provider] || 'core',
       :default_plan => @service[:default_plan],
       :supported_versions => @service[:supported_versions],
-      :version_aliases => @service[:version_aliases]
-    }.to_json
+      :version_aliases => @service[:version_aliases],
+    }).encode
 
-    @deact_json   = {
+    @deact_json   = VCAP::Services::Api::ServiceOfferingRequest.new({
       :label  => @service[:label],
       :url    => @service[:url],
-      :active => false
-    }.to_json
+      :supported_versions => @service[:supported_versions],
+      :version_aliases => @service[:version_aliases],
+      :active => false,
+    }).encode
 
     token_hdrs = VCAP::Services::Api::GATEWAY_TOKEN_HEADER
     @cc_req_hdrs  = {
