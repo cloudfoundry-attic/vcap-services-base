@@ -62,7 +62,11 @@ class AsyncGatewayTests
                       :plans => ['free'],
                       :tags => ['nosql'],
                       :supported_versions => ["1.0"],
-                      :version_alias => {}
+                      :version_aliases => {},
+                      :url => 'http://localhost',
+                      :timeout => 10,
+                      :plan_options => [],
+                      :default_plan => 'free',
                     },
         :token   => @token,
         :provisioner => @sp,
