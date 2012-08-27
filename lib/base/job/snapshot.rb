@@ -225,7 +225,8 @@ module VCAP::Services::Base::AsyncJob
         begin
           required_options :service_id
           @name = options["service_id"]
-          @logger.info("Launch job: #{self.class} for #{name}")
+          @metadata = options["metadata"]
+          @logger.info("Launch job: #{self.class} for #{name} with metadata: #{@metadata}")
 
           @snapshot_id = new_snapshot_id
           lock = create_lock
@@ -240,6 +241,9 @@ module VCAP::Services::Base::AsyncJob
             end
 
             snapshot = execute
+            snapshot = VCAP.symbolize_keys snapshot
+            snapshot[:manifest] ||= {}
+            snapshot[:manifest].merge! @metadata
             @logger.info("Results of create snapshot: #{snapshot.inspect}")
 
             # pack snapshot_file into package

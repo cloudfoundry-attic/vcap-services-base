@@ -1220,4 +1220,32 @@ describe ProvisionerTests do
     end
   end
 
+  it "should generate metadata for a service instance" do
+    provisioner = nil
+
+    EM.run do
+      options = {
+        :service => {
+          :provider => 'myprovider',
+        }
+      }
+      provisioner = ProvisionerTests.create_provisioner options
+
+      # give a service handle
+      handle = {
+        'service_id' => 'foo',
+        'configuration' => {'plan' => 'free', 'version' => '1.0'},
+        'credentials' => {'name' => 'foo'},
+      }
+
+      provisioner.update_handles([handle])
+      metadata = provisioner.snapshot_metadata('foo')
+
+      metadata[:plan].should == 'free'
+      metadata[:provider].should == 'myprovider'
+      metadata[:service_version].should == '1.0'
+
+      EM.stop
+    end
+  end
 end
