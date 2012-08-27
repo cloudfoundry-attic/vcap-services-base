@@ -839,11 +839,25 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     end
   end
 
+  def snapshot_metadata(service_id)
+    service = @opts[:service]
+    instance = @prov_svcs[service_id]
+
+    metadata = {
+      :plan => find_service_plan(instance),
+      :provoider => service[:provider] || 'core',
+      :version => instance[:configuration]["version"],
+    }
+    metadata
+  end
+
   # Create a create_snapshot job and return the job object.
   #
   def create_snapshot(service_id, &blk)
     @logger.debug("Create snapshot job for service_id=#{service_id}")
-    job_id = create_snapshot_job.create(:service_id => service_id, :node_id =>find_node(service_id))
+    job_id = create_snapshot_job.create(:service_id => service_id,
+                                        :node_id =>find_node(service_id),
+                                        :metadata=> snapshot_metadata(service_id))
     job = get_job(job_id)
     @logger.info("CreateSnapshotJob created: #{job.inspect}")
     blk.call(success(job))
