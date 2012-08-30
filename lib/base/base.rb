@@ -38,7 +38,11 @@ class VCAP::Services::Base::Base
 
       NATS.on_error do |e|
         @logger.error("Exiting due to NATS error: #{e}")
-        exit
+        if $!.nil?
+          exit
+        else
+          @logger.error("Exception in scope: #{$!}")
+        end
       end
       @node_nats = NATS.connect(:uri => options[:mbus]) do
         status_port = status_user = status_password = nil
