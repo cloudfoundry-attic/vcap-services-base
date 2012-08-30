@@ -90,6 +90,11 @@ class VCAP::Services::Base::Gateway
     node_timeout = @config[:node_timeout] || 5
     cloud_controller_uri = @config[:cloud_controller_uri] || "api.vcap.me"
 
+    EM.error_handler do |ex|
+      @config[:logger].fatal("#{ex} #{ex.backtrace.join("|")}")
+      exit
+    end
+
     # Go!
     EM.run do
       sp = provisioner_class.new(
