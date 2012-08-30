@@ -41,6 +41,8 @@ class VCAP::Services::Base::Base
 
       NATS.on_error do |e|
         @logger.error("Exiting due to NATS error: #{e}")
+        last_err = $!
+        @logger.error("Last error: #{last_err} | #{last_err.backtrace.join(' | ')}") if last_err
         exit
       end
       @logger.debug("Connecting with NATS")
