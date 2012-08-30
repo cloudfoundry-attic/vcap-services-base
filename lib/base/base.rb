@@ -36,6 +36,11 @@ class VCAP::Services::Base::Base
     @logger.info("#{service_description}: Initializing")
     @closing = false
 
+    EM.error_handler do |ex|
+      @logger.fatal("#{ex} #{ex.backtrace.join("|")}")
+      exit
+    end
+
     @node_nats = nil
     if options[:mbus]
 

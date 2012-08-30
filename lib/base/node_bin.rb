@@ -105,11 +105,6 @@ class VCAP::Services::Base::NodeBin
 
     options = additional_config(options, config)
 
-    EM.error_handler do |ex|
-      @logger.fatal("#{ex} #{ex.backtrace.join("|")}")
-      exit
-    end
-
     pid_file = parse_property(config, "pid", String)
     begin
       FileUtils.mkdir_p(File.dirname(pid_file))
