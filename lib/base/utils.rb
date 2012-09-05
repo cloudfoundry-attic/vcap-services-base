@@ -76,7 +76,7 @@ module VCAP::Services::Base::Utils
       end
       threads = (1..instances.size).collect do |i|
         Thread.new(instances[i - 1]) do |t_instance|
-          check_lock.synchronize {next unless check_set.include?(t_instance.name)}
+          next unless check_lock.synchronize {check_set.include?(t_instance.name)}
           begin
             t_instance.run
           rescue => e
