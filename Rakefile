@@ -1,3 +1,5 @@
+# for jenkins test
+
 require 'rake'
 require 'bundler'
 
