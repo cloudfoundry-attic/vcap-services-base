@@ -1,4 +1,4 @@
-require "posix/spawn"
+require "open3"
 
 module VCAP::Services::Base::Utils
 
@@ -136,36 +136,42 @@ module VCAP::Services::Base::Utils
 
   module ClassMethods
     def sh(*args)
-      options =
-        if args[-1].respond_to?(:to_hash)
-          args.pop.to_hash
-        else
-          {}
-        end
+      options = args[-1].respond_to?(:to_hash) ? args.pop.to_hash: {}
+      options = { :timeout => 5.0, :max => 1024 * 1024, :sudo => true }.merge(options)
+      arg = options[:sudo]==false ? args[0] : "sudo " << args[0]
 
-      skip_raise = options.delete(:raise) == false
-      options = { :timeout => 5.0, :max => 1024 * 1024 }.merge(options)
-
-      status = []
-      out_buf = ''
-      err_buf = ''
       begin
-        pid, iwr, ord, erd = POSIX::Spawn::popen4(*args)
-        Timeout::timeout(options[:timeout]) do
-          status = Process.waitpid2(pid)
-        end
-        out_buf += ord.read
-        err_buf += erd.read
-      rescue => e
-        Process.kill("TERM", pid) if pid
-        Process.detach(pid)
-        raise RuntimeError, "sh #{args} timeout: \nstdout: \n#{out_buf}\nstderr: \n#{err_buf}"
-      end
+        stdin, stdout, stderr, status = Open3.popen3(arg)
+        pid = status[:pid]
+        start = Time.now
 
-      if status[1].exitstatus != 0
-        raise RuntimeError, "sh #{args} failed: \n exit with: #{status[1].exitstatus}\nstdout: \n#{out_buf}\nstderr: \n#{err_buf}" unless skip_raise
+        out_buf=""
+        err_buf=""
+        # manually ping the process per second to check whether the process is alive or not
+        while (Time.now-start)<options[:timeout] && status.alive?
+          begin
+            out_buf << stdout.read_nonblock(4096)
+            err_buf << stderr.read_nonblock(4096)
+          rescue IO::WaitReadable, EOFError
+          end
+          sleep 0.2
+        end
+
+        if status.alive?
+          Process.kill("TERM", pid)
+          Process.detach(pid)
+          raise RuntimeError, "sh #{args} executed with failure and process with pid #{pid} timed out:\nstdout:\n#{out_buf}\nstderr:\n#{err_buf}"
+        end
+        exit_status = status.value.exitstatus
+        raise RuntimeError, "sh #{args} executed with failure and process with pid #{pid} exited with #{status.value.exitstatus}:\nstdout:\n#{out_buf}\nstderr:\n#{err_buf}" unless exit_status == 0
+        exit_status
+      rescue Errno::EPERM
+        raise RuntimeError, "sh #{args} executed with failure and process with pid #{pid} cannot be killed (privilege issue?):\nstdout:\n#{out_buf}\nstderr:\n#{err_buf}"
+      rescue Errno::ESRCH
+        raise RuntimeError, "sh #{args} executed with failure and process with pid #{pid} does not exist:\nstdout:\n#{out_buf}\nstderr:\n#{err_buf}"
+      rescue => e
+        raise e
       end
-      status[1].exitstatus
     end
   end
 end
