@@ -27,7 +27,7 @@ module VCAP::Services::Base::Warden
 
   def prepare_filesystem(max_size)
     if base_dir?
-      self.class.sh "umount #{base_dir}", :raise => false if self.class.quota
+      self.class.sh "sudo umount #{base_dir}", :raise => false if self.class.quota
       logger.warn("Service #{self[:name]} base_dir:#{base_dir} already exists, deleting it")
       FileUtils.rm_rf(base_dir)
     end
@@ -41,19 +41,21 @@ module VCAP::Services::Base::Warden
     end
     FileUtils.mkdir_p(base_dir)
     FileUtils.mkdir_p(log_dir)
+    FileUtils.chmod_R(0755, base_dir)
+    FileUtils.chmod_R(0755, log_dir)
     if self.class.quota
-      self.class.sh "dd if=/dev/null of=#{image_file} bs=1M seek=#{max_size}"
-      self.class.sh "mkfs.ext4 -q -F -O \"^has_journal,uninit_bg\" #{image_file}"
+      self.class.sh "sudo dd if=/dev/null of=#{image_file} bs=1M seek=#{max_size}"
+      self.class.sh "sudo mkfs.ext4 -q -F -O \"^has_journal,uninit_bg\" #{image_file}"
       loop_setup
     end
   end
 
   def loop_setdown
-    self.class.sh "umount #{base_dir}"
+    self.class.sh "sudo umount #{base_dir}"
   end
 
   def loop_setup
-    self.class.sh "mount -n -o loop #{image_file} #{base_dir}"
+    self.class.sh "sudo mount -n -o loop #{image_file} #{base_dir}"
   end
 
   def loop_setup?
@@ -70,12 +72,12 @@ module VCAP::Services::Base::Warden
   end
 
   def to_loopfile
-    self.class.sh "mv #{base_dir} #{base_dir+"_bak"}"
-    self.class.sh "mkdir -p #{base_dir}"
-    self.class.sh "A=`du -sm #{base_dir+"_bak"} | awk '{ print $1 }'`;A=$((A+32));if [ $A -lt #{self.class.max_disk} ]; then A=#{self.class.max_disk}; fi;dd if=/dev/null of=#{image_file} bs=1M seek=$A"
-    self.class.sh "mkfs.ext4 -q -F -O \"^has_journal,uninit_bg\" #{image_file}"
-    self.class.sh "mount -n -o loop #{image_file} #{base_dir}"
-    self.class.sh "cp -af #{base_dir+"_bak"}/* #{base_dir}", :timeout => 60.0
+    self.class.sh "sudo mv #{base_dir} #{base_dir+"_bak"}"
+    self.class.sh "sudo mkdir -p #{base_dir}"
+    self.class.sh "sudo A=`du -sm #{base_dir+"_bak"} | awk '{ print $1 }'`;A=$((A+32));if [ $A -lt #{self.class.max_disk} ]; then A=#{self.class.max_disk}; fi;dd if=/dev/null of=#{image_file} bs=1M seek=$A"
+    self.class.sh "sudo mkfs.ext4 -q -F -O \"^has_journal,uninit_bg\" #{image_file}"
+    self.class.sh "sudo mount -n -o loop #{image_file} #{base_dir}"
+    self.class.sh "sudo cp -af #{base_dir+"_bak"}/* #{base_dir}", :timeout => 60.0
   end
 
   def migration_check
@@ -216,11 +218,9 @@ module VCAP::Services::Base::Warden
              "--jump DNAT",
              "--to-destination #{dest_ip}:#{dest_port}" ]
 
-    if add
-      cmd = "iptables -t nat -A PREROUTING #{rule.join(" ")}"
-    else
-      cmd = "iptables -t nat -D PREROUTING #{rule.join(" ")}"
-    end
+    iptables_option = add ? "-A":"-D"
+    cmd1 = "sudo iptables -t nat #{iptables_option} PREROUTING #{rule.join(" ")}"
+    cmd2 = "sudo iptables -t nat #{iptables_option} OUTPUT #{rule.join(" ")}"
 
     # iptables exit code:
     # The exit code is 0 for correct functioning.
@@ -230,8 +230,10 @@ module VCAP::Services::Base::Warden
     # We add a thread lock here, since iptables may return resource unavailable temporary in multi-threads
     # iptables command issued.
     @@iptables_lock.synchronize do
-      ret = self.class.sh(cmd, :raise => false)
-      logger.warn("cmd \"#{cmd}\" invalid") if ret == 2
+      ret = self.class.sh(cmd1, :raise => false)
+      logger.warn("cmd \"#{cmd1}\" invalid") if ret == 2
+      ret = self.class.sh(cmd2, :raise => false)
+      logger.warn("cmd \"#{cmd2}\" invalid") if ret == 2
     end
   end
 
