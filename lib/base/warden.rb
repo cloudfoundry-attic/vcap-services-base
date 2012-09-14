@@ -102,10 +102,7 @@ module VCAP::Services::Base::Warden
     # stop container
     stop if running?
     # delete log and service directory
-    if self.class.quota
-      loop_setdown
-      FileUtils.rm_rf(image_file)
-    end
+    FileUtils.rm_rf(image_file) if self.class.quota
     FileUtils.rm_rf(base_dir)
     FileUtils.rm_rf(log_dir)
     # delete recorder
@@ -148,6 +145,7 @@ module VCAP::Services::Base::Warden
     unmap_port(self[:port], self[:ip], service_port)
     container_stop(self[:container])
     post_stop
+    loop_setdown if self.class.quota
   end
 
   # warden container operation helper
