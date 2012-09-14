@@ -44,7 +44,6 @@ module VCAP::Services::Base::Warden
     if self.class.quota
       self.class.sh "dd if=/dev/null of=#{image_file} bs=1M seek=#{max_size}"
       self.class.sh "mkfs.ext4 -q -F -O \"^has_journal,uninit_bg\" #{image_file}"
-      loop_setup
     end
   end
 
@@ -102,10 +101,7 @@ module VCAP::Services::Base::Warden
     # stop container
     stop if running?
     # delete log and service directory
-    if self.class.quota
-      loop_setdown
-      FileUtils.rm_rf(image_file)
-    end
+    FileUtils.rm_rf(image_file) if self.class.quota
     FileUtils.rm_rf(base_dir)
     FileUtils.rm_rf(log_dir)
     # delete recorder
@@ -113,6 +109,7 @@ module VCAP::Services::Base::Warden
   end
 
   def run
+    loop_setup if self.class.quota
     data_bind = Warden::Protocol::CreateRequest::BindMount.new
     data_bind.src_path = base_dir
     data_bind.dst_path = "/store/instance"
@@ -148,6 +145,7 @@ module VCAP::Services::Base::Warden
     unmap_port(self[:port], self[:ip], service_port)
     container_stop(self[:container])
     post_stop
+    loop_setdown if self.class.quota
   end
 
   # warden container operation helper
