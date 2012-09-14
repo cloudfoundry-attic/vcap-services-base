@@ -103,7 +103,6 @@ module VCAP::Services::Base::Warden
     stop if running?
     # delete log and service directory
     if self.class.quota
-      loop_setdown
       FileUtils.rm_rf(image_file)
     end
     FileUtils.rm_rf(base_dir)
@@ -113,6 +112,7 @@ module VCAP::Services::Base::Warden
   end
 
   def run
+    loop_setup if self.class.quota && (not loop_setup?)
     data_bind = Warden::Protocol::CreateRequest::BindMount.new
     data_bind.src_path = base_dir
     data_bind.dst_path = "/store/instance"
@@ -148,6 +148,7 @@ module VCAP::Services::Base::Warden
     unmap_port(self[:port], self[:ip], service_port)
     container_stop(self[:container])
     post_stop
+    loop_setdown if self.class.quota
   end
 
   # warden container operation helper
