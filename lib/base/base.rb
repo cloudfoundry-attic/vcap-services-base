@@ -82,7 +82,7 @@ class VCAP::Services::Base::Base
     vz = varz_details
     vz.each { |k,v|
       VCAP::Component.varz[k] = v
-    }
+    } if vz
   end
 
   def shutdown()
