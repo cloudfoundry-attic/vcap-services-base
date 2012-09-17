@@ -31,6 +31,13 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @prov_svcs = {}
     @instance_handles_CO = {}
     @binding_handles_CO = {}
+    @responses_metrics = {
+      :responses_xxx => 0,
+      :responses_2xx => 0,
+      :responses_3xx => 0,
+      :responses_4xx => 0,
+      :responses_5xx => 0,
+    }
     @plan_mgmt = options[:plan_management] && options[:plan_management][:plans] || {}
 
     init_service_extensions
@@ -73,6 +80,24 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
         @extensions[plan][ext] = true if lifecycle[ext] == "enable"
       end
     end
+  end
+
+  def update_responses_metrics(status)
+    return unless status.is_a? Fixnum
+
+    metric = :responses_xxx
+    if status >=200 and status <300
+      metric = :responses_2xx
+    elsif status >=300 and status <400
+      metric = :responses_3xx
+    elsif status >=400 and status <500
+      metric = :responses_4xx
+    elsif status >=500 and status <600
+      metric = :responses_5xx
+    end
+    @responses_metrics[metric] += 1
+  rescue => e
+    @logger.warn("Failed update responses metrics: #{e}")
   end
 
   def reset_orphan_stat
@@ -1054,7 +1079,8 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
       :prov_svcs => svcs,
       :orphan_instances => orphan_instances,
       :orphan_bindings => orphan_bindings,
-      :plans => plan_mgmt
+      :plans => plan_mgmt,
+      :responses_metrics => @responses_metrics,
     }
     return varz
   rescue => e
