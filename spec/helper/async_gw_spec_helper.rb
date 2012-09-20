@@ -332,6 +332,10 @@ class AsyncGatewayTests
       # Do nothing
     end
 
+    def update_responses_metrics(status)
+      # Do nothing
+    end
+
   end
 
   class NiceProvisioner < MockProvisioner
