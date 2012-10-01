@@ -560,7 +560,7 @@ class VCAP::Services::AsynchronousServiceGateway < Sinatra::Base
 
     def async_reply_raw(status, headers, body)
       @logger.debug("Reply status:#{status}, headers:#{headers}, body:#{body}")
-      @provisioner.update_responses_metrics(status)
+      @provisioner.update_responses_metrics(status) if @provisioner
       request.env['done'] = true
       EM.cancel_timer(request.env['__async_timer']) if request.env['__async_timer']
       request.env['async.callback'].call([status, headers, body])
