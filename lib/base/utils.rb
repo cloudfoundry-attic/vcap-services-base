@@ -49,7 +49,7 @@ module VCAP::Services::Base::Utils
     end
   end
 
-  def start_instances(all_instances)
+  def start_instances(all_instances, opt_binds=[])
     @instance_parallel_start_count = 10 if @instance_parallel_start_count.nil?
     start = 0
     check_set = Set.new
@@ -78,7 +78,7 @@ module VCAP::Services::Base::Utils
         Thread.new(instances[i - 1]) do |t_instance|
           next unless check_lock.synchronize {check_set.include?(t_instance.name)}
           begin
-            t_instance.run
+            t_instance.run(opt_binds)
           rescue => e
             check_lock.synchronize {check_set.delete(t_instance.name)}
             @logger.error("Error starting instance #{t_instance.name}: #{e}")
