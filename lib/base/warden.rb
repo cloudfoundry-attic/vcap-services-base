@@ -111,7 +111,7 @@ module VCAP::Services::Base::Warden
     destroy!
   end
 
-  def run
+  def run(opt_binds=[])
     loop_setup if self.class.quota && (not loop_setup?)
     data_bind = Warden::Protocol::CreateRequest::BindMount.new
     data_bind.src_path = base_dir
@@ -121,7 +121,16 @@ module VCAP::Services::Base::Warden
     log_bind.src_path = log_dir
     log_bind.dst_path = "/store/log"
     log_bind.mode = Warden::Protocol::CreateRequest::BindMount::Mode::RW
-    self[:container], self[:ip] = container_start(service_script, [data_bind, log_bind])
+    bind_mounts = [data_bind, log_bind]
+    unless opt_binds.empty?
+      opt_binds.each do |opt_bind|
+        new_bind = Warden::Protocol::CreateRequest::BindMount.new
+        new_bind.src_path = opt_bind[0]
+        new_bind.dst_path = opt_bind[1]
+        bind_mounts << new_bind
+      end
+    end
+    self[:container], self[:ip] = container_start(service_script, bind_mounts)
     save!
     map_port(self[:port], self[:ip], service_port)
     true
