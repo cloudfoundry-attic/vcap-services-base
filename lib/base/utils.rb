@@ -78,7 +78,7 @@ module VCAP::Services::Base::Utils
         Thread.new(instances[i - 1]) do |t_instance|
           next unless check_lock.synchronize {check_set.include?(t_instance.name)}
           begin
-            t_instance.run
+            t_instance.respond_to?(:additional_binds) ? t_instance.run(t_instance.additional_binds) : t_instance.run
           rescue => e
             check_lock.synchronize {check_set.delete(t_instance.name)}
             @logger.error("Error starting instance #{t_instance.name}: #{e}")
