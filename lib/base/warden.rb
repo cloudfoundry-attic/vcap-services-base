@@ -123,7 +123,7 @@ module VCAP::Services::Base::Warden
     log_bind.mode = Warden::Protocol::CreateRequest::BindMount::Mode::RW
     self[:container], self[:ip] = container_start(service_script, [data_bind, log_bind])
     save!
-    map_port(self[:port], self[:ip], service_port)
+    map_port(self[:container], self[:port], service_port)
     true
   end
 
@@ -132,7 +132,6 @@ module VCAP::Services::Base::Warden
   end
 
   def pre_stop
-    unmap_port(self[:port], self[:ip], service_port)
     container_stop(self[:container], false)
     true
   end
@@ -145,7 +144,6 @@ module VCAP::Services::Base::Warden
   end
 
   def stop
-    unmap_port(self[:port], self[:ip], service_port)
     container_stop(self[:container])
     post_stop
     loop_setdown if self.class.quota
@@ -210,38 +208,14 @@ module VCAP::Services::Base::Warden
     end
   end
 
-  # port map helper
-  def iptable(add, src_port, dest_ip, dest_port)
-    rule = [ "--protocol tcp",
-             "--dport #{src_port}",
-             "--jump DNAT",
-             "--to-destination #{dest_ip}:#{dest_port}" ]
-
-    iptables_option = add ? "-A":"-D"
-    cmd1 = "iptables -t nat #{iptables_option} PREROUTING #{rule.join(" ")}"
-    cmd2 = "iptables -t nat #{iptables_option} OUTPUT #{rule.join(" ")}"
-
-    # iptables exit code:
-    # The exit code is 0 for correct functioning.
-    # Errors which appear to be caused by invalid or abused command line parameters cause an exit code of 2,
-    # and other errors cause an exit code of 1.
-    #
-    # We add a thread lock here, since iptables may return resource unavailable temporary in multi-threads
-    # iptables command issued.
-    @@iptables_lock.synchronize do
-      ret = self.class.sh(cmd1, :raise => false)
-      logger.warn("cmd \"#{cmd1}\" invalid") if ret == 2
-      ret = self.class.sh(cmd2, :raise => false)
-      logger.warn("cmd \"#{cmd2}\" invalid") if ret == 2
-    end
-  end
-
-  def map_port(src_port, dest_ip, dest_port)
-    iptable(true, src_port, dest_ip, dest_port)
-  end
-
-  def unmap_port(src_port, dest_ip, dest_port)
-    iptable(false, src_port, dest_ip, dest_port)
+  def map_port(handle, src_port, dest_port)
+    warden = self.class.warden_connect
+    req = Warden::Protocol::NetInRequest.new
+    req.handle = handle
+    req.host_port = src_port
+    req.container_port = dest_port
+    warden.call(req)
+    warden.disconnect
   end
 
   # directory helper
