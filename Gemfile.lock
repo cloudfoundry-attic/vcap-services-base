@@ -32,8 +32,8 @@ GIT
 
 GIT
   remote: git://github.com/cloudfoundry/warden.git
-  revision: ab5f67aa07d0d750790d73c08950781447eeaad9
-  ref: ab5f67aa
+  revision: fe6cb5130388fd3117de9b16e830d45844cf05c9
+  ref: fe6cb51
   specs:
     warden-client (0.0.7)
       warden-protocol
@@ -61,8 +61,8 @@ PATH
       uuidtools (~> 2.1.2)
       vcap_common (>= 1.0.8)
       vcap_logging (>= 1.0.2)
-      warden-client (~> 0.0.6)
-      warden-protocol (~> 0.0.5)
+      warden-client (~> 0.0.7)
+      warden-protocol (~> 0.0.9)
 
 GEM
   remote: http://rubygems.org/
@@ -75,7 +75,7 @@ GEM
       builder (>= 2.1.2)
     curb (0.7.18)
     daemons (1.1.9)
-    data_objects (0.10.8)
+    data_objects (0.10.10)
       addressable (~> 2.1)
     datamapper (1.1.0)
       dm-aggregates (= 1.1.0)
@@ -113,8 +113,8 @@ GEM
       uuidtools (~> 2.1.2)
     dm-validations (1.1.0)
       dm-core (~> 1.1.0)
-    do_sqlite3 (0.10.8)
-      data_objects (= 0.10.8)
+    do_sqlite3 (0.10.10)
+      data_objects (= 0.10.10)
     em-http-request (1.0.0.beta.3)
       addressable (>= 2.2.3)
       em-socksify
@@ -142,13 +142,13 @@ GEM
     posix-spawn (0.3.6)
     rack (1.4.1)
     rake (0.8.7)
-    redis (3.0.1)
+    redis (3.0.2)
     redis-namespace (1.2.1)
       redis (~> 3.0.0)
     redisk (0.2.2)
       redis (>= 0.1.1)
       redis-namespace (>= 0.1.0)
-    resque (1.22.0)
+    resque (1.23.0)
       multi_json (~> 1.0)
       redis-namespace (~> 1.0)
       sinatra (>= 0.9.2)
