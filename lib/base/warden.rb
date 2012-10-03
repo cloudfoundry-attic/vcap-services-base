@@ -123,7 +123,7 @@ module VCAP::Services::Base::Warden
     log_bind.mode = Warden::Protocol::CreateRequest::BindMount::Mode::RW
     self[:container], self[:ip] = container_start(service_script, [data_bind, log_bind])
     save!
-    map_port(self[:port], self[:ip], service_port)
+    map_port(self[:container], self[:port], service_port)
     true
   end
 
@@ -132,7 +132,6 @@ module VCAP::Services::Base::Warden
   end
 
   def pre_stop
-    unmap_port(self[:port], self[:ip], service_port)
     container_stop(self[:container], false)
     true
   end
@@ -145,7 +144,6 @@ module VCAP::Services::Base::Warden
   end
 
   def stop
-    unmap_port(self[:port], self[:ip], service_port)
     container_stop(self[:container])
     post_stop
     loop_setdown if self.class.quota
@@ -236,12 +234,14 @@ module VCAP::Services::Base::Warden
     end
   end
 
-  def map_port(src_port, dest_ip, dest_port)
-    iptable(true, src_port, dest_ip, dest_port)
-  end
-
-  def unmap_port(src_port, dest_ip, dest_port)
-    iptable(false, src_port, dest_ip, dest_port)
+  def map_port(handle, src_port, dest_port)
+    warden = self.class.warden_connect
+    req = Warden::Protocol::NetInRequest.new
+    req.handle = handle
+    req.host_port = src_port
+    req.container_port = dest_port
+    warden.call(req)
+    warden.disconnect
   end
 
   # directory helper
