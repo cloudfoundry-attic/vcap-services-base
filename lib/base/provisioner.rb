@@ -688,8 +688,8 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
                       updated_bind_handle = bind_res['response']
                       updated_bind_handle = hash_sym_key_to_str(updated_bind_handle)
                       @logger.info("Recover: success re-bind binding: #{updated_bind_handle}")
-                      @update_handle_callback.call(updated_bind_handle) do |update_res|
-                        if update_res
+                      @update_handle_callback.call(updated_bind_handle) do |update_response|
+                        if update_response
                           @logger.error("Recover: success to update handle: #{updated_prov_handle}")
                           bcb.call(updated_bind_handle)
                         else
