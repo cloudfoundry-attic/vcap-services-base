@@ -102,11 +102,14 @@ module VCAP::Services::Base::Warden
     # stop container
     stop if running?
     # delete log and service directory
-    if self.class.quota
-      FileUtils.rm_rf(image_file)
+    pid = Process.fork do
+      if self.class.quota
+        FileUtils.rm_rf(image_file)
+      end
+      FileUtils.rm_rf(base_dir)
+      FileUtils.rm_rf(log_dir)
     end
-    FileUtils.rm_rf(base_dir)
-    FileUtils.rm_rf(log_dir)
+    Process.detach(pid) if pid
     # delete recorder
     destroy!
   end
