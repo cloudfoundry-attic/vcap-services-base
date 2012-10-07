@@ -18,7 +18,7 @@ module VCAP::Services::Base::Warden
       warden_client
     end
 
-    attr_reader :base_dir, :log_dir, :image_dir, :max_disk, :logger, :quota
+    attr_reader :base_dir, :log_dir, :image_dir, :max_disk, :logger, :quota, :memory_limit
   end
 
   def logger
@@ -163,6 +163,7 @@ module VCAP::Services::Base::Warden
     end
     rsp = warden.call(req)
     handle = rsp.handle
+    limit_memory(handle, self.class.memory_limit) if self.class.memory_limit
     req = Warden::Protocol::InfoRequest.new
     req.handle = handle
     rsp = warden.call(req)
@@ -174,6 +175,16 @@ module VCAP::Services::Base::Warden
     warden.disconnect
     sleep 1
     [handle, ip]
+  end
+
+  def limit_memory(handle, memory_limit)
+    warden = self.class.warden_connect
+    req = Warden::Protocol::LimitMemoryRequest.new
+    req.handle = handle
+    req.limit_in_bytes = memory_limit * 1024 * 1024
+    warden.call(req)
+    warden.disconnect
+    true
   end
 
   def container_stop(handle, force=true)
