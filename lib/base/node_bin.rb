@@ -66,7 +66,8 @@ class VCAP::Services::Base::NodeBin
       :filesystem_quota => parse_property(config, "filesystem_quota", Boolean, :optional => true, :default => false),
       :service_start_timeout => parse_property(config, "service_start_timeout", Integer, :optional => true, :default => 3),
       :supported_versions => parse_property(config, "supported_versions", Array),
-      :default_version => parse_property(config, "default_version", String)
+      :default_version => parse_property(config, "default_version", String),
+      :resource => parse_propertiy(config, "resource", Hash, :optional => true),
     }
 
     VCAP::Logging.setup_from_config(config["logging"])
