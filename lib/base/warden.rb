@@ -114,6 +114,10 @@ module VCAP::Services::Base::Warden
     destroy!
   end
 
+  def service_script
+    "monit_ctl"
+  end
+
   def run
     loop_setup if self.class.quota && (not loop_setup?)
     data_bind = Warden::Protocol::CreateRequest::BindMount.new
