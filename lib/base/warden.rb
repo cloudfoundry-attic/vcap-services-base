@@ -100,7 +100,12 @@ module VCAP::Services::Base::Warden
   # instance operation helper
   def delete
     # stop container
-    stop if running?
+    begin
+      stop if running?
+    rescue
+      # Catch the exception and record error log here to guarantee the following cleanup work is done.
+      logger.error("Fail to stop container when deleting service #{self[:name]}")
+    end
     # delete log and service directory
     pid = Process.fork do
       if self.class.quota
