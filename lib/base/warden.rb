@@ -196,6 +196,17 @@ module VCAP::Services::Base::Warden
     true
   end
 
+  def limit_bandwidth(handle, rate)
+    warden = self.class.warden_connect
+    req = Warden::Protocol::LimitBandwidthRequest.new
+    req.handle = handle
+    req.rate = rate * 1024 * 1024
+    req.burst = rate * 1 * 1024 * 1024 # Set burst the same size as rate
+    warden.call(req)
+    warden.disconnect
+    true
+  end
+
   def container_stop(handle, force=true)
     warden = self.class.warden_connect
     req = Warden::Protocol::StopRequest.new
