@@ -118,8 +118,8 @@ module VCAP::Services::Base::Warden
       end
     end
     Process.detach(pid) if pid
-    # delete recorder
-    destroy!
+    # delete the record when it's saved
+    destroy! unless new?
   end
 
   def run
