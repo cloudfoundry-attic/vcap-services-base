@@ -744,7 +744,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
         bindings = find_all_bindings(instance_id)
         request = UnprovisionRequest.new
         request.name = instance_id
-        request.bindings = bindings
+        request.bindings = bindings.map{|h| h[:credentials]}
         message = request.encode
       elsif action == "check"
         if node_id == svc[:credentials]["node_id"]
