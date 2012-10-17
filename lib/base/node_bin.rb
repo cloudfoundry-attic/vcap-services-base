@@ -53,7 +53,6 @@ class VCAP::Services::Base::NodeBin
       :index => parse_property(config, "index", Integer, :optional => true),
       :plan => parse_property(config, "plan", String, :optional => true, :default => "free"),
       :capacity => parse_property(config, "capacity", Integer, :optional => true, :default => 200),
-      :base_dir => parse_property(config, "base_dir", String),
       :ip_route => parse_property(config, "ip_route", String, :optional => true),
       :node_id => parse_property(config, "node_id", String),
       :z_interval => parse_property(config, "z_interval", Integer, :optional => true),
@@ -63,11 +62,31 @@ class VCAP::Services::Base::NodeBin
       :max_nats_payload => parse_property(config, "max_nats_payload", Integer, :optional => true),
       :fqdn_hosts => parse_property(config, "fqdn_hosts", Boolean, :optional => true, :default => false),
       :op_time_limit => parse_property(config, "op_time_limit", Integer, :optional => true, :default => 6),
+      :supported_versions => parse_property(config, "supported_versions", Array),
+      :default_version => parse_property(config, "default_version", String),
+      :max_clients => parse_property(config, "max_clients", Integer, :optional => true),
+      # Wardenized service configuration
+      :base_dir => parse_property(config, "base_dir", String, :optional => true),
+      :service_log_dir => parse_property(config, "service_log_dir", String, :optional => true),
+      :image_dir => parse_property(config, "image_dir", String, :optional => true),
+      :port_range => parse_property(config, "port_range", Range, :optional => true),
       :filesystem_quota => parse_property(config, "filesystem_quota", Boolean, :optional => true, :default => false),
       :service_start_timeout => parse_property(config, "service_start_timeout", Integer, :optional => true, :default => 3),
-      :supported_versions => parse_property(config, "supported_versions", Array),
-      :default_version => parse_property(config, "default_version", String)
+      :max_memory => parse_property(config, "max_memory", Numeric, :optional => true),
+      :memory_overhead => parse_property(config, "memory_overhead", Numeric, :optional => true, :default => 0.0),
+      :max_disk => parse_property(config, "max_disk", Numeric, :optional => true, :default => 128.0),
+      :disk_overhead => parse_property(config, "max_disk", Numeric, :optional => true, :default => 0.0),
     }
+    # Workaround for services that support running the service both inside and outside warden
+    use_warden = parse_property(config, "use_warden", Boolean, :optional => true, :default => false)
+    if use_warden
+      warden_config = parse_property(config, "warden", Hash, :optional => true)
+      options[:service_log_dir] = parse_property(warden_config, "service_log_dir", String)
+      options[:port_range] = parse_property(warden_config, "port_range", Range)
+      options[:image_dir] = parse_property(warden_config, "image_dir", String)
+      options[:filesystem_quota] = parse_property(warden_config, "filesystem_quota", Boolean, :optional => true)
+      options[:service_start_timeout] = parse_property(warden_config, "service_start_timeout", Integer, :optional => true, :default => 3)
+    end
 
     VCAP::Logging.setup_from_config(config["logging"])
     # Use the node id for logger identity name.
