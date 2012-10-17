@@ -135,6 +135,7 @@ module VCAP::Services::Base::Warden
     bind_mounts = additional_binds.map do |additional_bind|
       bind = Warden::Protocol::CreateRequest::BindMount.new
       additional_bind.each { |k,v| bind.send("#{k}=", v)}
+      bind[:mode] = Warden::Protocol::CreateRequest::BindMount::Mode::RW
       bind
     end
     bind_mounts << data_bind << log_bind
