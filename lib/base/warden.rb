@@ -5,8 +5,6 @@ require "utils"
 
 module VCAP::Services::Base::Warden
 
-  @@iptables_lock = Mutex.new
-
   def self.included(base)
     base.extend(ClassMethods)
   end
@@ -16,6 +14,110 @@ module VCAP::Services::Base::Warden
       warden_client = Warden::Client.new("/tmp/warden.sock")
       warden_client.connect
       warden_client
+    end
+  end
+
+  # warden container operation helper
+  def container_start(cmd, bind_mounts=[])
+    warden = self.class.warden_connect
+    req = Warden::Protocol::CreateRequest.new
+    unless bind_mounts.empty?
+      req.bind_mounts = bind_mounts;
+    end
+    rsp = warden.call(req)
+    handle = rsp.handle
+    limit_memory(warden, handle, self.class.memory_limit) if self.class.memory_limit
+    rsp = info(warden, handle)
+    ip = rsp.container_ip
+    req = Warden::Protocol::SpawnRequest.new
+    req.handle = handle
+    req.script = cmd
+    rsp = warden.call(req)
+    warden.disconnect
+    sleep 1
+    [handle, ip]
+  end
+
+  def container_stop(handle, force=true)
+    warden = self.class.warden_connect
+    req = Warden::Protocol::StopRequest.new
+    req.handle = handle
+    req.background = !force
+    warden.call(req)
+    warden.disconnect
+    true
+  end
+
+  def container_destroy(handle)
+    warden = self.class.warden_connect
+    req = Warden::Protocol::DestroyRequest.new
+    req.handle = handle
+    warden.call(req)
+    warden.disconnect
+    true
+  end
+
+  def container_running?(handle)
+    if handle == ''
+      return false
+    end
+
+    begin
+      warden = self.class.warden_connect
+      info(warden, handle)
+      return true
+    rescue => e
+      return false
+    ensure
+      warden.disconnect if warden
+    end
+  end
+
+  def info(warden, handle)
+    req = Warden::Protocol::InfoRequest.new
+    req.handle = handle
+    warden.call(req)
+  end
+
+  def limit_memory(warden, handle, memory_limit)
+    req = Warden::Protocol::LimitMemoryRequest.new
+    req.handle = handle
+    req.limit_in_bytes = memory_limit * 1024 * 1024
+    warden.call(req)
+  end
+
+  def bind_mount_request(src, dst)
+    bind = Warden::Protocol::CreateRequest::BindMount.new
+    bind.src_path = src
+    bind.dst_path = dst
+    bind.mode = Warden::Protocol::CreateRequest::BindMount::Mode::RW
+    bind
+  end
+end
+
+class VCAP::Services::Base::WardenService
+
+  @@iptables_lock = Mutex.new
+
+  include VCAP::Services::Base::Utils
+  include VCAP::Services::Base::Warden
+
+  class << self
+
+    def init(options)
+      @@options = options
+      @base_dir = options[:base_dir]
+      @log_dir = options[:service_log_dir]
+      @image_dir = options[:image_dir]
+      @logger = options[:logger]
+      @max_disk = options[:max_disk]
+      @quota = options[:filesystem_quota] || false
+      FileUtils.mkdir_p(File.dirname(options[:local_db].split(':')[1]))
+      DataMapper.setup(:default, options[:local_db])
+      DataMapper::auto_upgrade!
+      FileUtils.mkdir_p(base_dir)
+      FileUtils.mkdir_p(log_dir)
+      FileUtils.mkdir_p(image_dir) if @image_dir
     end
 
     attr_reader :base_dir, :log_dir, :image_dir, :max_disk, :logger, :quota, :memory_limit
@@ -118,27 +220,20 @@ module VCAP::Services::Base::Warden
       end
     end
     Process.detach(pid) if pid
-    # delete recorder
-    destroy!
+    # delete the record when it's saved
+    destroy! if saved?
   end
 
   def run
     loop_setup if self.class.quota && (not loop_setup?)
-    data_bind = Warden::Protocol::CreateRequest::BindMount.new
-    data_bind.src_path = base_dir
-    data_bind.dst_path = "/store/instance"
-    data_bind.mode = Warden::Protocol::CreateRequest::BindMount::Mode::RW
-    log_bind = Warden::Protocol::CreateRequest::BindMount.new
-    log_bind.src_path = log_dir
-    log_bind.dst_path = "/store/log"
-    log_bind.mode = Warden::Protocol::CreateRequest::BindMount::Mode::RW
     bind_mounts = additional_binds.map do |additional_bind|
       bind = Warden::Protocol::CreateRequest::BindMount.new
       additional_bind.each { |k,v| bind.send("#{k}=", v)}
       bind[:mode] = Warden::Protocol::CreateRequest::BindMount::Mode::RW
       bind
     end
-    bind_mounts << data_bind << log_bind
+    bind_mounts << bind_mount_request(base_dir, "/store/instance")
+    bind_mounts << bind_mount_request(log_dir, "/store/log")
     self[:container], self[:ip] = container_start(service_script, bind_mounts)
     save!
     map_port(self[:port], self[:ip], service_port)
@@ -149,94 +244,13 @@ module VCAP::Services::Base::Warden
     container_running?(self[:container])
   end
 
-  def pre_stop
-    unmap_port(self[:port], self[:ip], service_port)
-    container_stop(self[:container], false)
-    true
-  end
-
-  def post_stop
-    container_destroy(self[:container])
-    self[:container] = ''
-    save
-    true
-  end
-
   def stop
     unmap_port(self[:port], self[:ip], service_port)
     container_stop(self[:container])
-    post_stop
+    container_destroy(self[:container])
+    self[:container] = ''
+    save
     loop_setdown if self.class.quota
-  end
-
-  # warden container operation helper
-  def container_start(cmd, bind_mounts=[])
-    warden = self.class.warden_connect
-    req = Warden::Protocol::CreateRequest.new
-    unless bind_mounts.empty?
-      req.bind_mounts = bind_mounts;
-    end
-    rsp = warden.call(req)
-    handle = rsp.handle
-    limit_memory(handle, self.class.memory_limit) if self.class.memory_limit
-    req = Warden::Protocol::InfoRequest.new
-    req.handle = handle
-    rsp = warden.call(req)
-    ip = rsp.container_ip
-    req = Warden::Protocol::SpawnRequest.new
-    req.handle = handle
-    req.script = cmd
-    rsp = warden.call(req)
-    warden.disconnect
-    sleep 1
-    [handle, ip]
-  end
-
-  def limit_memory(handle, memory_limit)
-    warden = self.class.warden_connect
-    req = Warden::Protocol::LimitMemoryRequest.new
-    req.handle = handle
-    req.limit_in_bytes = memory_limit * 1024 * 1024
-    warden.call(req)
-    warden.disconnect
-    true
-  end
-
-  def container_stop(handle, force=true)
-    warden = self.class.warden_connect
-    req = Warden::Protocol::StopRequest.new
-    req.handle = handle
-    req.background = !force
-    warden.call(req)
-    warden.disconnect
-    true
-  end
-
-  def container_destroy(handle)
-    warden = self.class.warden_connect
-    req = Warden::Protocol::DestroyRequest.new
-    req.handle = handle
-    warden.call(req)
-    warden.disconnect
-    true
-  end
-
-  def container_running?(handle)
-    if handle == ''
-      return false
-    end
-
-    begin
-      warden = self.class.warden_connect
-      req = Warden::Protocol::InfoRequest.new
-      req.handle = handle
-      warden.call(req)
-      return true
-    rescue => e
-      return false
-    ensure
-      warden.disconnect if warden
-    end
   end
 
   # port map helper
