@@ -1,7 +1,11 @@
 # Copyright (c) 2009-2011 VMware, Inc.
 require "warden/client"
 require "warden/protocol"
+
+$LOAD_PATH.unshift File.dirname(__FILE__)
 require "utils"
+require "abstract"
+require "service_error"
 
 module VCAP::Services::Base::Warden
 
@@ -27,18 +31,18 @@ module VCAP::Services::Base::Warden
     rsp = warden.call(req)
     handle = rsp.handle
     limit_memory(warden, handle, self.class.memory_limit.to_i) if self.class.memory_limit
-    rsp = info(warden, handle)
+    rsp = container_info(warden, handle)
     ip = rsp.container_ip
     req = Warden::Protocol::SpawnRequest.new
     req.handle = handle
     req.script = cmd
     rsp = warden.call(req)
     warden.disconnect
-    sleep 1
     [handle, ip]
   end
 
-  def container_stop(handle, force=true)
+  def container_stop(handle, cmd, force=true)
+    container_run_command(handle, cmd) if cmd
     warden = self.class.warden_connect
     req = Warden::Protocol::StopRequest.new
     req.handle = handle
@@ -61,29 +65,42 @@ module VCAP::Services::Base::Warden
     if handle == ''
       return false
     end
-
-    begin
-      warden = self.class.warden_connect
-      info(warden, handle)
-      return true
-    rescue => e
-      return false
-    ensure
-      warden.disconnect if warden
+    if container_info(handle)
+      true
+    else
+      false
     end
   end
 
-  def info(warden, handle)
+  def container_run_command(handle, cmd, is_privileged=false)
+    warden = self.class.warden_connect
+    req = Warden::Protocol::RunRequest.new
+    req.handle = handle
+    req.script = cmd
+    req.privileged = is_privileged
+    warden.call(req)
+    warden.disconnect
+  end
+
+  def container_info(warden, handle)
+    warden = self.class.warden_connect
     req = Warden::Protocol::InfoRequest.new
     req.handle = handle
     warden.call(req)
+  rescue => e
+    nil
+  ensure
+    warden.disconnect if warden
   end
 
   def limit_memory(warden, handle, memory_limit)
+    warden = self.class.warden_connect
     req = Warden::Protocol::LimitMemoryRequest.new
     req.handle = handle
     req.limit_in_bytes = memory_limit * 1024 * 1024
     warden.call(req)
+    warden.disconnect
+    true
   end
 
   def limit_bandwidth(handle, rate)
@@ -131,6 +148,7 @@ class VCAP::Services::Base::WardenService
       @logger = options[:logger]
       @max_disk = options[:max_disk]
       @quota = options[:filesystem_quota] || false
+      @service_start_timeout = options[:service_start_timeout] || 3
       FileUtils.mkdir_p(File.dirname(options[:local_db].split(':')[1]))
       DataMapper.setup(:default, options[:local_db])
       DataMapper::auto_upgrade!
@@ -139,7 +157,7 @@ class VCAP::Services::Base::WardenService
       FileUtils.mkdir_p(image_dir) if @image_dir
     end
 
-    attr_reader :base_dir, :log_dir, :image_dir, :max_disk, :logger, :quota, :memory_limit
+    attr_reader :base_dir, :log_dir, :image_dir, :max_disk, :logger, :quota, :memory_limit, :service_start_timeout
   end
 
   def logger
@@ -250,7 +268,8 @@ class VCAP::Services::Base::WardenService
     end
     bind_mounts << bind_mount_request(base_dir, "/store/instance")
     bind_mounts << bind_mount_request(log_dir, "/store/log")
-    self[:container], self[:ip] = container_start(service_script, bind_mounts)
+    self[:container], self[:ip] = container_start(start_script, bind_mounts)
+    raise VCAP::Services::Base::Error::ServiceError::new(VCAP::Services::Base::Error::ServiceError::SERVICE_START_TIMEOUT) unless wait_service_start
     save!
     map_port(self[:container], self[:port], service_port)
     true
@@ -261,7 +280,7 @@ class VCAP::Services::Base::WardenService
   end
 
   def stop
-    container_stop(self[:container])
+    container_stop(self[:container], stop_script)
     container_destroy(self[:container])
     self[:container] = ''
     save
@@ -302,5 +321,33 @@ class VCAP::Services::Base::WardenService
 
   def util_dirs
     []
+  end
+
+  # service start/stop helper
+  def wait_service_start
+    (self.class.service_start_timeout * 10).times do
+      sleep 0.1
+      return true if finish_start?
+    end
+    false
+  end
+
+  # Service Node subclasses must override these following method
+
+  # Check where the service process finish starting --> true for finish and faluse for not finish
+  abstract :finish_start?
+
+  # Service start script
+  abstract :start_script
+
+  # Service process binding port in warden
+  abstract :service_port
+
+  # Service Node subclasses can override these following method
+
+  # If the normal stop way of the service is kill (send SIGTERM signal),
+  # then it doesn't need override this method
+  def stop_script
+    nil
   end
 end
