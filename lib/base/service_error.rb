@@ -44,6 +44,8 @@ module VCAP
           INTERNAL_ERROR = [30500, HTTP_INTERNAL, 'Internal Error']
           EXTENSION_NOT_IMPL = [30501, HTTP_NOT_IMPLEMENTED, "Service extension %s is not implemented."]
           NODE_OPERATION_TIMEOUT = [30502, HTTP_INTERNAL, "Node operation timeout"]
+          SERVICE_START_TIMEOUT = [30503, HTTP_INTERNAL, "Service start timeout"]
+          WARDEN_RUN_COMMAND_FAILURE = [30504, HTTP_INTERNAL, "Failed to run command %s in warden container %s, exit status: %d, stdout: %s, stderr: %s"]
 
           # 30600 - 30699  503 Service Unavailable
           SERVICE_UNAVAILABLE = [30600, HTTP_SERVICE_UNAVAIL, 'Service unavailable']
