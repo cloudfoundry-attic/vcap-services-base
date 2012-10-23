@@ -84,7 +84,7 @@ module VCAP::Services::Base::Utils
             @logger.error("Error starting instance #{t_instance.name}: #{e}")
           end
           @service_start_timeout.times do
-            if is_service_started(t_instance)
+            if t_instance.finish_start?
               check_lock.synchronize {check_set.delete(t_instance.name)}
               @logger.info("Successfully start provisioned instance #{t_instance.name}")
               break
@@ -118,20 +118,6 @@ module VCAP::Services::Base::Utils
       end
       threads.each {|t| t.join}
     end
-  end
-
-  def wait_service_start(instance)
-    (@service_start_timeout * 10).times do
-      sleep 0.1
-      return true if is_service_started(instance)
-    end
-    false
-  end
-
-  def is_service_started(instance)
-    # Service Node subclasses should override this method to
-    # provide service specific check for instance starting status
-    true
   end
 
   module ClassMethods
