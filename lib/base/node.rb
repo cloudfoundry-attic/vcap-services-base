@@ -75,7 +75,7 @@ class VCAP::Services::Base::Node < VCAP::Services::Base::Base
     response = ProvisionResponse.new
     rollback = lambda do |res|
       @logger.error("#{service_description}: Provision takes too long. Rollback for #{res.inspect}")
-      unprovision(res.credentials["name"], [])
+      @capacity_lock.synchronize{ @capacity += capacity_unit } if unprovision(res.credentials["name"], [])
     end
 
     timing_exec(@op_time_limit, rollback) do

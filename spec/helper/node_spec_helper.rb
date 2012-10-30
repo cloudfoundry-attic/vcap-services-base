@@ -82,7 +82,7 @@ class NodeTests
       Hash.new
     end
     def provision(plan, credential, version)
-      sleep 5 # Provision takes 5 seconds to finish
+      sleep 4 # Provision takes 5 seconds to finish
       @mutex.synchronize { @provision_times += 1 }
       @provision_invoked = true
       Hash.new
