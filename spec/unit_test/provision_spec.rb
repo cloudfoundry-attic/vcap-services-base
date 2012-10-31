@@ -1231,10 +1231,16 @@ describe ProvisionerTests do
       }
       provisioner = ProvisionerTests.create_provisioner options
 
+      provision_request = VCAP::Services::Internal::ProvisionRequest.new
+      plan = 'free'
+      version = '1.0'
+      provision_request.plan = plan
+      provision_request.version = '1.0'
+
       # give a service handle
       handle = {
         'service_id' => 'foo',
-        'configuration' => {'plan' => 'free', 'version' => '1.0'},
+        'configuration' => provision_request.dup,
         'credentials' => {'name' => 'foo'},
       }
 
