@@ -377,13 +377,14 @@ class VCAP::Services::Base::WardenService
     false
   end
 
+  def start_script
+    "warden_service_ctl start"
+  end
+
   ### Service Node subclasses must override these following method ###
 
   # Check where the service process finish starting --> true for finish and faluse for not finish
   abstract :finish_start?
-
-  # Service start script, use vcap user to run
-  abstract :start_script
 
   # Service process binding port in warden
   abstract :service_port
