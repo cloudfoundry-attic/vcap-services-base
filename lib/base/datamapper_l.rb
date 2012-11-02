@@ -2,7 +2,7 @@ require "fileutils"
 require "monitor"
 require "datamapper"
 
-LOCK_FILE = "/var/vcap/sys/run/LOCK"
+LOCK_FILE = ENV['LOCK_FILE'] || "/var/vcap/sys/run/LOCK"
 
 # Initialize lockfile
 FileUtils.mkdir_p(File.dirname(LOCK_FILE))
