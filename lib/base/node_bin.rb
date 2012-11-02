@@ -76,6 +76,7 @@ class VCAP::Services::Base::NodeBin
       :memory_overhead => parse_property(config, "memory_overhead", Numeric, :optional => true, :default => 0.0),
       :max_disk => parse_property(config, "max_disk", Numeric, :optional => true, :default => 128.0),
       :disk_overhead => parse_property(config, "disk_overhead", Numeric, :optional => true, :default => 0.0),
+      :database_lock_file => parse_property(config, "database_lock_file", String, :optional => true, :default => "/var/vcap/sys/run/LOCK")
     }
     # Workaround for services that support running the service both inside and outside warden
     use_warden = parse_property(config, "use_warden", Boolean, :optional => true, :default => false)

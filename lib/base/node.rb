@@ -7,6 +7,7 @@ require 'socket'
 $:.unshift(File.dirname(__FILE__))
 require 'base'
 require 'service_message'
+require 'datamapper_l'
 
 class VCAP::Services::Base::Node < VCAP::Services::Base::Base
   include VCAP::Services::Internal
@@ -21,6 +22,7 @@ class VCAP::Services::Base::Node < VCAP::Services::Base::Base
     @migration_nfs = options[:migration_nfs]
     @fqdn_hosts = options[:fqdn_hosts]
     @op_time_limit = options[:op_time_limit]
+    DataMapper::initialize_lock_file(options[:database_lock_file])
 
     # A default supported version
     # *NOTE: All services *MUST* override this to provide the actual supported versions
