@@ -40,6 +40,7 @@ class VCAP::Services::Base::Base
         @logger.error("Exiting due to NATS error: #{e}")
         exit
       end
+      @logger.debug("Connecting with NATS")
       @node_nats = NATS.connect(:uri => options[:mbus]) do
         status_port = status_user = status_password = nil
         if not options[:status].nil?
@@ -48,6 +49,7 @@ class VCAP::Services::Base::Base
           status_password = options[:status][:password]
         end
 
+        @logger.debug("Registering with NATS")
         VCAP::Component.register(
           :nats => @node_nats,
           :type => service_description,
