@@ -114,8 +114,8 @@ module VCAP::Services::Base::Warden
     warden = self.class.warden_connect
     req = Warden::Protocol::LimitBandwidthRequest.new
     req.handle = handle
-    req.rate = rate * 1024 * 1024
-    req.burst = rate * 1 * 1024 * 1024 # Set burst the same size as rate
+    req.rate = (rate * 1024 * 1024).to_i
+    req.burst = (rate * 1 * 1024 * 1024).to_i # Set burst the same size as rate
     warden.call(req)
     true
   ensure
