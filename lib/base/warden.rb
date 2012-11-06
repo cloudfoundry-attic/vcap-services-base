@@ -163,6 +163,7 @@ class VCAP::Services::Base::WardenService
       @service_start_timeout = options[:service_start_timeout] || 3
       @bandwidth_per_second = options[:bandwidth_per_second]
       @service_port = options[:service_port]
+      @rm_instance_dir_timeout = options[:rm_instance_dir_timeout] || 10
       FileUtils.mkdir_p(File.dirname(options[:local_db].split(':')[1]))
       DataMapper.setup(:default, options[:local_db])
       DataMapper::auto_upgrade!
@@ -171,7 +172,7 @@ class VCAP::Services::Base::WardenService
       FileUtils.mkdir_p(image_dir) if @image_dir
     end
 
-    attr_reader :base_dir, :log_dir, :image_dir, :max_disk, :logger, :quota, :max_memory, :memory_overhead, :service_start_timeout, :bandwidth_per_second, :service_port
+    attr_reader :base_dir, :log_dir, :image_dir, :max_disk, :logger, :quota, :max_memory, :memory_overhead, :service_start_timeout, :bandwidth_per_second, :service_port, :rm_instance_dir_timeout
   end
 
   def logger
@@ -256,21 +257,20 @@ class VCAP::Services::Base::WardenService
     begin
       stop if running?
     rescue
-      # Catch the exception and record error log here to guarantee the following cleanup work is done.
+      # catch the exception and record error log here to guarantee the following cleanup work is done.
       logger.error("Fail to stop container when deleting service #{self[:name]}")
     end
     # delete log and service directory
-    pid = Process.fork do
+    begin
       if self.class.quota
-        FileUtils.rm_rf(image_file)
+        self.class.sh("rm -f #{image_file}", {:block => false})
       end
-      FileUtils.rm_rf(base_dir)
-      FileUtils.rm_rf(log_dir)
-      util_dirs.each do |util_dir|
-        FileUtils.rm_rf(util_dir)
-      end
+      # delete serivce data directory could be slow, so increase the timeout
+      self.class.sh("rm -rf #{base_dir} #{log_dir} #{util_dirs.join(' ')}", {:block => false, :timeout => self.class.rm_instance_dir_timeout})
+    rescue => e
+      # catch the exception and record error log here to guarantee the following cleanup work is done.
+      logger.error("Fail to delete instance directories, the error is #{e}")
     end
-    Process.detach(pid) if pid
     # delete the record when it's saved
     destroy! if saved?
   end
