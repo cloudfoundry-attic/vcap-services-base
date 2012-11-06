@@ -195,7 +195,7 @@ class VCAP::Services::Base::WardenService
     FileUtils.mkdir_p(base_dir)
     FileUtils.mkdir_p(log_dir)
     if self.class.quota
-      self.class.sh "dd if=/dev/null of=#{image_file} bs=1M seek=#{max_size}"
+      self.class.sh "dd if=/dev/null of=#{image_file} bs=1M seek=#{max_size.to_i}"
       self.class.sh "mkfs.ext4 -q -F -O \"^has_journal,uninit_bg\" #{image_file}"
       loop_setup
     end
@@ -225,7 +225,7 @@ class VCAP::Services::Base::WardenService
   def to_loopfile
     self.class.sh "mv #{base_dir} #{base_dir+"_bak"}"
     self.class.sh "mkdir -p #{base_dir}"
-    self.class.sh "A=`du -sm #{base_dir+"_bak"} | awk '{ print $1 }'`;A=$((A+32));if [ $A -lt #{self.class.max_disk} ]; then A=#{self.class.max_disk}; fi;dd if=/dev/null of=#{image_file} bs=1M seek=$A"
+    self.class.sh "A=`du -sm #{base_dir+"_bak"} | awk '{ print $1 }'`;A=$((A+32));if [ $A -lt #{self.class.max_disk.to_i} ]; then A=#{self.class.max_disk.to_i}; fi;dd if=/dev/null of=#{image_file} bs=1M seek=$A"
     self.class.sh "mkfs.ext4 -q -F -O \"^has_journal,uninit_bg\" #{image_file}"
     self.class.sh "mount -n -o loop #{image_file} #{base_dir}"
     self.class.sh "cp -af #{base_dir+"_bak"}/* #{base_dir}", :timeout => 60.0
