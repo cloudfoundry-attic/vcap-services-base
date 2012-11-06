@@ -163,6 +163,7 @@ class VCAP::Services::Base::WardenService
       @service_start_timeout = options[:service_start_timeout] || 3
       @bandwidth_per_second = options[:bandwidth_per_second]
       @service_port = options[:service_port]
+      @rm_basedir_timeout = options[:rm_basedir_timeout] || 10
       FileUtils.mkdir_p(File.dirname(options[:local_db].split(':')[1]))
       DataMapper.setup(:default, options[:local_db])
       DataMapper::auto_upgrade!
@@ -171,7 +172,7 @@ class VCAP::Services::Base::WardenService
       FileUtils.mkdir_p(image_dir) if @image_dir
     end
 
-    attr_reader :base_dir, :log_dir, :image_dir, :max_disk, :logger, :quota, :max_memory, :memory_overhead, :service_start_timeout, :bandwidth_per_second, :service_port
+    attr_reader :base_dir, :log_dir, :image_dir, :max_disk, :logger, :quota, :max_memory, :memory_overhead, :service_start_timeout, :bandwidth_per_second, :service_port, :rm_basedir_timeout
   end
 
   def logger
@@ -260,17 +261,16 @@ class VCAP::Services::Base::WardenService
       logger.error("Fail to stop container when deleting service #{self[:name]}")
     end
     # delete log and service directory
-    pid = Process.fork do
-      if self.class.quota
-        FileUtils.rm_rf(image_file)
-      end
-      FileUtils.rm_rf(base_dir)
-      FileUtils.rm_rf(log_dir)
-      util_dirs.each do |util_dir|
-        FileUtils.rm_rf(util_dir)
-      end
+    if self.class.quota
+      FileUtils.rm_rf(image_file)
+      self.class.sh("rm -f #{image_file}", {:nonblock => true})
     end
-    Process.detach(pid) if pid
+    # delete serivce data directory could be slow, so increase the timeout
+    self.class.sh("rm -rf #{base_dir}", {:nonblock => true, :timeout => self.class.rm_basedir_timeout})
+    self.class.sh("rm -rf #{log_dir}", {:nonblock => true})
+    util_dirs.each do |util_dir|
+      self.class.sh("rm -rf #{util_dir}", {:nonblock => true})
+    end
     # delete the record when it's saved
     destroy! if saved?
   end
