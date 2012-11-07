@@ -207,6 +207,18 @@ describe AsyncGatewayTests do
     gateway.provision_http_code.should == 503
   end
 
+  it "should work if provisioner finishes within a delay bigger then the default Thin timeout" do
+    cc = nil
+    gateway = nil
+    EM.run do
+      Do.at(0) { cc = AsyncGatewayTests.create_cloudcontroller ; cc.start }
+      Do.at(1) { gateway = AsyncGatewayTests.create_timeout_gateway(true, 35) ; gateway.start }
+      Do.at(2) { gateway.send_provision_request }
+      Do.at(72) { cc.stop ; gateway.stop ; EM.stop }
+    end
+    gateway.provision_http_code.should == 200
+  end
+
   it "should be able to return error when provision failed" do
     cc = nil
     gateway = nil
