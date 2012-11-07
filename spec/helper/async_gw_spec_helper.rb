@@ -53,6 +53,7 @@ class AsyncGatewayTests
       else
         @sp = nice ? NiceProvisioner.new : NastyProvisioner.new
       end
+      @service_timeout = timeout ? timeout + 1 : 10
       sg = VCAP::Services::AsynchronousServiceGateway.new(
         :service => {
                       :label => @label,
@@ -64,7 +65,7 @@ class AsyncGatewayTests
                       :supported_versions => ["1.0"],
                       :version_aliases => {},
                       :url => 'http://localhost',
-                      :timeout => 10,
+                      :timeout => @service_timeout,
                       :plan_options => [],
                       :default_plan => 'free',
                     },
@@ -76,6 +77,9 @@ class AsyncGatewayTests
         :double_check_orphan_interval => double_check_interval
       )
       @server = Thin::Server.new('localhost', GW_PORT, sg)
+      if @service_timeout
+        @server.timeout = [@service_timeout + 1, Thin::Server::DEFAULT_TIMEOUT].max
+      end
       @provision_http_code = 0
       @unprovision_http_code = 0
       @bind_http_code = 0
@@ -120,7 +124,7 @@ class AsyncGatewayTests
         :plan  => "free",
         :version => "1.0"
       ).encode
-      http = EM::HttpRequest.new("http://localhost:#{GW_PORT}/gateway/v1/configurations").post(gen_req(msg))
+      http = EM::HttpRequest.new("http://localhost:#{GW_PORT}/gateway/v1/configurations", :inactivity_timeout => @service_timeout).post(gen_req(msg))
       http.callback {
         @provision_http_code = http.response_header.status
         if @provision_http_code == 200

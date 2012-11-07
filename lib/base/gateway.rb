@@ -118,7 +118,12 @@ class VCAP::Services::Base::Gateway
              :double_check_orphan_interval => @config[:double_check_orphan_interval],
              :api_extensions => @config[:api_extensions],
            )
-      Thin::Server.start(@config[:host], @config[:port], sg)
+
+      server = Thin::Server.new(@config[:host], @config[:port], sg)
+      if @config[:service][:timeout]
+        server.timeout = [@config[:service][:timeout] + 1, Thin::Server::DEFAULT_TIMEOUT].max
+      end
+      server.start!
     end
   end
 
