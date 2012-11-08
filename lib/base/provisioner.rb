@@ -871,7 +871,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     metadata = {
       :plan => find_service_plan(instance),
       :provider => service[:provider] || 'core',
-      :service_version => instance[:configuration]["version"],
+      :service_version => instance[:configuration][:version],
     }
     metadata
   rescue => e

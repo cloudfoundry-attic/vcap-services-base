@@ -225,7 +225,7 @@ module VCAP::Services::Base::AsyncJob
         begin
           required_options :service_id
           @name = options["service_id"]
-          @metadata = options["metadata"]
+          @metadata = VCAP.symbolize_keys(options["metadata"])
           @logger.info("Launch job: #{self.class} for #{name} with metadata: #{@metadata}")
 
           @snapshot_id = new_snapshot_id
