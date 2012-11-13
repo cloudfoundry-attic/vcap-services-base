@@ -57,7 +57,7 @@ module VCAP::Services::Base::Warden
   end
 
   def container_running?(handle)
-    handle != "" && container_info(handle)
+    handle != "" && container_info(handle) != nil
   end
 
   def container_run_command(handle, cmd, is_privileged=false)
