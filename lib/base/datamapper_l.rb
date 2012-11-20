@@ -2,14 +2,6 @@ require "fileutils"
 require "monitor"
 require "datamapper"
 
-LOCK_FILE = "/var/vcap/sys/run/LOCK"
-
-# Initialize lockfile
-FileUtils.mkdir_p(File.dirname(LOCK_FILE))
-File.open(LOCK_FILE, 'w') do |file|
-  file.truncate(0)
-end
-
 # Export Monitor's count
 class Monitor
   def count
@@ -41,7 +33,13 @@ module DataMapper
     end
   end
 
-  LOCK = GlobalMutex.new(LOCK_FILE)
+  def self.initialize_lock_file(lock_file)
+    FileUtils.mkdir_p(File.dirname(lock_file))
+    File.open(lock_file, 'w') do |file|
+      file.truncate(0)
+    end
+    @lock = GlobalMutex.new(lock_file)
+  end
 
   # The following code will overwrite DataMapper's functions, and replace
   # them with a synchronized version of the same function.
@@ -50,13 +48,13 @@ module DataMapper
     alias original_destroy destroy
 
     def save
-      LOCK.synchronize do
+      @lock.synchronize do
         original_save
       end
     end
 
     def destroy
-      LOCK.synchronize do
+      @lock.synchronize do
         original_destroy
       end
     end
@@ -67,13 +65,13 @@ module DataMapper
     alias original_all all
 
     def get(*args)
-      LOCK.synchronize do
+      @lock.synchronize do
         original_get(*args)
       end
     end
 
     def all(*args)
-      LOCK.synchronize do
+      @lock.synchronize do
         original_all(*args)
       end
     end
@@ -87,7 +85,7 @@ module DataMapper
 
     def each(&block)
       instances = []
-      LOCK.synchronize do
+      @lock.synchronize do
         original_each do |instance|
           instances << instance
         end
@@ -96,19 +94,19 @@ module DataMapper
     end
 
     def [](*args)
-      LOCK.synchronize do
+      @lock.synchronize do
         original_at(*args)
       end
     end
 
     def get(*args)
-      LOCK.synchronize do
+      @lock.synchronize do
         original_get(*args)
       end
     end
 
     def empty?()
-      LOCK.synchronize do
+      @lock.synchronize do
         original_empty?()
       end
     end
@@ -120,7 +118,7 @@ module DataMapper
       alias original_repository_execute repository_execute
 
       def repository_execute(*args)
-        LOCK.synchronize do
+        @lock.synchronize do
           original_repository_execute(*args)
         end
       end
