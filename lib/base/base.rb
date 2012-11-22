@@ -27,11 +27,14 @@ class VCAP::Services::Base::Base
 
   include VCAP::Services::Base::Error
 
+  attr_reader :closing
+
   def initialize(options)
     @logger = options[:logger]
     @options = options
     @local_ip = VCAP.local_ip(options[:ip_route])
     @logger.info("#{service_description}: Initializing")
+    @closing = false
 
     @node_nats = nil
     if options[:mbus]
@@ -88,6 +91,7 @@ class VCAP::Services::Base::Base
   end
 
   def shutdown()
+    @closing = true
     @logger.info("#{service_description}: Shutting down")
     @node_nats.close if @node_nats
   end

@@ -111,9 +111,12 @@ class VCAP::Services::Base::Warden::Service
 
   # instance operation helper
   def delete
+    container_name = self[:container]
+    # delete the record when it's saved
+    destroy! if saved?
     # stop container
     begin
-      stop if running?
+      stop(container_name)
     rescue
       # catch the exception and record error log here to guarantee the following cleanup work is done.
       logger.error("Fail to stop container when deleting service #{self[:name]}")
@@ -129,8 +132,6 @@ class VCAP::Services::Base::Warden::Service
       # catch the exception and record error log here to guarantee the following cleanup work is done.
       logger.error("Fail to delete instance directories, the error is #{e}")
     end
-    # delete the record when it's saved
-    destroy! if saved?
   end
 
   def run_command(handle, cmd_hash)
@@ -181,20 +182,46 @@ class VCAP::Services::Base::Warden::Service
     # where restart this instance, there should be no such work
     post_start_block.call(self) if post_start_block
     save!
+    @in_monitor = true
     true
   end
 
   def running?
-    container_running?(self[:container])
+    container_running?(self[:container]) && instance_status?
   end
 
-  def stop
-    run_command(self[:container], stop_options[:stop_script]) if stop_options[:stop_script]
-    container_stop(self[:container])
-    container_destroy(self[:container])
-    self[:container] = ''
-    save
-    loop_setdown if self.class.quota
+  def instance_status?
+    if status_options
+      begin
+        run_command(self[:container], status_options[:status_script]) if status_options[:status_script]
+        return true
+      rescue VCAP::Services::Base::Error::ServiceError => e
+        if e.error_code == VCAP::Services::Base::Error::ServiceError::WARDEN_RUN_COMMAND_FAILURE
+          logger.warn("Instance is down. Name: #{self[:name]}; Handle: #{self[:container]}; Error: #{e}")
+        else
+          logger.warn("run_command failed: #{e}")
+        end
+      rescue => e
+        logger.warn("run_command failed: #{e}")
+      end
+    end
+    false
+  end
+
+  # Usually, stop can retrieve container_name from local_db
+  # An exception is unprovision, which destroys record in local_db first.
+  def stop(container_name=nil)
+    name = container_name || self[:container]
+    if container_running?(name)
+      run_command(name, stop_options[:stop_script]) if stop_options[:stop_script]
+      container_stop(name)
+      container_destroy(name)
+      unless container_name
+        self[:container] = ''
+        save
+      end
+      loop_setdown if self.class.quota
+    end
   end
 
   # directory helper
@@ -249,6 +276,7 @@ class VCAP::Services::Base::Warden::Service
   def start_options
     {
       :pre_start_script => {:script => "pre_service_start.sh", :use_root => true},
+      :start_script => {:script => "warden_service_ctl start", :use_spawn => true},
       :service_port => self.class.service_port,
       :need_map_port => true,
       :is_first_start => false,
@@ -276,10 +304,20 @@ class VCAP::Services::Base::Warden::Service
     finish_start?
   end
 
-  # If the normal stop way of the service is kill (send SIGTERM signal),
-  # then it doesn't need override this method
+  # Base user should provide a script to stop instance.
+  # if stop_options is empty, the process will get a SIGTERM first then SIGKILL later.
   def stop_options
-    {}
+    {
+      :stop_script => {:script => "warden_service_ctl stop"}
+    }
+  end
+
+  # Provide a command to monitor the health of instance.
+  # if status_options is empty, running? method will only show the health of container
+  def status_options
+    {
+      :status_script => {:script => "warden_service_ctl status"}
+    }
   end
 
   # Generally the node can use this default calculation method for memory limitation

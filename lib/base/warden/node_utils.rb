@@ -9,6 +9,22 @@ end
 
 module VCAP::Services::Base::Warden::NodeUtils
 
+  attr_accessor :m_interval, :m_actions
+
+  def warden_node_init(options=[])
+    @m_interval = options[:m_interval] || 10
+    @m_actions = options[:m_actions] || []
+    setup_monitor_timer
+  end
+
+  def setup_monitor_timer
+    EM.add_timer(m_interval){ EM.defer{ monitor_all_instances } } if m_interval > 0
+  end
+
+  def service_instances
+    []
+  end
+
   def init_ports(port_range)
     @free_ports = Set.new
     port_range.each {|port| @free_ports << port}
@@ -52,6 +68,67 @@ module VCAP::Services::Base::Warden::NodeUtils
     end
   end
 
+  def pool_run(params, worker_count=10)
+    lock = Mutex.new
+    ths = []
+    ind = 0
+    worker_count.times do |i|
+      ths << Thread.new(i) do |tid|
+        loop do
+          param = nil
+          lock.synchronize do
+            Thread.exit if ind >= params.size
+            param = params[ind]
+            ind += 1
+          end
+          begin
+            yield(param, tid)
+          rescue => e
+            @logger.warn("pool_run error: #{e}")
+          end
+        end
+      end
+    end
+    ths.each(&:join)
+  end
+
+  def monitor_all_instances
+    params = service_instances.map {|instance| instance }
+    lock = Mutex.new
+    failed_instances = []
+    pool_run(params) do |ins, _|
+      return if closing
+      lock.synchronize{ failed_instances << ins } unless ins.running?
+    end
+    @logger.debug("Found failed_instances: #{failed_instances.map{|i| i.name}}") if failed_instances.size > 0
+    m_actions.each do |act|
+      return if closing
+      method = "#{act}_failed_instances"
+      if respond_to?(method.to_sym)
+        begin
+          send(method.to_sym, failed_instances)
+        rescue => e
+          @logger.warn("#{method}: #{e}")
+        end
+      else
+        @logger.warn("Failover action #{act} is not defined")
+      end
+    end
+  rescue => e
+    @logger.warn("monitor_all_instances: #{e}")
+  ensure
+    setup_monitor_timer
+  end
+
+  def restart_failed_instances(failed_instances)
+    stop_instances(failed_instances)
+    start_instances(failed_instances)
+  end
+
+  def start_all_instances
+    start_instances(service_instances)
+  end
+
   def start_instances(all_instances)
     @instance_parallel_start_count = 10 if @instance_parallel_start_count.nil?
     start = 0
@@ -61,7 +138,6 @@ module VCAP::Services::Base::Warden::NodeUtils
       instances = all_instances.slice(start, [@instance_parallel_start_count, all_instances.size - start].min)
       start = start + @instance_parallel_start_count
       for instance in instances
-        @capacity -= capacity_unit
         del_port(instance.port)
 
         if instance.running? then
@@ -85,6 +161,7 @@ module VCAP::Services::Base::Warden::NodeUtils
           rescue => e
             check_lock.synchronize {check_set.delete(t_instance.name)}
             @logger.error("Error starting instance #{t_instance.name}: #{e}")
+            Thread.exit
           end
           @service_start_timeout.times do
             if t_instance.finish_start?
@@ -92,6 +169,7 @@ module VCAP::Services::Base::Warden::NodeUtils
               @logger.info("Successfully start provisioned instance #{t_instance.name}")
               break
             end
+            Thread.exit if closing
             sleep 1
           end
         end
@@ -101,6 +179,10 @@ module VCAP::Services::Base::Warden::NodeUtils
     check_set.each do |name|
       @logger.error("Timeout to wait for starting provisioned instance #{name}")
     end
+  end
+
+  def stop_all_instances
+    stop_instances(service_instances)
   end
 
   def stop_instances(all_instances)
