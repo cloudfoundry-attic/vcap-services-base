@@ -33,12 +33,16 @@ module DataMapper
     end
   end
 
-  def self.initialize_lock_file(lock_file)
-    FileUtils.mkdir_p(File.dirname(lock_file))
-    File.open(lock_file, 'w') do |file|
-      file.truncate(0)
+  class << self
+    attr_reader :lock
+
+    def initialize_lock_file(lock_file)
+      FileUtils.mkdir_p(File.dirname(lock_file))
+      File.open(lock_file, 'w') do |file|
+        file.truncate(0)
+      end
+      @lock = GlobalMutex.new(lock_file)
     end
-    @lock = GlobalMutex.new(lock_file)
   end
 
   # The following code will overwrite DataMapper's functions, and replace
@@ -48,13 +52,13 @@ module DataMapper
     alias original_destroy destroy
 
     def save
-      @lock.synchronize do
+      DataMapper.lock.synchronize do
         original_save
       end
     end
 
     def destroy
-      @lock.synchronize do
+      DataMapper.lock.synchronize do
         original_destroy
       end
     end
@@ -65,13 +69,13 @@ module DataMapper
     alias original_all all
 
     def get(*args)
-      @lock.synchronize do
+      DataMapper.lock.synchronize do
         original_get(*args)
       end
     end
 
     def all(*args)
-      @lock.synchronize do
+      DataMapper.lock.synchronize do
         original_all(*args)
       end
     end
@@ -85,28 +89,28 @@ module DataMapper
 
     def each(&block)
       instances = []
-      @lock.synchronize do
+      DataMapper.lock.synchronize do
         original_each do |instance|
           instances << instance
         end
       end
-      instances.each &block
+      instances.each(&block)
     end
 
     def [](*args)
-      @lock.synchronize do
+      DataMapper.lock.synchronize do
         original_at(*args)
       end
     end
 
     def get(*args)
-      @lock.synchronize do
+      DataMapper.lock.synchronize do
         original_get(*args)
       end
     end
 
     def empty?()
-      @lock.synchronize do
+      DataMapper.lock.synchronize do
         original_empty?()
       end
     end
@@ -118,7 +122,7 @@ module DataMapper
       alias original_repository_execute repository_execute
 
       def repository_execute(*args)
-        @lock.synchronize do
+        DataMapper.lock.synchronize do
           original_repository_execute(*args)
         end
       end
