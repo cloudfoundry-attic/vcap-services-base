@@ -113,7 +113,7 @@ class VCAP::Services::Base::Warden::Service
   def delete
     # stop container
     begin
-      stop if running?
+      stop if container_running?(self[:container])
     rescue
       # catch the exception and record error log here to guarantee the following cleanup work is done.
       logger.error("Fail to stop container when deleting service #{self[:name]}")
@@ -185,7 +185,19 @@ class VCAP::Services::Base::Warden::Service
   end
 
   def running?
-    container_running?(self[:container])
+    container_running?(self[:container]) && instance_status?
+  end
+
+  def instance_status?
+    if status_options
+      begin
+        run_command(self[:container], status_options[:status_script])
+        return true
+      rescue => e
+        logger.warn("Instance is down. Name: #{self[:name]}; Handle: #{self[:container]}")
+      end
+    end
+    false
   end
 
   def stop
@@ -249,6 +261,7 @@ class VCAP::Services::Base::Warden::Service
   def start_options
     {
       :pre_start_script => {:script => "pre_service_start.sh", :use_root => true},
+      :start_script => {:script => "warden_service_ctl start", :use_spawn => true},
       :service_port => self.class.service_port,
       :need_map_port => true,
       :is_first_start => false,
@@ -279,7 +292,15 @@ class VCAP::Services::Base::Warden::Service
   # If the normal stop way of the service is kill (send SIGTERM signal),
   # then it doesn't need override this method
   def stop_options
-    {}
+    {
+      :stop_script => {:script => "warden_service_ctl stop"}
+    }
+  end
+
+  def status_options
+    {
+      :status_script => {:script => "warden_service_ctl status"}
+    }
   end
 
   # Generally the node can use this default calculation method for memory limitation
