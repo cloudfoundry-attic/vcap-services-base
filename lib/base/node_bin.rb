@@ -68,6 +68,9 @@ class VCAP::Services::Base::NodeBin
       # Wardenized service configuration
       :base_dir => parse_property(config, "base_dir", String, :optional => true),
       :service_log_dir => parse_property(config, "service_log_dir", String, :optional => true),
+      :service_script_dir => parse_property(config, "service_script_dir", String, :optional => true, :default => "/var/vcap/jobs"),
+      :service_conf_dir => parse_property(config, "service_conf_dir", String, :optional => true, :default => "/var/vcap/jobs"),
+      :service_bin_dir => parse_property(config, "service_bin_dir", Hash, :optional => true),
       :image_dir => parse_property(config, "image_dir", String, :optional => true),
       :port_range => parse_property(config, "port_range", Range, :optional => true),
       :filesystem_quota => parse_property(config, "filesystem_quota", Boolean, :optional => true, :default => false),
@@ -83,9 +86,12 @@ class VCAP::Services::Base::NodeBin
     if use_warden
       warden_config = parse_property(config, "warden", Hash, :optional => true)
       options[:service_log_dir] = parse_property(warden_config, "service_log_dir", String)
+      options[:service_script_dir] = parse_property(warden_config, "service_script_dir", String, :optional => true, :default => "/var/vcap/jobs")
+      options[:service_conf_dir] = parse_property(warden_config, "service_conf_dir", String, :optional => true, :default => "/var/vcap/jobs")
+      options[:service_bin_dir] = parse_property(warden_config, "service_bin_dir", Hash, :optional => true)
       options[:port_range] = parse_property(warden_config, "port_range", Range)
       options[:image_dir] = parse_property(warden_config, "image_dir", String)
-      options[:filesystem_quota] = parse_property(warden_config, "filesystem_quota", Boolean, :optional => true)
+      options[:filesystem_quota] = parse_property(warden_config, "filesystem_quota", Boolean, :optional => true, :default => false)
       options[:service_start_timeout] = parse_property(warden_config, "service_start_timeout", Integer, :optional => true, :default => 3)
     end
 

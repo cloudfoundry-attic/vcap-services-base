@@ -143,11 +143,15 @@ module VCAP::Services::Base::Warden::InstanceUtils
     warden.disconnect if warden
   end
 
-  def bind_mount_request(src, dst)
+  def bind_mount_request(bind_dir)
     bind = Warden::Protocol::CreateRequest::BindMount.new
-    bind.src_path = src
-    bind.dst_path = dst
-    bind.mode = Warden::Protocol::CreateRequest::BindMount::Mode::RW
+    bind.src_path = bind_dir[:src]
+    bind.dst_path = bind_dir[:dst] || bind_dir[:src]
+    if bind_dir[:read_only]
+      bind.mode = Warden::Protocol::CreateRequest::BindMount::Mode::RO
+    else
+      bind.mode = Warden::Protocol::CreateRequest::BindMount::Mode::RW
+    end
     bind
   end
 end
