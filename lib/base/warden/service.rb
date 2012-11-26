@@ -12,6 +12,9 @@ class VCAP::Services::Base::Warden::Service
       @@options = options
       @base_dir = options[:base_dir]
       @log_dir = options[:service_log_dir]
+      @script_dir = options[:service_script_dir]
+      @conf_dir = options[:service_conf_dir]
+      @bin_dir = options[:service_bin_dir]
       @image_dir = options[:image_dir]
       @logger = options[:logger]
       @max_disk = options[:max_disk]
@@ -30,7 +33,7 @@ class VCAP::Services::Base::Warden::Service
       FileUtils.mkdir_p(image_dir) if @image_dir
     end
 
-    attr_reader :base_dir, :log_dir, :image_dir, :max_disk, :logger, :quota, :max_memory, :memory_overhead, :service_start_timeout, :bandwidth_per_second, :service_port, :rm_instance_dir_timeout
+    attr_reader :base_dir, :log_dir, :conf_dir, :script_dir, :bin_dir, :image_dir, :max_disk, :logger, :quota, :max_memory, :memory_overhead, :service_start_timeout, :bandwidth_per_second, :service_port, :rm_instance_dir_timeout
   end
 
   def logger
@@ -52,6 +55,7 @@ class VCAP::Services::Base::Warden::Service
       FileUtils.rm_f(image_file)
     end
     FileUtils.mkdir_p(base_dir)
+    FileUtils.mkdir_p(data_dir)
     FileUtils.mkdir_p(log_dir)
     if self.class.quota
       self.class.sh "dd if=/dev/null of=#{image_file} bs=1M seek=#{max_size.to_i}"
@@ -158,14 +162,10 @@ class VCAP::Services::Base::Warden::Service
     options = (new? ? first_start_options : start_options) unless options
     loop_setup if self.class.quota && (not loop_setup?)
     bind_mounts = []
-    if options[:additional_binds]
-      bind_mounts = options[:additional_binds].map do |additional_bind|
-        bind_mount_request(additional_bind[:src_path], additional_bind[:dst_path])
-      end
-    end
-    bind_mounts << bind_mount_request(base_dir, "/store/instance")
-    bind_mounts << bind_mount_request(log_dir, "/store/log")
+    bind_mounts = options[:bind_dirs].map { |bind_dir| bind_mount_request(bind_dir) }
     handle = container_start(bind_mounts)
+    rw_dirs = options[:bind_dirs].map { |bind_dir| bind_dir[:dst] || bind_dir[:src] unless bind_dir[:read_only]}.compact
+    run_command(handle, {:script => "chown -R vcap:vcap #{rw_dirs.join(' ')}", :use_root => true}) unless rw_dirs.empty?
     limit_memory(handle, memory_limit) if memory_limit
     limit_bandwidth(handle, bandwidth_limit) if bandwidth_limit
     run_command(handle, options[:pre_start_script]) if options[:pre_start_script]
@@ -255,6 +255,22 @@ class VCAP::Services::Base::Warden::Service
     []
   end
 
+  def data_dir
+    File.join(base_dir, "data")
+  end
+
+  def script_dir
+    self.class.script_dir
+  end
+
+  def conf_dir
+    self.class.conf_dir
+  end
+
+  def bin_dir
+    self.class.bin_dir[version]
+  end
+
   # service start/stop helper
   def wait_service_start(is_first_start=false)
     (self.class.service_start_timeout * 10).times do
@@ -273,12 +289,18 @@ class VCAP::Services::Base::Warden::Service
   # Instance start options, basiclly the node need define ":start_script",
   # and use other default options.
   def start_options
+    bind_dirs = []
+    bind_dirs << {:src => bin_dir, :read_only => true}
+    bind_dirs << {:src => File.join(File.dirname(bin_dir), "common"), :read_only => true}
+    bind_dirs << {:src => script_dir, :read_only => true}
+    bind_dirs << {:src => base_dir} if base_dir
+    bind_dirs << {:src => log_dir} if log_dir
+    bind_dirs.concat util_dirs.map { |dir| {:src => dir} }
     {
-      :pre_start_script => {:script => "pre_service_start.sh", :use_root => true},
-      :start_script => {:script => "warden_service_ctl start", :use_spawn => true},
       :service_port => self.class.service_port,
       :need_map_port => true,
       :is_first_start => false,
+      :bind_dirs => bind_dirs,
     }
   end
 
@@ -307,7 +329,7 @@ class VCAP::Services::Base::Warden::Service
   # if stop_options is empty, the process will get a SIGTERM first then SIGKILL later.
   def stop_options
     {
-      :stop_script => {:script => "warden_service_ctl stop"}
+      :stop_script => {:script => "#{service_script} stop #{base_dir} #{log_dir}"},
     }
   end
 
@@ -315,8 +337,13 @@ class VCAP::Services::Base::Warden::Service
   # if status_options is empty, running? method will only show the health of container
   def status_options
     {
-      :status_script => {:script => "warden_service_ctl status"}
+      :status_script => {:script => "#{service_script} status #{base_dir} #{log_dir}"}
     }
+  end
+
+  # Generally the node can use this default service script path
+  def service_script
+    File.join(script_dir, "warden_service_ctl")
   end
 
   # Generally the node can use this default calculation method for memory limitation
