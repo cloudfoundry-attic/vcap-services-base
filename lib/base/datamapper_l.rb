@@ -36,6 +36,22 @@ module DataMapper
   class << self
     attr_reader :lock
 
+    # extend DataMapper.setup parameters for a new :lock_file options
+    # new setup can be called as following:
+    # DataMapper.setup(<name>, <string>, :lock_file => file)
+    # DataMapper.setup(<name>, <uri>, :lock_file => file)
+    # DataMapper.setup(<name>, <other_connection_options, :lock_file => file>)
+    alias original_setup setup
+    def setup(*args)
+      unless @lock
+        lock_file = args[1][:lock_file] if args.size == 2 && args[1].kind_of?(Hash)
+        lock_file = args[2][:lock_file] if args.size == 3
+        lock_file ||= '/var/vcap/sys/run/LOCK'
+        initialize_lock_file(lock_file)
+      end
+      original_setup(*args)
+    end
+
     def initialize_lock_file(lock_file)
       FileUtils.mkdir_p(File.dirname(lock_file))
       File.open(lock_file, 'w') do |file|
