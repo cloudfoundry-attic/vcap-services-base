@@ -212,7 +212,11 @@ class VCAP::Services::Base::Warden::Service
   def stop(container_name=nil)
     name = container_name || self[:container]
     if container_running?(name)
-      run_command(name, stop_options[:stop_script]) if stop_options[:stop_script]
+      begin
+        run_command(name, stop_options[:stop_script]) if stop_options[:stop_script]
+      rescue => e
+        logger.error("Failed to call instance stop script #{stop_options[:stop_script]} with error #{e}")
+      end
       container_stop(name)
       container_destroy(name)
       unless container_name
