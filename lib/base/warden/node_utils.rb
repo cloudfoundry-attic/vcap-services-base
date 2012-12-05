@@ -161,6 +161,8 @@ module VCAP::Services::Base::Warden::NodeUtils
           rescue => e
             check_lock.synchronize {check_set.delete(t_instance.name)}
             @logger.error("Error starting instance #{t_instance.name}: #{e}")
+            # Try to stop the instance since the container could be created
+            t_instance.stop
             Thread.exit
           end
           @service_start_timeout.times do
