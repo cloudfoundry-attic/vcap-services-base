@@ -28,6 +28,7 @@ class BaseTests
     PLAN = "free"
     CAPACITY = 200
     DATABASE_LOCK_FILE = "/tmp/LOCK"
+    DISABLED_FILE = "/tmp/DISABLED"
 
     def self.default(more=nil)
       options = {
@@ -37,7 +38,8 @@ class BaseTests
         :ip_route => IP_ROUTE,
         :mbus => NATS_URI,
         :node_timeout => NODE_TIMEOUT,
-        :database_lock_file => DATABASE_LOCK_FILE
+        :database_lock_file => DATABASE_LOCK_FILE,
+        :disabled_file => DISABLED_FILE,
       }
       more.each { |k,v| options[k] = v } if more
       options

@@ -22,6 +22,7 @@ class VCAP::Services::Base::Node < VCAP::Services::Base::Base
     @migration_nfs = options[:migration_nfs]
     @fqdn_hosts = options[:fqdn_hosts]
     @op_time_limit = options[:op_time_limit]
+    @disabled_file = options[:disabled_file]
     DataMapper::initialize_lock_file(options[:database_lock_file]) if options[:database_lock_file]
 
     # A default supported version
@@ -374,7 +375,15 @@ class VCAP::Services::Base::Node < VCAP::Services::Base::Base
   def pre_send_announcement
   end
 
+  def disabled?
+    File.exist?(@disabled_file)
+  end
+
   def send_node_announcement(msg=nil, reply=nil)
+    if disabled?
+      @logger.info("#{service_description}: Not sending announcement because node is disabled")
+      return
+    end
     unless node_ready?
       @logger.debug("#{service_description}: Not ready to send announcement")
       return

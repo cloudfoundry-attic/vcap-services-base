@@ -65,6 +65,8 @@ class VCAP::Services::Base::NodeBin
       :supported_versions => parse_property(config, "supported_versions", Array),
       :default_version => parse_property(config, "default_version", String),
       :max_clients => parse_property(config, "max_clients", Integer, :optional => true),
+      :database_lock_file => parse_property(config, "database_lock_file", String, :optional => true, :default => "/var/vcap/sys/run/LOCK"),
+      :disabled_file => parse_property(config, "disabled_file", String, :optional => true, :default => "/var/vcap/store/DISABLED"),
       # Wardenized service configuration
       :base_dir => parse_property(config, "base_dir", String, :optional => true),
       :service_log_dir => parse_property(config, "service_log_dir", String, :optional => true),
@@ -79,7 +81,6 @@ class VCAP::Services::Base::NodeBin
       :memory_overhead => parse_property(config, "memory_overhead", Numeric, :optional => true, :default => 0.0),
       :max_disk => parse_property(config, "max_disk", Numeric, :optional => true, :default => 128.0),
       :disk_overhead => parse_property(config, "disk_overhead", Numeric, :optional => true, :default => 0.0),
-      :database_lock_file => parse_property(config, "database_lock_file", String, :optional => true, :default => "/var/vcap/sys/run/LOCK"),
       :m_interval => parse_property(config, "m_interval", Integer, :optional => true, :default => 10),
       :m_actions => parse_property(config, "m_actions", Array, :optional => true, :default => []),
     }
