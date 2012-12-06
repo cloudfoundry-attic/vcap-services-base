@@ -39,7 +39,8 @@ module VCAP::Services::Base::Utils
           exit_status
         else
           # If the work is still not done after timeout, then kill the process and record an erorr log
-          EM.add_timer(options[:timeout]) do
+          t = Thread.new do
+            sleep options[:timeout]
             if status.alive?
               Process.kill("TERM", pid)
               Process.detach(pid)
@@ -48,6 +49,7 @@ module VCAP::Services::Base::Utils
               logger.error "sh #{args} executed with failure, the exit status is #{status.value.exitstatus}" if status.value.exitstatus != 0 && logger
             end
           end
+          t.join
           return 0
         end
       rescue Errno::EPERM
