@@ -39,7 +39,8 @@ module VCAP::Services::Base::Utils
           exit_status
         else
           # If the work is still not done after timeout, then kill the process and record an erorr log
-          EM.add_timer(options[:timeout]) do
+          Thread.new do
+            sleep options[:timeout]
             if status.alive?
               Process.kill("TERM", pid)
               Process.detach(pid)
