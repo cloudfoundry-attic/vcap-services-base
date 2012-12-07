@@ -31,5 +31,5 @@ Gem::Specification.new do |s|
   s.add_dependency "curb", "~> 0.7.16"
   s.add_dependency "rubyzip", "~> 0.9.8"
   s.add_dependency "warden-client", "~> 0.0.7"
-  s.add_dependency "warden-protocol", "~> 0.0.9"
+  s.add_dependency "warden-protocol", "~> 0.0.12"
 end

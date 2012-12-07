@@ -32,12 +32,12 @@ GIT
 
 GIT
   remote: git://github.com/cloudfoundry/warden.git
-  revision: fe6cb5130388fd3117de9b16e830d45844cf05c9
-  ref: fe6cb51
+  revision: 62c8c5687809e87038480baacb808ba2ed89cabf
+  ref: 62c8c56
   specs:
     warden-client (0.0.7)
       warden-protocol
-    warden-protocol (0.0.9)
+    warden-protocol (0.0.12)
       beefcake
 
 PATH
@@ -62,7 +62,7 @@ PATH
       vcap_common (>= 1.0.8)
       vcap_logging (>= 1.0.2)
       warden-client (~> 0.0.7)
-      warden-protocol (~> 0.0.9)
+      warden-protocol (~> 0.0.12)
 
 GEM
   remote: http://rubygems.org/
@@ -189,7 +189,7 @@ GEM
       eventmachine (>= 0.12.6)
       rack (>= 1.0.0)
     tilt (1.2.2)
-    uuid (2.3.5)
+    uuid (2.3.6)
       macaddr (~> 1.0)
     uuidtools (2.1.3)
     vegas (0.1.11)
