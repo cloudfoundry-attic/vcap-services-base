@@ -227,6 +227,11 @@ class VCAP::Services::Base::Warden::Service
     end
   end
 
+  # container info helper
+  def container_hostip
+    container_info(container).hostip
+  end
+
   # directory helper
   def image_file
     return File.join(self.class.image_dir, "#{self[:name]}.img") if self.class.image_dir
