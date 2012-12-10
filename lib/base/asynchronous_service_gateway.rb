@@ -27,44 +27,25 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
     @provisioner  = opts[:provisioner]
     @hb_interval  = opts[:heartbeat_interval] || 60
     @node_timeout = opts[:node_timeout]
-    @handles_uri = "#{@cld_ctrl_uri}/services/v1/offerings/#{@service[:label]}/handles"
     @handle_fetch_interval = opts[:handle_fetch_interval] || 1
     @check_orphan_interval = opts[:check_orphan_interval] || -1
     @double_check_orphan_interval = opts[:double_check_orphan_interval] || 300
     @handle_fetched = false
     @fetching_handles = false
     @version_aliases = @service[:version_aliases] || {}
-    @svc_json     = VCAP::Services::Api::ServiceOfferingRequest.new({
-      :label  => @service[:label],
-      :url    => @service[:url],
-      :plans  => @service[:plans],
-      :cf_plan_id => @service[:cf_plan_id],
-      :tags   => @service[:tags],
-      :active => true,
-      :description  => @service[:description],
-      :plan_options => @service[:plan_options],
-      :acls => @service[:acls],
-      :timeout => @service[:timeout],
-      :provider => @service[:provider] || 'core',
-      :default_plan => @service[:default_plan],
-      :supported_versions => @service[:supported_versions],
-      :version_aliases => @service[:version_aliases],
-    }).encode
 
-    @deact_json   = VCAP::Services::Api::ServiceOfferingRequest.new({
-      :label  => @service[:label],
-      :url    => @service[:url],
-      :supported_versions => @service[:supported_versions],
-      :version_aliases => @service[:version_aliases],
-      :active => false,
-    }).encode
+    opts[:gateway_name] ||= "Service Gateway"
 
-    token_hdrs = VCAP::Services::Api::GATEWAY_TOKEN_HEADER
-    @cc_req_hdrs  = {
-      'Content-Type' => 'application/json',
-      token_hdrs     => @token,
-    }
-    @proxy_opts = opts[:proxy]
+    @cc_api_version = opts[:cc_api_version] || "v1"
+    if @cc_api_version == "v1"
+      require 'catalog_manager_v1'
+      @catalog_manager = VCAP::Services::CatalogManagerV1.new(opts)
+    elsif @cc_api_version == "v2"
+      require 'catalog_manager_v2'
+      @catalog_manager = VCAP::Services::CatalogManagerV2.new(opts)
+    else
+      raise "Unknown cc_api_api version: #{@cc_api_version}"
+    end
 
     # Setup heartbeats and exit handlers
     EM.add_periodic_timer(@hb_interval) { send_heartbeat }
@@ -92,6 +73,7 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
         @logger.info("No current version alias is supplied, skip update version in CCDB.")
       end
     end
+
     @fetch_handle_timer = EM.add_periodic_timer(@handle_fetch_interval) { fetch_handles(&update_callback) }
     EM.next_tick { fetch_handles(&update_callback) }
 
@@ -106,6 +88,35 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
 
     # Register update handle callback
     @provisioner.register_update_handle_callback{|handle, &blk| update_service_handle(handle, &blk)}
+  end
+
+  def get_current_catalog
+    id, version = @service[:label].split(/-/)
+    version = @service[:version_aliases][:current] if @service[:version_aliases][:current]
+    provider = @service[:provider] || 'core'
+
+    catalog_key = @catalog_manager.create_key(id, version, provider)
+
+    catalog = {}
+    catalog[catalog_key] = {
+      "id" => id,
+      "version" => version,
+      "url" => @service[:url],
+      "plans" => @service[:plans],
+      "cf_plan_id" => @service[:cf_plan_id],
+      "tags" => @service[:tags],
+      "active" => true,
+      "description" => @service[:description],
+      "plan_options" => @service[:plan_options],
+      "acls" => @service[:acls],
+      "timeout" => @service[:timeout],
+      "provider" => provider,
+      "default_plan" => @service[:default_plan],
+      "supported_versions" => @service[:supported_versions],
+      "version_aliases" => @service[:version_aliases],
+    }
+
+    return catalog
   end
 
   def check_orphan(handles, callback, errback)
@@ -123,14 +134,17 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
   def validate_incoming_request
     unless request.media_type == Rack::Mime.mime_type('.json')
       error_msg = ServiceError.new(ServiceError::INVALID_CONTENT).to_hash
+      @logger.error("Validation failure: #{error_msg.inspect}, request media type: #{request.media_type} is not json")
       abort_request(error_msg)
     end
     unless auth_token && (auth_token == @token)
       error_msg = ServiceError.new(ServiceError::NOT_AUTHORIZED).to_hash
+      @logger.error("Validation failure: #{error_msg.inspect}, expected token: #{@token}, specified token: #{auth_token}")
       abort_request(error_msg)
     end
     unless @handle_fetched
       error_msg = ServiceError.new(ServiceError::SERVICE_UNAVAILABLE).to_hash
+      @logger.error("Validation failure: #{error_msg.inspect}, handles not fetched")
       abort_request(error_msg)
     end
   end
@@ -451,122 +465,48 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
 
   helpers do
 
+    # Fetches canonical state (handles) from the Cloud Controller
+    def fetch_handles(&cb)
+      f = Fiber.new do
+        @catalog_manager.fetch_handles_from_cc(@service[:label], cb)
+      end
+      f.resume
+    end
+
     # Update a service handle using REST
     def update_service_handle(handle, &cb)
-      @logger.debug("Update service handle: #{handle.inspect}")
-      if not handle
-        cb.call(false) if cb
-        return
+      f = Fiber.new do
+        @catalog_manager.update_handle_in_cc(
+          @service[:label],
+          handle,
+          lambda {
+            # Update local array in provisioner
+            @provisioner.update_handles([handle])
+            cb.call(true) if cb
+          },
+          lambda { cb.call(false) if cb }
+        )
       end
-      id = handle["service_id"]
-      uri = @handles_uri + "/#{id}"
-      handle_json = Yajl::Encoder.encode(handle)
-      req = {
-        :head => @cc_req_hdrs,
-        :body => handle_json,
-      }
-      http = EM::HttpRequest.new(uri).post(req)
-      http.callback do
-        if http.response_header.status == 200
-          @logger.info("Successful update handle #{id}.")
-          # Update local array in provisioner
-          @provisioner.update_handles([handle])
-          cb.call(true) if cb
-        else
-          @logger.error("Failed to update handle #{id}: http status #{http.response_header.status}, error: #{http.error}")
-          cb.call(false) if cb
-        end
-      end
-      http.errback do
-        @logger.error("Failed to update handle #{id}: #{http.error}")
-        cb.call(false) if cb
-      end
+      f.resume
     end
 
     # Lets the cloud controller know we're alive and where it can find us
     def send_heartbeat
-      @logger.info("Sending info to cloud controller: #{@offering_uri}")
-
-      req = create_http_request(
-        :head => @cc_req_hdrs,
-        :body => @svc_json
+      @catalog_manager.update_catalog(
+        true,
+        lambda { return get_current_catalog },
+        nil
       )
-
-      http = EM::HttpRequest.new(@offering_uri).post(req)
-
-    http.callback do
-      if http.response_header.status == 200
-        @logger.info("Successfully registered with cloud controller")
-      else
-        @logger.error("Failed registering with cloud controller, status=#{http.response_header.status}")
-      end
     end
 
-    http.errback do
-      @logger.error("Failed registering with cloud controller: #{http.error}")
+    # Lets the cloud controller know that we're going away
+    def send_deactivation_notice(stop_event_loop=true)
+      @catalog_manager.update_catalog(
+        false,
+        lambda { return get_current_catalog },
+        lambda { EM.stop if stop_event_loop }
+      )
     end
-  end
-
-  # Lets the cloud controller know that we're going away
-  def send_deactivation_notice(stop_event_loop=true)
-    @logger.info("Sending deactivation notice to cloud controller: #{@offering_uri}")
-
-    req = create_http_request(
-      :head => @cc_req_hdrs,
-      :body => @deact_json
-    )
-
-    http = EM::HttpRequest.new(@offering_uri).post(req)
-
-    http.callback do
-      if http.response_header.status == 200
-        @logger.info("Successfully deactivated with cloud controller")
-      else
-        @logger.error("Failed deactivation with cloud controller, status=#{http.response_header.status}")
-      end
-      EM.stop if stop_event_loop
-    end
-
-    http.errback do
-      @logger.error("Failed deactivation with cloud controller: #{http.error}")
-      EM.stop if stop_event_loop
-    end
-  end
-
-  # Fetches canonical state (handles) from the Cloud Controller
-  def fetch_handles(&cb)
-    return if @fetching_handles
-
-    @logger.info("Fetching handles from cloud controller @ #{@handles_uri}")
-    @fetching_handles = true
-
-    req = create_http_request :head => @cc_req_hdrs
-    http = EM::HttpRequest.new(@handles_uri).get(req)
-
-    http.callback do
-      @fetching_handles = false
-      if http.response_header.status == 200
-        @logger.info("Successfully fetched handles")
-        begin
-          resp = VCAP::Services::Api::ListHandlesResponse.decode(http.response)
-        rescue => e
-          @logger.error("Error decoding reply from gateway:")
-          @logger.error("#{e}")
-          next
-        end
-        cb.call(resp)
-      else
-        @logger.error("Failed fetching handles, status=#{http.response_header.status}")
-      end
-    end
-
-    http.errback do
-      @fetching_handles = false
-      @logger.error("Failed fetching handles: #{http.error}")
-    end
-  end
 
   end
-
-
 end

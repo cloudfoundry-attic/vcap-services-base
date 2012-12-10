@@ -88,7 +88,6 @@ class VCAP::Services::Base::Gateway
     @config[:service][:label] = "#{@config[:service][:name]}-#{@config[:service][:version]}"
     @config[:service][:url]   = "http://#{@config[:host]}:#{@config[:port]}"
     node_timeout = @config[:node_timeout] || 5
-    cloud_controller_uri = @config[:cloud_controller_uri] || "api.vcap.me"
 
     EM.error_handler do |ex|
       @config[:logger].fatal("#{ex} #{ex.backtrace.join("|")}")
@@ -111,18 +110,13 @@ class VCAP::Services::Base::Gateway
              :service => @config[:service],
              :download_url_template => @config[:download_url_template],
            )
-      sg = async_gateway_class.new(
-             :proxy   => @config[:proxy],
-             :service => @config[:service],
-             :token   => @config[:token],
-             :logger  => @config[:logger],
-             :provisioner => sp,
-             :node_timeout => node_timeout,
-             :cloud_controller_uri => cloud_controller_uri,
-             :check_orphan_interval => @config[:check_orphan_interval],
-             :double_check_orphan_interval => @config[:double_check_orphan_interval],
-             :api_extensions => @config[:api_extensions],
-           )
+
+      opts = @config.dup
+      opts[:provisioner] = sp
+      opts[:node_timeout] = node_timeout
+      opts[:cloud_controller_uri] = @config[:cloud_controller_uri] || "api.vcap.me"
+
+      sg = async_gateway_class.new(opts)
 
       server = Thin::Server.new(@config[:host], @config[:port], sg)
       if @config[:service][:timeout]
@@ -140,10 +134,25 @@ class VCAP::Services::Base::Gateway
     config = YAML.load_file(config_file)
     config = VCAP.symbolize_keys(config)
 
-    token = config[:token]
-    raise "Token missing" unless token
-    raise "Token must be a String or Int, #{token.class} given" unless (token.is_a?(Integer) || token.is_a?(String))
-    config[:token] = token.to_s
+
+    cc_api_version = config[:cc_api_version] || "v1"
+
+    if cc_api_version == "v1"
+      token = config[:token]
+      raise "Token missing" unless token
+      raise "Token must be a String or Int, #{token.class} given" unless (token.is_a?(Integer) || token.is_a?(String))
+      config[:token] = token.to_s
+    else
+      service_auth_tokens = config[:service_auth_tokens]
+      raise "Service auth token missing" unless service_auth_tokens
+      raise "Token must be hash of the form: label_provider => token" unless service_auth_tokens.is_a?(Hash)
+
+      # Each gateway only handles one service, so service_auth_tokens is expected to have just 1 entry
+      raise "Unable to manage multiple services" unless service_auth_tokens.size == 1
+
+      # Used by legacy services for validating incoming request (and temporarily for handle fetch/update v1 api)
+      config[:token] = service_auth_tokens.values[0].to_s # For legacy services
+    end
 
     config
   end

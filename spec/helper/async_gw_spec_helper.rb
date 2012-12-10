@@ -74,7 +74,8 @@ class AsyncGatewayTests
         :node_timeout => timeout || NODE_TIMEOUT,
         :cloud_controller_uri => "http://localhost:#{CC_PORT}",
         :check_orphan_interval => check_interval,
-        :double_check_orphan_interval => double_check_interval
+        :double_check_orphan_interval => double_check_interval,
+        :logger => Logger.new(STDOUT),
       )
       @server = Thin::Server.new('localhost', GW_PORT, sg)
       if @service_timeout
