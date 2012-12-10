@@ -40,7 +40,7 @@ class VCAP::Services::Base::Warden::Service
     self.class.logger
   end
 
-  def prepare_filesystem(max_size)
+  def prepare_filesystem(max_size, opts={})
     if base_dir?
       self.class.sh "umount #{base_dir}", :raise => false if self.class.quota
       logger.warn("Service #{self[:name]} base_dir:#{base_dir} already exists, deleting it")
@@ -57,9 +57,12 @@ class VCAP::Services::Base::Warden::Service
     FileUtils.mkdir_p(base_dir)
     FileUtils.mkdir_p(data_dir)
     FileUtils.mkdir_p(log_dir)
+
+    ext_opts = nil
+    ext_opts = "-E \"lazy_itable_init=1\"" if opts[:lazy_itable_init]
     if self.class.quota
       self.class.sh "dd if=/dev/null of=#{image_file} bs=1M seek=#{max_size.to_i}"
-      self.class.sh "mkfs.ext4 -q -F -O \"^has_journal,uninit_bg\" #{image_file}"
+      self.class.sh "mkfs.ext4 -q -F -O \"^has_journal,uninit_bg\" #{"#{ext_opts}" if ext_opts} #{image_file}"
       loop_setup
     end
   end
