@@ -97,21 +97,21 @@ module VCAP::Services::Base::Warden::NodeUtils
     lock = Mutex.new
     failed_instances = []
     pool_run(params) do |ins, _|
-      return if closing
-      lock.synchronize{ failed_instances << ins } unless ins.running?
+      lock.synchronize{ failed_instances << ins } unless closing || ins.running?
     end
     @logger.debug("Found failed_instances: #{failed_instances.map{|i| i.name}}") if failed_instances.size > 0
     m_actions.each do |act|
-      return if closing
-      method = "#{act}_failed_instances"
-      if respond_to?(method.to_sym)
-        begin
-          send(method.to_sym, failed_instances)
-        rescue => e
-          @logger.warn("#{method}: #{e}")
+      unless closing
+        method = "#{act}_failed_instances"
+        if respond_to?(method.to_sym)
+          begin
+            send(method.to_sym, failed_instances)
+          rescue => e
+            @logger.warn("#{method}: #{e}")
+          end
+        else
+          @logger.warn("Failover action #{act} is not defined")
         end
-      else
-        @logger.warn("Failover action #{act} is not defined")
       end
     end
   rescue => e
