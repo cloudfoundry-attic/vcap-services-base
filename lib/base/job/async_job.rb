@@ -41,8 +41,12 @@ module VCAP::Services::Base::AsyncJob
     job_to_json(res)
   end
 
+  def remove_job(jobid)
+    Resque::Plugins::Status::Hash.remove(jobid)
+  end
+
   def get_all_jobs()
-    Resque::Plugins::Status::Hash.keys
+    Resque::Plugins::Status::Hash.status_ids
   end
 
   def job_to_json(job)
