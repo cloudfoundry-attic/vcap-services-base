@@ -85,6 +85,19 @@ class VCAP::Services::Base::Warden::Service
     mounted
   end
 
+  def need_loop_resize?
+    image_file? ?
+      File.size(image_file) != self.class.max_disk * 1024 * 1024 :
+      false
+  end
+
+  def loop_resize
+    loop_up = loop_setup?
+    loop_setdown if loop_up
+    self.class.sh "resize2fs -f #{image_file} #{self.class.max_disk.to_i}M"
+    loop_setup if loop_up
+  end
+
   def to_loopfile
     self.class.sh "mv #{base_dir} #{base_dir+"_bak"}"
     self.class.sh "mkdir -p #{base_dir}"
@@ -100,6 +113,7 @@ class VCAP::Services::Base::Warden::Service
     FileUtils.mkdir_p(log_dir) unless log_dir?
 
     if image_file?
+      loop_resize if need_loop_resize?
       unless loop_setup?
         # for case where VM rebooted
         logger.info("Service #{self[:name]} mounting data file")
