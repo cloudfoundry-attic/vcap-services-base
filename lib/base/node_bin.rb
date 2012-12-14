@@ -82,6 +82,7 @@ class VCAP::Services::Base::NodeBin
       :disk_overhead => parse_property(config, "disk_overhead", Numeric, :optional => true, :default => 0.0),
       :m_interval => parse_property(config, "m_interval", Integer, :optional => true, :default => 10),
       :m_actions => parse_property(config, "m_actions", Array, :optional => true, :default => []),
+      :m_failed_times => parse_property(config, "m_failed_times", Array, :optional => true, :default => []),
     }
     # Workaround for services that support running the service both inside and outside warden
     use_warden = parse_property(config, "use_warden", Boolean, :optional => true, :default => false)
