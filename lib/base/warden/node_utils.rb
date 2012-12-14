@@ -97,7 +97,19 @@ module VCAP::Services::Base::Warden::NodeUtils
     lock = Mutex.new
     failed_instances = []
     pool_run(params) do |ins, _|
-      lock.synchronize{ failed_instances << ins } unless closing || ins.running?
+      if !closing && ins.in_monitored?
+        if ins.running?
+          ins.failed_times = 0
+        else
+          lock.synchronize { failed_instances << ins }
+          ins.failed_times ||= 0
+          ins.failed_times += 1
+          unless ins.in_monitored?
+            @logger.error("Instance #{ins.name} is failed too many times. Unmonitored.")
+            ins.stop
+          end
+        end
+      end
     end
     @logger.debug("Found failed_instances: #{failed_instances.map{|i| i.name}}") if failed_instances.size > 0
     m_actions.each do |act|
@@ -211,5 +223,13 @@ module VCAP::Services::Base::Warden::NodeUtils
       end
       threads.each {|t| t.join}
     end
+  end
+
+  def varz_details
+    varz = super
+    unmonitored = []
+    service_instances.each{|ins| unmonitored << ins.name unless ins.in_monitored? }
+    varz[:unmonitored] = unmonitored
+    varz
   end
 end
