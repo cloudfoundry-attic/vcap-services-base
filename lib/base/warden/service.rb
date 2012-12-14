@@ -25,15 +25,34 @@ class VCAP::Services::Base::Warden::Service
       @bandwidth_per_second = options[:bandwidth_per_second]
       @service_port = options[:service_port]
       @rm_instance_dir_timeout = options[:rm_instance_dir_timeout] || 10
+      @max_failed_times = options[:max_failed_times] || 3
       FileUtils.mkdir_p(File.dirname(options[:local_db].split(':')[1]))
       DataMapper.setup(:default, options[:local_db])
       DataMapper::auto_upgrade!
       FileUtils.mkdir_p(base_dir)
       FileUtils.mkdir_p(log_dir)
       FileUtils.mkdir_p(image_dir) if @image_dir
+      @in_memory_status = {}
     end
 
-    attr_reader :base_dir, :log_dir, :conf_dir, :script_dir, :bin_dir, :image_dir, :max_disk, :logger, :quota, :max_memory, :memory_overhead, :service_start_timeout, :bandwidth_per_second, :service_port, :rm_instance_dir_timeout
+    attr_reader :base_dir, :log_dir, :conf_dir, :script_dir, :bin_dir, :image_dir, :max_disk, :logger, :quota, :max_memory, :memory_overhead, :service_start_timeout, :bandwidth_per_second, :service_port, :rm_instance_dir_timeout, :max_failed_times, :in_memory_status
+  end
+
+  def method_missing(name, *args, &block)
+    prop = name.to_s.chomp("=").to_sym
+    self.class.send(:define_method, "#{prop}=".to_sym) do |value|
+      self.class.in_memory_status[self[:name]] ||= {}
+      self.class.in_memory_status[self[:name]][prop] = value
+    end
+
+    self.class.send(:define_method, prop) do
+      self.class.in_memory_status[self[:name]] && self.class.in_memory_status[self[:name]][prop]
+    end
+    send(name, *args, &block)
+  end
+
+  def healthy?
+    !failed_times || failed_times < max_failed_times
   end
 
   def logger

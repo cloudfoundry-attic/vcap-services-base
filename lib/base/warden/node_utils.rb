@@ -97,7 +97,15 @@ module VCAP::Services::Base::Warden::NodeUtils
     lock = Mutex.new
     failed_instances = []
     pool_run(params) do |ins, _|
-      lock.synchronize{ failed_instances << ins } unless closing || ins.running?
+      if !closing && ins.healthy?
+        if ins.running?
+          ins.failed_times = 0
+        else
+          ins.failed_times ||= 0
+          ins.failed_times += 1
+          lock.synchronize { failed_instances << ins }
+        end
+      end
     end
     @logger.debug("Found failed_instances: #{failed_instances.map{|i| i.name}}") if failed_instances.size > 0
     m_actions.each do |act|
