@@ -1041,7 +1041,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @update_handle_callback = blk
   end
 
-  def varz_details()
+  def varz_details
     # Service Provisioner subclasses may want to override this method
     # to provide service specific data beyond the following
 
