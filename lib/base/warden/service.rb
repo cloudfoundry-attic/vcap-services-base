@@ -167,6 +167,7 @@ class VCAP::Services::Base::Warden::Service
     bind_mounts = []
     bind_mounts = options[:bind_dirs].map { |bind_dir| bind_mount_request(bind_dir) }
     handle = container_start(bind_mounts)
+    self[:container] = handle
     rw_dirs = options[:bind_dirs].map { |bind_dir| bind_dir[:dst] || bind_dir[:src] unless bind_dir[:read_only]}.compact
     run_command(handle, {:script => "chown -R vcap:vcap #{rw_dirs.join(' ')}", :use_root => true}) unless rw_dirs.empty?
     limit_memory(handle, memory_limit) if memory_limit
@@ -176,7 +177,6 @@ class VCAP::Services::Base::Warden::Service
     map_port(handle, self[:port], options[:service_port]) if options[:need_map_port]
     rsp = container_info(handle)
     self[:ip] = rsp.container_ip
-    self[:container] = handle
     # Check whether the service finish starting,
     # the check method can be different depends on whether the service is first start
     raise VCAP::Services::Base::Error::ServiceError::new(VCAP::Services::Base::Error::ServiceError::SERVICE_START_TIMEOUT) unless wait_service_start(options[:is_first_start])
