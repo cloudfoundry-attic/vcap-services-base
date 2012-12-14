@@ -12,6 +12,7 @@ require "node_spec_helper"
 require "provision_spec_helper"
 require "async_gw_spec_helper"
 require "datamapper_spec_helper"
+require "warden_service_spec_helper"
 require "backup_spec_helper"
 require 'base/service_message'
 require 'base/service_error'
