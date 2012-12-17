@@ -129,8 +129,9 @@ module VCAP::Services::Base::Warden::NodeUtils
     start_instances(service_instances)
   end
 
-  def start_instances(all_instances)
+  def start_instances(all_instances, service_start_timeout=nil)
     @instance_parallel_start_count = 10 if @instance_parallel_start_count.nil?
+    service_start_timeout = @service_start_timeout || 3 unless service_start_timeout
     start = 0
     check_set = Set.new
     check_lock = Mutex.new
@@ -165,7 +166,7 @@ module VCAP::Services::Base::Warden::NodeUtils
             t_instance.stop
             Thread.exit
           end
-          @service_start_timeout.times do
+          service_start_timeout.times do
             if t_instance.finish_start?
               check_lock.synchronize {check_set.delete(t_instance.name)}
               @logger.info("Successfully start provisioned instance #{t_instance.name}")
