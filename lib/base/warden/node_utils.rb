@@ -162,7 +162,12 @@ module VCAP::Services::Base::Warden::NodeUtils
             check_lock.synchronize {check_set.delete(t_instance.name)}
             @logger.error("Error starting instance #{t_instance.name}: #{e}")
             # Try to stop the instance since the container could be created
-            t_instance.stop
+            begin
+              t_instance.stop
+            rescue => e
+              # Ingore the rollback error and just record a warning log
+              @logger.warn("Error stopping instance #{t_instance.name} when rollback from a starting failure")
+            end
             Thread.exit
           end
           @service_start_timeout.times do
