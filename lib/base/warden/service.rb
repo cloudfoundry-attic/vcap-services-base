@@ -269,10 +269,6 @@ class VCAP::Services::Base::Warden::Service
     File.join(self.class.common_dir, "bin")
   end
 
-  def conf_dir
-    File.join(self.class.conf_dir, "config")
-  end
-
   def bin_dir
     self.class.bin_dir[version]
   end
