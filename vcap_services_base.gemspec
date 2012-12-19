@@ -32,4 +32,5 @@ Gem::Specification.new do |s|
   s.add_dependency "rubyzip", "~> 0.9.8"
   s.add_dependency "warden-client", "~> 0.0.7"
   s.add_dependency "warden-protocol", "~> 0.0.9"
+  s.add_dependency "cf-uaa-lib"
 end
