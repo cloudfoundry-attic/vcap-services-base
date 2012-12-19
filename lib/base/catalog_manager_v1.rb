@@ -24,8 +24,8 @@ module VCAP
 
         token_hdrs = VCAP::Services::Api::GATEWAY_TOKEN_HEADER
         @cc_req_hdrs  = {
-      'Content-Type' => 'application/json',
-      token_hdrs     => opts[:token],
+          'Content-Type' => 'application/json',
+          token_hdrs     => opts[:token],
         }
 
         @gateway_stats = {}
@@ -35,7 +35,7 @@ module VCAP
       def snapshot_and_reset_stats
         stats_snapshot = {}
         @gateway_stats_lock.synchronize do
-      stats_snapshot = @gateway_stats.dup
+          stats_snapshot = @gateway_stats.dup
         end
         stats_snapshot
       end
@@ -50,16 +50,16 @@ module VCAP
 
       def update_catalog(activate, load_catalog_callback, after_update_callback = nil)
         f = Fiber.new do
-      configured_services = load_catalog_callback.call()
-      active_count = 0
-      configured_services.values.each { |svc|
-        advertise_service_to_cc(svc, activate)
-        active_count += 1  if activate
-      }
+          configured_services = load_catalog_callback.call()
+          active_count = 0
+          configured_services.values.each { |svc|
+            advertise_service_to_cc(svc, activate)
+            active_count += 1  if activate
+          }
 
-      @gateway_stats_lock.synchronize do
-        @gateway_stats[:active_offerings] = active_count
-      end
+          @gateway_stats_lock.synchronize do
+            @gateway_stats[:active_offerings] = active_count
+          end
 
           after_update_callback.call if after_update_callback
         end
@@ -154,6 +154,33 @@ module VCAP
         else
           @logger.error("CC Catalog Manager: Failed to advertise offerings:#{offering.inspect}: #{http.error}")
         end
+      end
+
+      def delete_offering(id, version, provider)
+        req = create_http_request(:head => @cc_req_hdrs)
+
+        # See: https://github.com/cloudfoundry/cloud_controller/blob/master/cloud_controller/config/routes.rb
+        offering_id = "#{id}-#{version}/#{provider}"
+        uri = "#{@offering_uri}/#{offering_id}"
+        @logger.info("CC Catalog Manager: Delete service offering: #{offering_id}")
+
+        f = Fiber.current
+        http = EM::HttpRequest.new(uri).delete(req)
+        http.callback { f.resume(http) }
+        http.errback { f.resume(http) }
+        Fiber.yield
+
+        if http.error.empty?
+          if http.response_header.status == 200
+            @logger.info("CC Catalog Manager: Successfully deleted offering: #{offering_id}")
+            return true
+          else
+            @logger.warn("CC Catalog Manager: Failed to delete offering: #{offering_id}, status: #{http.response_header.status}")
+          end
+        else
+          @logger.warn("CC Catalog Manager: Failed to delete offering: #{offering_id} due to: #{http.error}")
+        end
+        return false
       end
 
       ###### Handles processing #####
