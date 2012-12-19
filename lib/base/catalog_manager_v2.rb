@@ -422,6 +422,52 @@ module VCAP
         return false
       end
 
+      def delete_offering(id, version, provider)
+
+        # This is TERRIBLY inefficient but this function is not expected to be called
+        # very often, so fine for now.
+        # TODO: 2 possible approaches:
+        #  1. CCNG could support more query parameters, so simple things such as offering guid could be easily looked up
+        #  2. We maintain a local cache of this information for static information such as label-provider -> guid mapping
+
+        # find the service guid for the specified offering
+        offering_key = "#{id}_#{provider}"
+
+        registered_services = load_registered_services_from_cc
+        offering_guid = registered_services[offering_key]["guid"] if registered_services.has_key?(offering_key)
+
+        if !offering_guid
+          @logger.error("CCNG Catalog Manager: Offering #{id} (#{provider}) is not registered")
+          return
+        end
+
+        url = "#{@offering_uri}/#{offering_guid}"
+        @logger.info("CCNG Catalog Manager: Deleting service offering:#{id} (#{provider}) via #{url}")
+
+        req = create_http_request(:head => @cc_req_hdrs)
+
+        f = Fiber.current
+
+        http = EM::HttpRequest.new(url).delete(req)
+        http.callback { f.resume(http) }
+        http.errback { f.resume(http) }
+
+        Fiber.yield
+
+        if http.error.empty?
+          if (200..299) === http.response_header.status
+            @logger.info("CCNG Catalog Manager: Successfully deleted offering: #{id} (#{provider})")
+            return true
+          else
+            @logger.error("CCNG Catalog Manager: Failed to delete offering: #{id} (#{provider}), status=#{http.response_header.status}")
+          end
+        else
+          @logger.error("CCNG Catalog Manager: Failed to delete offering: #{id} (#{provider}) due to: #{http.error}")
+        end
+
+        return false
+      end
+
       ######## Handles processing #########
       #TODO: This will still use V1 api for first iteration. The V2 api call is more involved as it requires
       # drilling down multiple levels into the V2 ccdb schema.
