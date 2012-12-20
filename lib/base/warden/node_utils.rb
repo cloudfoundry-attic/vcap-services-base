@@ -125,8 +125,8 @@ module VCAP::Services::Base::Warden::NodeUtils
     start_instances(failed_instances)
   end
 
-  def start_all_instances
-    start_instances(service_instances)
+  def start_all_instances(service_start_timeout=nil)
+    start_instances(service_instances, service_start_timeout)
   end
 
   def start_instances(all_instances, service_start_timeout=nil)
