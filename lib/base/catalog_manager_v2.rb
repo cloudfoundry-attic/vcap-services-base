@@ -215,12 +215,17 @@ module VCAP
         plans = {}
         if svc["plans"].is_a?(Array)
           svc["plans"].each { |p|
-            plans[p] = { "name" => p, "description" => "#{p} plan"}
+            # If not specified, assume all plans are free
+            plans[p] = { "name" => p, "description" => "#{p} plan", "free" => true }
           }
         elsif svc["plans"].is_a?(Hash)
           svc["plans"].each { |k, v|
             plan_name = k.to_s
-            plans[plan_name] = { "name" => plan_name, "description" => v }
+            plans[plan_name] = {
+              "name"        => plan_name,
+              "description" => v["description"],
+              "free"        => v["free"]
+            }
           }
         else
           raise "Plans must be either an array or hash(plan_name => description)"
@@ -266,7 +271,8 @@ module VCAP
               plans[p["entity"]["name"]] = {
                 "guid"        => p["metadata"]["guid"],
                 "name"        => p["entity"]["name"],
-                "description" => p["entity"]["description"]
+                "description" => p["entity"]["description"],
+                "free"        => p["entity"]["free"]
               }
             }
 
@@ -327,11 +333,15 @@ module VCAP
         active_plans.each { |plan_name|
           plan_details = plans_from_catalog[plan_name]
 
-          # TODO: is this really necessary? keeping this for now
-          # Currently the only changeable aspect is the descritption
-          if plan_details["description"] != plans_already_in_cc[plan_name]["description"]
+          # The changeable aspects are the descritption and free flag
+          if (plan_details["description"] != plans_already_in_cc[plan_name]["description"] ||
+              plan_details["free"] != plans_already_in_cc[plan_name]["free"])
             plan_guid = plans_already_in_cc[plan_name]["guid"]
-            plans_to_update[plan_guid] = { "name" => plan_name, "description" => plan_details["description"] }
+            plans_to_update[plan_guid] = {
+              "name"        => plan_name,
+              "description" => plan_details["description"],
+              "free"        => plan_details["free"]
+            }
             @logger.debug("CCNG Catalog Manager: Updating plan: #{plan_name} to: #{plans_to_update[plan_guid].inspect}")
           else
             @logger.debug("CCNG Catalog Manager: No changes to plan: #{plan_name}")
