@@ -70,8 +70,7 @@ class VCAP::Services::Base::NodeBin
       # Wardenized service configuration
       :base_dir => parse_property(config, "base_dir", String, :optional => true),
       :service_log_dir => parse_property(config, "service_log_dir", String, :optional => true),
-      :service_script_dir => parse_property(config, "service_script_dir", String, :optional => true, :default => "/var/vcap/jobs"),
-      :service_conf_dir => parse_property(config, "service_conf_dir", String, :optional => true, :default => "/var/vcap/jobs"),
+      :service_common_dir => parse_property(config, "service_common_dir", String, :optional => true, :default => "/var/vcap/store/common"),
       :service_bin_dir => parse_property(config, "service_bin_dir", Hash, :optional => true),
       :image_dir => parse_property(config, "image_dir", String, :optional => true),
       :port_range => parse_property(config, "port_range", Range, :optional => true),
@@ -83,14 +82,14 @@ class VCAP::Services::Base::NodeBin
       :disk_overhead => parse_property(config, "disk_overhead", Numeric, :optional => true, :default => 0.0),
       :m_interval => parse_property(config, "m_interval", Integer, :optional => true, :default => 10),
       :m_actions => parse_property(config, "m_actions", Array, :optional => true, :default => []),
+      :m_failed_times => parse_property(config, "m_failed_times", Integer, :optional => true, :default => 3),
     }
     # Workaround for services that support running the service both inside and outside warden
     use_warden = parse_property(config, "use_warden", Boolean, :optional => true, :default => false)
     if use_warden
       warden_config = parse_property(config, "warden", Hash, :optional => true)
       options[:service_log_dir] = parse_property(warden_config, "service_log_dir", String)
-      options[:service_script_dir] = parse_property(warden_config, "service_script_dir", String, :optional => true, :default => "/var/vcap/jobs")
-      options[:service_conf_dir] = parse_property(warden_config, "service_conf_dir", String, :optional => true, :default => "/var/vcap/jobs")
+      options[:service_common_dir] = parse_property(warden_config, "service_common_dir", String, :optional => true, :default => "/var/vcap/store/common")
       options[:service_bin_dir] = parse_property(warden_config, "service_bin_dir", Hash, :optional => true)
       options[:port_range] = parse_property(warden_config, "port_range", Range)
       options[:image_dir] = parse_property(warden_config, "image_dir", String)

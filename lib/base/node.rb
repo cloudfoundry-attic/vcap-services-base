@@ -409,7 +409,7 @@ class VCAP::Services::Base::Node < VCAP::Services::Base::Base
     true
   end
 
-  def varz_details()
+  def varz_details
     # Service Node subclasses may want to override this method to
     # provide service specific data beyond what is returned by their
     # "announcement" method.

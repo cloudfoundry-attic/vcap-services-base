@@ -258,7 +258,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     response.bindings_list.each do |bind|
       user = bind["username"] || bind["user"]
       next unless user
-      key = bind["name"].concat(user)
+      key = bind["name"] + user
       @staging_orphan_bindings[nid] << bind unless @binding_handles_CO.has_key?(key)
     end
     oi_count = @staging_orphan_instances.values.reduce(0) { |m, v| m += v.count }
@@ -280,7 +280,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
       else
         user = h["credentials"]["username"] || h["credentials"]["user"]
         next unless user
-        key = h["credentials"]["name"].concat(user)
+        key = h["credentials"]["name"] + user
         bin_handles[key] = h
       end
     end
@@ -317,7 +317,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
       ob_list.each do |ob|
         user = ob["username"] || ob["user"]
         next unless user
-        key = ob["name"].concat(user)
+        key = ob["name"] + user
         @final_orphan_bindings[nid] << ob unless bin_handles.has_key?(key)
       end
     end
@@ -1041,7 +1041,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @update_handle_callback = blk
   end
 
-  def varz_details()
+  def varz_details
     # Service Provisioner subclasses may want to override this method
     # to provide service specific data beyond the following
 

@@ -97,7 +97,19 @@ module VCAP::Services::Base::Warden::NodeUtils
     lock = Mutex.new
     failed_instances = []
     pool_run(params) do |ins, _|
-      lock.synchronize{ failed_instances << ins } unless closing || ins.running?
+      if !closing && ins.in_monitored?
+        if ins.running?
+          ins.failed_times = 0
+        else
+          lock.synchronize { failed_instances << ins }
+          ins.failed_times ||= 0
+          ins.failed_times += 1
+          unless ins.in_monitored?
+            @logger.error("Instance #{ins.name} is failed too many times. Unmonitored.")
+            ins.stop
+          end
+        end
+      end
     end
     @logger.debug("Found failed_instances: #{failed_instances.map{|i| i.name}}") if failed_instances.size > 0
     m_actions.each do |act|
@@ -125,12 +137,13 @@ module VCAP::Services::Base::Warden::NodeUtils
     start_instances(failed_instances)
   end
 
-  def start_all_instances
-    start_instances(service_instances)
+  def start_all_instances(service_start_timeout=nil)
+    start_instances(service_instances, service_start_timeout)
   end
 
-  def start_instances(all_instances)
+  def start_instances(all_instances, service_start_timeout=nil)
     @instance_parallel_start_count = 10 if @instance_parallel_start_count.nil?
+    service_start_timeout = @service_start_timeout || 3 unless service_start_timeout
     start = 0
     check_set = Set.new
     check_lock = Mutex.new
@@ -162,10 +175,15 @@ module VCAP::Services::Base::Warden::NodeUtils
             check_lock.synchronize {check_set.delete(t_instance.name)}
             @logger.error("Error starting instance #{t_instance.name}: #{e}")
             # Try to stop the instance since the container could be created
-            t_instance.stop
+            begin
+              t_instance.stop
+            rescue => e
+              # Ingore the rollback error and just record a warning log
+              @logger.warn("Error stopping instance #{t_instance.name} when rollback from a starting failure")
+            end
             Thread.exit
           end
-          @service_start_timeout.times do
+          service_start_timeout.times do
             if t_instance.finish_start?
               check_lock.synchronize {check_set.delete(t_instance.name)}
               @logger.info("Successfully start provisioned instance #{t_instance.name}")
@@ -205,5 +223,13 @@ module VCAP::Services::Base::Warden::NodeUtils
       end
       threads.each {|t| t.join}
     end
+  end
+
+  def varz_details
+    varz = super
+    unmonitored = []
+    service_instances.each{|ins| unmonitored << ins.name unless ins.in_monitored? }
+    varz[:unmonitored] = unmonitored
+    varz
   end
 end
