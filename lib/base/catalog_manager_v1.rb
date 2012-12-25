@@ -74,7 +74,7 @@ module VCAP
         end
 
         VCAP::Services::Api::ServiceOfferingRequest.new({
-          :label => "#{svc["id"]}-#{svc["version"]}",
+          :label => svc["label"],
           :description => svc["description"],
 
           :provider => svc["provider"] || 'core',
