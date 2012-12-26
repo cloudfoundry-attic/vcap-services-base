@@ -34,21 +34,24 @@ class VCAP::Services::Base::Warden::Service
       @in_memory_status = {}
     end
 
+    def define_im_properties(*args)
+      args.each do |prop|
+        define_method("#{prop}=".to_sym) do |value|
+          self.class.in_memory_status[self[:name]] ||= {}
+          self.class.in_memory_status[self[:name]][prop] = value
+        end
+
+        define_method(prop) do
+          self.class.in_memory_status[self[:name]] && self.class.in_memory_status[self[:name]][prop]
+        end
+      end
+    end
+
     attr_reader :base_dir, :log_dir, :bin_dir, :common_dir, :image_dir, :max_disk, :logger, :quota, :max_memory, :memory_overhead, :service_start_timeout, :bandwidth_per_second, :service_port, :rm_instance_dir_timeout, :m_failed_times, :in_memory_status
+
   end
 
-  def method_missing(name, *args, &block)
-    prop = name.to_s.chomp("=").to_sym
-    self.class.send(:define_method, "#{prop}=".to_sym) do |value|
-      self.class.in_memory_status[self[:name]] ||= {}
-      self.class.in_memory_status[self[:name]][prop] = value
-    end
-
-    self.class.send(:define_method, prop) do
-      self.class.in_memory_status[self[:name]] && self.class.in_memory_status[self[:name]][prop]
-    end
-    send(name, *args, &block)
-  end
+  define_im_properties :failed_times
 
   def in_monitored?
     !failed_times || failed_times <= self.class.m_failed_times
@@ -134,30 +137,36 @@ class VCAP::Services::Base::Warden::Service
     end
   end
 
+  def task(desc)
+    begin
+      yield
+    rescue => e
+      logger.error("Fail to #{desc}. Error: #{e}")
+    end
+  end
+
   # instance operation helper
   def delete
     container_name = self[:container]
     name = self[:name]
-    # delete the record when it's saved
-    destroy! if saved?
-    self.class.in_memory_status.delete(name)
-    # stop container
-    begin
-      stop(container_name)
-    rescue
-      # catch the exception and record error log here to guarantee the following cleanup work is done.
-      logger.error("Fail to stop container when deleting service #{self[:name]}")
+    task "destroy record in local db" do
+      destroy! if saved?
     end
-    # delete log and service directory
-    begin
+
+    task "delete in-memory status" do
+      self.class.in_memory_status.delete(name)
+    end
+
+    task "stop container when deleting service #{name}" do
+      stop(container_name)
+    end
+
+    task "delete instance directories" do
       if self.class.quota
         self.class.sh("rm -f #{image_file}", {:block => false})
       end
       # delete serivce data directory could be slow, so increase the timeout
       self.class.sh("rm -rf #{base_dir} #{log_dir} #{util_dirs.join(' ')}", {:block => false, :timeout => self.class.rm_instance_dir_timeout})
-    rescue => e
-      # catch the exception and record error log here to guarantee the following cleanup work is done.
-      logger.error("Fail to delete instance directories, the error is #{e}")
     end
   end
 
