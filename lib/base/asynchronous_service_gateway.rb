@@ -101,6 +101,7 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
     catalog[catalog_key] = {
       "id" => id,
       "version" => version,
+      "label" => @service[:label],
       "url" => @service[:url],
       "plans" => @service[:plans],
       "cf_plan_id" => @service[:cf_plan_id],
