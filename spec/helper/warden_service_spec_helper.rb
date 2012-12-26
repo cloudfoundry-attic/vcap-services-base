@@ -6,7 +6,7 @@ DEF_OPTIONS = {
   :local_db => "sqlite:/tmp/base_test/base.db",
 }
 
-class WardenService < VCAP::Services::Base::Warden::Service
+class Wardenservice < VCAP::Services::Base::Warden::Service
   include DataMapper::Resource
   property :name,       String,   :key => true
   property :container,  String

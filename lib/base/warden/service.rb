@@ -34,21 +34,24 @@ class VCAP::Services::Base::Warden::Service
       @in_memory_status = {}
     end
 
+    def define_im_properties(*args)
+      args.each do |prop|
+        define_method("#{prop}=".to_sym) do |value|
+          self.class.in_memory_status[self[:name]] ||= {}
+          self.class.in_memory_status[self[:name]][prop] = value
+        end
+
+        define_method(prop) do
+          self.class.in_memory_status[self[:name]] && self.class.in_memory_status[self[:name]][prop]
+        end
+      end
+    end
+
     attr_reader :base_dir, :log_dir, :bin_dir, :common_dir, :image_dir, :max_disk, :logger, :quota, :max_memory, :memory_overhead, :service_start_timeout, :bandwidth_per_second, :service_port, :rm_instance_dir_timeout, :m_failed_times, :in_memory_status
+
   end
 
-  def method_missing(name, *args, &block)
-    prop = name.to_s.chomp("=").to_sym
-    self.class.send(:define_method, "#{prop}=".to_sym) do |value|
-      self.class.in_memory_status[self[:name]] ||= {}
-      self.class.in_memory_status[self[:name]][prop] = value
-    end
-
-    self.class.send(:define_method, prop) do
-      self.class.in_memory_status[self[:name]] && self.class.in_memory_status[self[:name]][prop]
-    end
-    send(name, *args, &block)
-  end
+  define_im_properties :failed_times
 
   def in_monitored?
     !failed_times || failed_times <= self.class.m_failed_times

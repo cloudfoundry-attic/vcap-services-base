@@ -3,8 +3,8 @@ require 'helper/spec_helper'
 
 describe "Warden Service test" do
   before :all do
-    WardenService.init(DEF_OPTIONS)
-    5.times { WardenService.create }
+    Wardenservice.init(DEF_OPTIONS)
+    5.times { Wardenservice.create }
   end
 
   after :all do
@@ -14,15 +14,14 @@ describe "Warden Service test" do
   it "should store in_memory properties" do
     verify = {}
 
-    WardenService.all.each do |ins|
+    Wardenservice.all.each do |ins|
       id = UUIDTools::UUID.random_create.to_s
-      ins.my_mem_status = id
+      ins.failed_times = id
       verify[ins.name] = id
     end
 
-    WardenService.all.each do |ins|
-      ins.my_mem_status.should == verify[ins.name]
-      ins.my_new_prop.should be_nil
+    Wardenservice.all.each do |ins|
+      ins.failed_times.should == verify[ins.name]
     end
   end
 end
