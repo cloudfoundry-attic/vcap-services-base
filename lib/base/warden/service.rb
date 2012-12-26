@@ -38,20 +38,29 @@ class VCAP::Services::Base::Warden::Service
   end
 
   def method_missing(name, *args, &block)
-    prop = name.to_s.chomp("=").to_sym
-    self.class.send(:define_method, "#{prop}=".to_sym) do |value|
-      self.class.in_memory_status[self[:name]] ||= {}
-      self.class.in_memory_status[self[:name]][prop] = value
-    end
+    # DataMapper returns new object for every all.each enumeration.
+    # To keep the in-memory status of every instance, this method
+    # dynamically defines properties whose name starts with "im_".
+    # and store the value in a hash table until the instance is deleted
+    # or the process gets restarted.
+    if name.to_s.start_with? "im_"
+      prop = name.to_s.chomp("=").to_sym
+      self.class.send(:define_method, "#{prop}=".to_sym) do |value|
+        self.class.in_memory_status[self[:name]] ||= {}
+        self.class.in_memory_status[self[:name]][prop] = value
+      end
 
-    self.class.send(:define_method, prop) do
-      self.class.in_memory_status[self[:name]] && self.class.in_memory_status[self[:name]][prop]
+      self.class.send(:define_method, prop) do
+        self.class.in_memory_status[self[:name]] && self.class.in_memory_status[self[:name]][prop]
+      end
+      send(name, *args, &block)
+    else
+      super(name, *args, &block)
     end
-    send(name, *args, &block)
   end
 
   def in_monitored?
-    !failed_times || failed_times <= self.class.m_failed_times
+    !im_failed_times || im_failed_times <= self.class.m_failed_times
   end
 
   def logger

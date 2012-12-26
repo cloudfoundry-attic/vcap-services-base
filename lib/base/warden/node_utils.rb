@@ -99,11 +99,11 @@ module VCAP::Services::Base::Warden::NodeUtils
     pool_run(params) do |ins, _|
       if !closing && ins.in_monitored?
         if ins.running?
-          ins.failed_times = 0
+          ins.im_failed_times = 0
         else
           lock.synchronize { failed_instances << ins }
-          ins.failed_times ||= 0
-          ins.failed_times += 1
+          ins.im_failed_times ||= 0
+          ins.im_failed_times += 1
           unless ins.in_monitored?
             @logger.error("Instance #{ins.name} is failed too many times. Unmonitored.")
             ins.stop
