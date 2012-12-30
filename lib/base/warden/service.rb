@@ -91,6 +91,8 @@ class VCAP::Services::Base::Warden::Service
 
   def loop_setup
     self.class.sh "mount -n -o loop #{image_file} #{base_dir}"
+    # Set the dir owner back to the process user
+    self.class.sh "chown -R #{Process.uid}:#{Process.gid} #{base_dir}"
   end
 
   def loop_setup?
