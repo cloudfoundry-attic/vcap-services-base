@@ -37,6 +37,9 @@ module VCAP
       # load_registered_services_from_cc
       abstract :load_registered_services_from_cc
 
+      # delete_offering(id, version, provider)
+      abstract :delete_offering
+
       ##### Handles processing #####
 
       # update_handle_in_cc(service_label, handle, on_success_callback, on_failure_callback)
