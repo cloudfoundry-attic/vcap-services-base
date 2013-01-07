@@ -1,0 +1,9 @@
+Code-Review+2: Nicholas Kushmerick <nicholask@vmware.com>
+Code-Review+1: Tang Rui <rtang@vmware.com>
+Code-Review+1: Felix Hu <hhu@vmware.com>
+Verified+1: CI Master <cf-ci@rbcon.com>
+Submitted-by: Felix Hu <hhu@vmware.com>
+Submitted-at: Mon, 07 Jan 2013 10:27:20 +0000
+Reviewed-on: http://reviews.cloudfoundry.org/13014
+Project: vcap-services-base
+Branch: refs/heads/master
