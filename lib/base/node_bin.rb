@@ -76,6 +76,7 @@ class VCAP::Services::Base::NodeBin
       :port_range => parse_property(config, "port_range", Range, :optional => true),
       :filesystem_quota => parse_property(config, "filesystem_quota", Boolean, :optional => true, :default => false),
       :service_start_timeout => parse_property(config, "service_start_timeout", Integer, :optional => true, :default => 3),
+      :service_status_timeout => parse_property(config, "service_status_timeout", Integer, :optional => true, :default => 3),
       :max_memory => parse_property(config, "max_memory", Numeric, :optional => true),
       :memory_overhead => parse_property(config, "memory_overhead", Numeric, :optional => true, :default => 0.0),
       :max_disk => parse_property(config, "max_disk", Numeric, :optional => true, :default => 128.0),
@@ -95,6 +96,7 @@ class VCAP::Services::Base::NodeBin
       options[:image_dir] = parse_property(warden_config, "image_dir", String)
       options[:filesystem_quota] = parse_property(warden_config, "filesystem_quota", Boolean, :optional => true, :default => false)
       options[:service_start_timeout] = parse_property(warden_config, "service_start_timeout", Integer, :optional => true, :default => 3)
+      options[:service_status_timeout] = parse_property(warden_config, "service_status_timeout", Integer, :optional => true, :default => 3)
     end
 
     VCAP::Logging.setup_from_config(config["logging"])
