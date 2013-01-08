@@ -137,67 +137,44 @@ module VCAP::Services::Base::Warden::NodeUtils
     start_instances(failed_instances)
   end
 
-  def start_all_instances(service_start_timeout=nil)
-    start_instances(service_instances, service_start_timeout)
+  def start_all_instances
+    start_instances(service_instances)
   end
 
-  def start_instances(all_instances, service_start_timeout=nil)
-    @instance_parallel_start_count = 10 if @instance_parallel_start_count.nil?
-    service_start_timeout = @service_start_timeout || 3 unless service_start_timeout
-    start = 0
-    check_set = Set.new
-    check_lock = Mutex.new
-    while start < all_instances.size
-      instances = all_instances.slice(start, [@instance_parallel_start_count, all_instances.size - start].min)
-      start = start + @instance_parallel_start_count
-      for instance in instances
-        del_port(instance.port)
+  def start_instances(all_instances)
+    pool_run(all_instances, @instance_parallel_start_count || 10) do |instance|
+      del_port(instance.port)
 
-        if instance.running? then
-          @logger.warn("Service #{instance.name} already listening on port #{instance.port}")
-          next
-        end
+      if instance.running?
+        @logger.warn("Service #{instance.name} already listening on port #{instance.port}")
+        next
+      end
 
-        unless instance.base_dir?
-          @logger.warn("Service #{instance.name} in local DB, but not in file system")
-          next
-        end
+      unless instance.base_dir?
+        @logger.warn("Service #{instance.name} in local DB, but not in file system")
+        next
+      end
 
+      begin
         instance.migration_check()
-        check_set << instance.name
+      rescue => e
+        @logger.error("Error on migration_check: #{e}")
+        next
       end
-      threads = (1..instances.size).collect do |i|
-        Thread.new(instances[i - 1]) do |t_instance|
-          next unless check_lock.synchronize {check_set.include?(t_instance.name)}
-          begin
-            t_instance.run(t_instance.start_options)
-          rescue => e
-            check_lock.synchronize {check_set.delete(t_instance.name)}
-            @logger.error("Error starting instance #{t_instance.name}: #{e}")
-            # Try to stop the instance since the container could be created
-            begin
-              t_instance.stop
-            rescue => e
-              # Ingore the rollback error and just record a warning log
-              @logger.warn("Error stopping instance #{t_instance.name} when rollback from a starting failure")
-            end
-            Thread.exit
-          end
-          service_start_timeout.times do
-            if t_instance.finish_start?
-              check_lock.synchronize {check_set.delete(t_instance.name)}
-              @logger.info("Successfully start provisioned instance #{t_instance.name}")
-              break
-            end
-            Thread.exit if closing
-            sleep 1
-          end
+
+      begin
+        instance.run(instance.start_options)
+        @logger.info("Successfully start provisioned instance #{instance.name}")
+      rescue => e
+        @logger.error("Error starting instance #{instance.name}: #{e}")
+        # Try to stop the instance since the container could be created
+        begin
+          instance.stop
+        rescue => e
+          # Ingore the rollback error and just record a warning log
+          @logger.warn("Error stopping instance #{instance.name} when rollback from a starting failure")
         end
       end
-      threads.each {|t| t.join}
-    end
-    check_set.each do |name|
-      @logger.error("Timeout to wait for starting provisioned instance #{name}")
     end
   end
 
