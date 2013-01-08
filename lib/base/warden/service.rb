@@ -1,5 +1,6 @@
 $LOAD_PATH.unshift File.dirname(__FILE__)
 require 'instance_utils'
+require 'timeout'
 
 class VCAP::Services::Base::Warden::Service
 
@@ -21,6 +22,7 @@ class VCAP::Services::Base::Warden::Service
       @memory_overhead = options[:memory_overhead]
       @quota = options[:filesystem_quota] || false
       @service_start_timeout = options[:service_start_timeout] || 3
+      @service_status_timeout = options[:service_status_timeout] || 3
       @bandwidth_per_second = options[:bandwidth_per_second]
       @service_port = options[:service_port]
       @rm_instance_dir_timeout = options[:rm_instance_dir_timeout] || 10
@@ -47,7 +49,7 @@ class VCAP::Services::Base::Warden::Service
       end
     end
 
-    attr_reader :base_dir, :log_dir, :bin_dir, :common_dir, :image_dir, :max_disk, :logger, :quota, :max_memory, :memory_overhead, :service_start_timeout, :bandwidth_per_second, :service_port, :rm_instance_dir_timeout, :m_failed_times, :in_memory_status
+    attr_reader :base_dir, :log_dir, :bin_dir, :common_dir, :image_dir, :max_disk, :logger, :quota, :max_memory, :memory_overhead, :service_start_timeout, :service_status_timeout, :bandwidth_per_second, :service_port, :rm_instance_dir_timeout, :m_failed_times, :in_memory_status
 
   end
 
@@ -243,7 +245,14 @@ class VCAP::Services::Base::Warden::Service
   end
 
   def running?
-    container_running?(self[:container]) && instance_status?
+    ret = false
+    Timeout.timeout(self.class.service_status_timeout) do
+      ret = container_running?(self[:container]) && instance_status?
+    end
+    ret
+  rescue => e
+    logger.error("Error on querying status: #{e}")
+    false
   end
 
   def instance_status?
