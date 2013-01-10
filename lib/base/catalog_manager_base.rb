@@ -20,7 +20,20 @@ module VCAP
           req[:proxy][:head] = req[:head]
         end
 
-        req
+        f = Fiber.current
+        http = EM::HttpRequest.new(args[:uri]).send(args[:method], req)
+        if http.error && http.error != ""
+          unless args[:need_raise]
+            @logger.error("CC Catalog Manager: Failed to connect to CC, the error is #{http.error}")
+            return
+          else
+            raise("CC Catalog Manager: Failed to connect to CC, the error is #{http.error}")
+          end
+        end
+        http.callback { f.resume(http) }
+        http.errback  { f.resume(http) }
+        Fiber.yield
+        yield http if block_given?
       end
 
       abstract :snapshot_and_reset_stats

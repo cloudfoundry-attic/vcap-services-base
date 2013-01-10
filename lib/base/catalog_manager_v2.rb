@@ -238,24 +238,18 @@ module VCAP
         @logger.debug("CCNG Catalog Manager: Getting services listing from cloud_controller: #{@service_list_uri}")
         registered_services = {}
 
-        req = create_http_request(:head => @cc_req_hdrs)
-
-        f = Fiber.current
-        http = EM::HttpRequest.new(@service_list_uri).get(req)
-        http.callback { f.resume(http) }
-        http.errback { f.resume(http) }
-        Fiber.yield
-
         svcs = nil
+        create_http_request(:uri => @service_list_uri, :method => "get", :head => @cc_req_hdrs, :need_raise => true) do |http|
 
-        if http.error.empty?
-          if http.response_header.status == 200
-            svcs = JSON.parse(http.response)
+          if http.error.empty?
+            if http.response_header.status == 200
+              svcs = JSON.parse(http.response)
+            else
+              raise "CCNG Catalog Manager: Failed to fetch #{@gateway_name} service from CC - status=#{http.response_header.status}"
+            end
           else
-            raise "CCNG Catalog Manager: Failed to fetch #{@gateway_name} service from CC - status=#{http.response_header.status}"
+            raise "CCNG Catalog Manager: Failed to fetch #{@gateway_name} service from CC: #{http.error}"
           end
-        else
-          raise "CCNG Catalog Manager: Failed to fetch #{@gateway_name} service from CC: #{http.error}"
         end
 
         raise "CCNG Catalog Manager: Failed parsing http reponse when getting services listing from cc" if svcs == nil
@@ -366,67 +360,46 @@ module VCAP
       def add_or_update_offering(offering, guid)
         update = !guid.nil?
         uri = update ? "#{@offering_uri}/#{guid}" : @offering_uri
+        service_guid = nil
 
         @logger.debug("CCNG Catalog Manager: #{update ? "Update" : "Advertise"} service offering #{offering.inspect} to cloud_controller: #{uri}")
 
-        req = create_http_request(
-          :head => @cc_req_hdrs,
-          :body => Yajl::Encoder.encode(offering)
-        )
-
-        f = Fiber.current
-        conn = EM::HttpRequest.new(uri)
-
-        http = update ? conn.put(req) : conn.post(req)
-        http.callback { f.resume(http) }
-        http.errback { f.resume(http) }
-
-        Fiber.yield
-
-        if http.error.empty?
-          if (200..299) === http.response_header.status
-            response = JSON.parse(http.response)
-            @logger.info("CCNG Catalog Manager: Advertise offering response (code=#{http.response_header.status}): #{response.inspect}")
-            return response["metadata"]["guid"]
+        method = update ? "put" : "post"
+        create_http_request(:uri => uri, :method => method, :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(offering)) do |http|
+          if http.error.empty?
+            if (200..299) === http.response_header.status
+              response = JSON.parse(http.response)
+              @logger.info("CCNG Catalog Manager: Advertise offering response (code=#{http.response_header.status}): #{response.inspect}")
+              service_guid = response["metadata"]["guid"]
+            else
+              @logger.error("CCNG Catalog Manager: Failed advertise offerings:#{offering.inspect}, status=#{http.response_header.status}")
+            end
           else
-            @logger.error("CCNG Catalog Manager: Failed advertise offerings:#{offering.inspect}, status=#{http.response_header.status}")
+            @logger.error("CCNG Catalog Manager: Failed advertise offerings:#{offering.inspect}: #{http.error}")
           end
-        else
-          @logger.error("CCNG Catalog Manager: Failed advertise offerings:#{offering.inspect}: #{http.error}")
         end
 
-        return nil
+        return service_guid
       end
 
       def add_or_update_plan(plan, plan_guid = nil)
         add_plan = plan_guid.nil?
 
-        url = add_plan ? @service_plans_uri : "#{@service_plans_uri}/#{plan_guid}"
-        @logger.info("CCNG Catalog Manager: #{add_plan ? "Add new plan" : "Update plan (guid: #{plan_guid}) to"}: #{plan.inspect} via #{url}")
+        uri = add_plan ? @service_plans_uri : "#{@service_plans_uri}/#{plan_guid}"
+        @logger.info("CCNG Catalog Manager: #{add_plan ? "Add new plan" : "Update plan (guid: #{plan_guid}) to"}: #{plan.inspect} via #{uri}")
 
-        req = create_http_request(
-          :head => @cc_req_hdrs,
-          :body => Yajl::Encoder.encode(plan)
-        )
-
-        f = Fiber.current
-
-        conn = EM::HttpRequest.new(url)
-        http = add_plan ? conn.post(req) : conn.put(req)
-        http.callback { f.resume(http) }
-        http.errback { f.resume(http) }
-
-        Fiber.yield
-
-        if http.error.empty?
-          if (200..299) === http.response_header.status
-            @logger.info("CCNG Catalog Manager: Successfully #{add_plan ? "added" : "updated"} service plan: #{plan.inspect}")
-            return true
+        method = add_plan ? "post" : "put"
+        create_http_request(:uri => uri, :method => method, :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(plan)) do |http|
+          if http.error.empty?
+            if (200..299) === http.response_header.status
+              @logger.info("CCNG Catalog Manager: Successfully #{add_plan ? "added" : "updated"} service plan: #{plan.inspect}")
+              return true
+            else
+              @logger.error("CCNG Catalog Manager: Failed to #{add_plan ? "add" : "update"} plan: #{plan.inspect}, status=#{http.response_header.status}")
+            end
           else
-            @logger.error("CCNG Catalog Manager: Failed to #{add_plan ? "add" : "update"} plan: #{plan.inspect}, status=#{http.response_header.status}")
+            @logger.error("CCNG Catalog Manager: Failed to #{add_plan ? "add" : "update"} plan: #{plan.inspect}: #{http.error}")
           end
-        else
-          @logger.error("CCNG Catalog Manager: Failed to #{add_plan ? "add" : "update"} plan: #{plan.inspect}: #{http.error}")
         end
 
         return false
@@ -451,28 +424,20 @@ module VCAP
           return
         end
 
-        url = "#{@offering_uri}/#{offering_guid}"
-        @logger.info("CCNG Catalog Manager: Deleting service offering:#{id} (#{provider}) via #{url}")
+        uri = "#{@offering_uri}/#{offering_guid}"
+        @logger.info("CCNG Catalog Manager: Deleting service offering:#{id} (#{provider}) via #{uri}")
 
-        req = create_http_request(:head => @cc_req_hdrs)
-
-        f = Fiber.current
-
-        http = EM::HttpRequest.new(url).delete(req)
-        http.callback { f.resume(http) }
-        http.errback { f.resume(http) }
-
-        Fiber.yield
-
-        if http.error.empty?
-          if (200..299) === http.response_header.status
-            @logger.info("CCNG Catalog Manager: Successfully deleted offering: #{id} (#{provider})")
-            return true
+        create_http_request(:uri => uri, :method => "delete", :head => @cc_req_hdrs) do |http|
+          if http.error.empty?
+            if (200..299) === http.response_header.status
+              @logger.info("CCNG Catalog Manager: Successfully deleted offering: #{id} (#{provider})")
+              return true
+            else
+              @logger.error("CCNG Catalog Manager: Failed to delete offering: #{id} (#{provider}), status=#{http.response_header.status}")
+            end
           else
-            @logger.error("CCNG Catalog Manager: Failed to delete offering: #{id} (#{provider}), status=#{http.response_header.status}")
+            @logger.error("CCNG Catalog Manager: Failed to delete offering: #{id} (#{provider}) due to: #{http.error}")
           end
-        else
-          @logger.error("CCNG Catalog Manager: Failed to delete offering: #{id} (#{provider}) due to: #{http.error}")
         end
 
         return false
@@ -494,31 +459,25 @@ module VCAP
         @logger.info("CCNG Catalog Manager:(v1) Fetching handles from cloud controller: #{handles_uri}")
         @fetching_handles = true
 
-        req = create_http_request(:head => @cc_req_hdrs_for_v1_api)
+        create_http_request(:uri => handles_uri, :method => "get", :head => @cc_req_hdrs_for_v1_api) do |http|
+          @fetching_handles = false
 
-        f = Fiber.current
-        http = EM::HttpRequest.new(handles_uri).get(req)
-        http.callback { f.resume(http) }
-        http.errback  { f.resume(http) }
-        Fiber.yield
+          if http.error.empty?
+            if http.response_header.status == 200
+              @logger.info("CCNG Catalog Manager:(v1) Successfully fetched handles")
 
-        @fetching_handles = false
-
-        if http.error.empty?
-          if http.response_header.status == 200
-            @logger.info("CCNG Catalog Manager:(v1) Successfully fetched handles")
-
-            begin
-              resp = VCAP::Services::Api::ListHandlesResponse.decode(http.response)
-              after_fetch_callback.call(resp) if after_fetch_callback
-            rescue => e
-              @logger.error("CCNG Catalog Manager:(v1) Error decoding reply from gateway: #{e}")
+              begin
+                resp = VCAP::Services::Api::ListHandlesResponse.decode(http.response)
+                after_fetch_callback.call(resp) if after_fetch_callback
+              rescue => e
+                @logger.error("CCNG Catalog Manager:(v1) Error decoding reply from gateway: #{e}")
+              end
+            else
+              @logger.error("CCNG Catalog Manager:(v1) Failed fetching handles, status=#{http.response_header.status}")
             end
           else
-            @logger.error("CCNG Catalog Manager:(v1) Failed fetching handles, status=#{http.response_header.status}")
+            @logger.error("CCNG Catalog Manager:(v1) Failed fetching handles: #{http.error}")
           end
-        else
-          @logger.error("CCNG Catalog Manager:(v1) Failed fetching handles: #{http.error}")
         end
       end
 
@@ -531,28 +490,19 @@ module VCAP
 
         uri = "#{get_handles_uri(service_label)}/#{handle["service_id"]}"
 
-        req = create_http_request(
-          :head => @cc_req_hdrs_for_v1_api,
-          :body => Yajl::Encoder.encode(handle)
-        )
-
-        f = Fiber.current
-        http = EM::HttpRequest.new(uri).post(req)
-        http.callback { f.resume(http) }
-        http.errback  { f.resume(http) }
-        Fiber.yield
-
-        if http.error.empty?
-          if http.response_header.status == 200
-            @logger.info("CCNG Catalog Manager:(v1) Successful update handle #{handle["service_id"]}")
-            on_success_callback.call if on_success_callback
+        create_http_request(:uri => uri, :method => "post", :head => @cc_req_hdrs_for_v1_api, :body => Yajl::Encoder.encode(handle)) do |http|
+          if http.error.empty?
+            if http.response_header.status == 200
+              @logger.info("CCNG Catalog Manager:(v1) Successful update handle #{handle["service_id"]}")
+              on_success_callback.call if on_success_callback
+            else
+              @logger.error("CCNG Catalog Manager:(v1) Failed to update handle #{id}: http status #{http.response_header.status}")
+              on_failure_callback.call if on_failure_callback
+            end
           else
-            @logger.error("CCNG Catalog Manager:(v1) Failed to update handle #{id}: http status #{http.response_header.status}")
+            @logger.error("CCNG Catalog Manager:(v1) Failed to update handle #{handle["service_id"]}: #{http.error}")
             on_failure_callback.call if on_failure_callback
           end
-        else
-          @logger.error("CCNG Catalog Manager:(v1) Failed to update handle #{handle["service_id"]}: #{http.error}")
-          on_failure_callback.call if on_failure_callback
         end
       end
 
