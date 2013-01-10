@@ -106,6 +106,7 @@ module VCAP
 
         f = Fiber.current
         http = EM::HttpRequest.new(@service_list_uri).get(req)
+        raise "CC Catalog Manager: Failed to connect to CC, the error is #{http.error}" if http.error
         http.callback { f.resume(http) }
         http.errback  { f.resume(http) }
         Fiber.yield
@@ -140,6 +141,10 @@ module VCAP
 
         f = Fiber.current
         http = EM::HttpRequest.new(@offering_uri).post(req)
+        if http.error && http.error != ""
+          @logger.error("CC Catalog Manager: Failed to connect to CC, the error is #{http.error}")
+          return false
+        end
         http.callback { f.resume(http) }
         http.errback  { f.resume(http) }
         Fiber.yield
@@ -166,6 +171,7 @@ module VCAP
 
         f = Fiber.current
         http = EM::HttpRequest.new(uri).delete(req)
+        raise "CC Catalog Manager: Failed to connect to CC, the error is #{http.error}" if http.error && http.error != ""
         http.callback { f.resume(http) }
         http.errback { f.resume(http) }
         Fiber.yield
@@ -197,6 +203,10 @@ module VCAP
 
         f = Fiber.current
         http = EM::HttpRequest.new(handles_uri).get(req)
+        if http.error && http.error != ""
+          @logger.error("CC Catalog Manager: Failed to connect to CC, the error is #{http.error}")
+          return false
+        end
         http.callback { f.resume(http) }
         http.errback  { f.resume(http) }
         Fiber.yield
@@ -237,6 +247,10 @@ module VCAP
 
         f = Fiber.current
         http = EM::HttpRequest.new(uri).post(req)
+        if http.error && http.error != ""
+          @logger.error("CC Catalog Manager: Failed to connect to CC, the error is #{http.error}")
+          return false
+        end
         http.callback { f.resume(http) }
         http.errback  { f.resume(http) }
         Fiber.yield
