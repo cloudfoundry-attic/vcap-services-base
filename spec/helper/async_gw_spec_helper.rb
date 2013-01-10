@@ -9,6 +9,10 @@ class AsyncGatewayTests
     MockGateway.new(true)
   end
 
+  def self.create_nice_gateway_with_invalid_cc
+    MockGateway.new(true, nil, -1, 3, true)
+  end
+
   def self.create_nasty_gateway
     MockGateway.new(false)
   end
@@ -37,7 +41,7 @@ class AsyncGatewayTests
     attr_reader   :purge_orphan_http_code
     attr_reader   :check_orphan_http_code
 
-    def initialize(nice, timeout=nil, check_interval=-1, double_check_interval=3)
+    def initialize(nice, timeout=nil, check_interval=-1, double_check_interval=3, cc_invalid=false)
       @token = '0xdeadbeef'
       @cc_head = {
         'Content-Type'         => 'application/json',
@@ -54,7 +58,7 @@ class AsyncGatewayTests
         @sp = nice ? NiceProvisioner.new : NastyProvisioner.new
       end
       @service_timeout = timeout ? timeout + 1 : 10
-      sg = VCAP::Services::AsynchronousServiceGateway.new(
+      options = {
         :service => {
                       :label => @label,
                       :name => 'service',
@@ -76,7 +80,9 @@ class AsyncGatewayTests
         :check_orphan_interval => check_interval,
         :double_check_orphan_interval => double_check_interval,
         :logger => Logger.new(STDOUT),
-      )
+      }
+      options[:cloud_controller_uri] = "http://invalid_uri" if cc_invalid
+      sg = VCAP::Services::AsynchronousServiceGateway.new(options)
       @server = Thin::Server.new('localhost', GW_PORT, sg)
       if @service_timeout
         @server.timeout = [@service_timeout + 1, Thin::Server::DEFAULT_TIMEOUT].max
