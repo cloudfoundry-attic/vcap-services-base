@@ -235,7 +235,7 @@ class VCAP::Services::Base::Warden::Service
     self[:ip] = rsp.container_ip
     # Check whether the service finish starting,
     # the check method can be different depends on whether the service is first start
-    raise VCAP::Services::Base::Error::ServiceError::new(VCAP::Services::Base::Error::ServiceError::SERVICE_START_TIMEOUT) unless wait_service_start(options[:is_first_start])
+    raise VCAP::Services::Base::Error::ServiceError::new(VCAP::Services::Base::Error::ServiceError::SERVICE_START_TIMEOUT) unless wait_service_start(options[:service_start_timeout], options[:is_first_start])
     run_command(handle, options[:post_start_script]) if options[:post_start_script]
     # The post start block is some work that need do after first start in provision,
     # where restart this instance, there should be no such work
@@ -351,8 +351,9 @@ class VCAP::Services::Base::Warden::Service
   end
 
   # service start/stop helper
-  def wait_service_start(is_first_start=false)
-    (self.class.service_start_timeout * 10).times do
+  def wait_service_start(service_start_timeout, is_first_start=false)
+    return true unless service_start_timeout
+    (service_start_timeout * 10).times do
       sleep 0.1
       if is_first_start
         return true if finish_first_start?
@@ -383,6 +384,7 @@ class VCAP::Services::Base::Warden::Service
       :need_map_port => true,
       :is_first_start => false,
       :bind_dirs => bind_dirs,
+      :service_start_timeout => self.class.service_start_timeout,
     }
   end
 
