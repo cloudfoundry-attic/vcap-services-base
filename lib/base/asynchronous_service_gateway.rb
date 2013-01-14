@@ -23,7 +23,6 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
     @token        = opts[:token]
     @logger       = opts[:logger] || make_logger()
     @cld_ctrl_uri = http_uri(opts[:cloud_controller_uri])
-    @offering_uri = "#{@cld_ctrl_uri}/services/v1/offerings"
     @provisioner  = opts[:provisioner]
     @hb_interval  = opts[:heartbeat_interval] || 60
     @node_timeout = opts[:node_timeout]
