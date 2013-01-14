@@ -358,7 +358,7 @@ module VCAP
         # TODO: What to do with deactivated plans?
         # Should handle this manually for now?
         deactivated_plans = registered_plans - active_plans
-        @logger.warn("CCNG Catalog Manager: Found #{deactivated_plans.size} deactivated plans: - #{deactivated_plans.inspect}")
+        @logger.warn("CCNG Catalog Manager: Found #{deactivated_plans.size} deactivated plans: - #{deactivated_plans.inspect}") unless deactivated_plans.empty?
 
         [ plans_to_add, plans_to_update ]
       end
