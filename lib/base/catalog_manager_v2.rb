@@ -63,6 +63,15 @@ module VCAP
         "#{label}_#{provider}"
       end
 
+      def convert_sym_key_to_string_key(input)
+        output = {}
+        input.each { |k,v|
+          key = k.is_a?(String) ? k : k.to_s
+          output[key] = v
+        }
+
+        output
+      end
       ######### Stats Handling #########
 
       def snapshot_and_reset_stats
@@ -221,10 +230,11 @@ module VCAP
         elsif svc["plans"].is_a?(Hash)
           svc["plans"].each { |k, v|
             plan_name = k.to_s
+            plan_detail = convert_sym_key_to_string_key(v)
             plans[plan_name] = {
               "name"        => plan_name,
-              "description" => v["description"],
-              "free"        => v["free"]
+              "description" => plan_detail["description"],
+              "free"        => plan_detail["free"]
             }
           }
         else
@@ -331,7 +341,7 @@ module VCAP
         # active plans = intersection of (catalog_plans & registered_plans)
         active_plans = catalog_plans & registered_plans
         active_plans.each { |plan_name|
-          plan_details = plans_from_catalog[plan_name]
+          plan_details = convert_sym_key_to_string_key(plans_from_catalog[plan_name])
 
           # The changeable aspects are the descritption and free flag
           if (plan_details["description"] != plans_already_in_cc[plan_name]["description"] ||
