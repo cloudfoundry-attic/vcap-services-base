@@ -42,7 +42,10 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
 
     init_service_extensions
 
-    reset_orphan_stat
+    @staging_orphan_instances = {}
+    @staging_orphan_bindings = {}
+    @final_orphan_instances = {}
+    @final_orphan_bindings = {}
 
     z_interval = options[:z_interval] || 30
 
@@ -98,13 +101,6 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @responses_metrics[metric] += 1
   rescue => e
     @logger.warn("Failed update responses metrics: #{e}")
-  end
-
-  def reset_orphan_stat
-    @staging_orphan_instances = {}
-    @staging_orphan_bindings = {}
-    @final_orphan_instances = {}
-    @final_orphan_bindings = {}
   end
 
   # Updates our internal state to match that supplied by handles
@@ -290,7 +286,8 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
 
   def check_orphan(handles, &blk)
     @logger.debug("[#{service_description}] Check if there are orphans")
-    reset_orphan_stat
+    @staging_orphan_instances = {}
+    @staging_orphan_bindings = {}
     @instance_handles_CO, @binding_handles_CO = indexing_handles(handles.deep_dup)
     @node_nats.publish("#{service_name}.check_orphan","Send Me Handles")
     blk.call(success)
