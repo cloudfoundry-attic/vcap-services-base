@@ -223,8 +223,8 @@ module VCAP
             plan_name = k.to_s
             plans[plan_name] = {
               "name"        => plan_name,
-              "description" => v["description"],
-              "free"        => v["free"]
+              "description" => v[:description],
+              "free"        => v[:free]
             }
           }
         else
