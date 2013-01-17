@@ -1,0 +1,26 @@
+#!/bin/bash
+
+OP=$1
+BASE_DIR=$2
+PIDFILE=$BASE_DIR/service.pid
+
+case $OP in
+  start)
+    echo $$ > $PIDFILE
+    exec sleep 1000
+    ;;
+
+  stop)
+    cat $PIDFILE | xargs kill
+    rm -f $PIDFILE
+    ;;
+
+  status)
+    [ -f $PIDFILE ] && [ -e /proc/`head -1 $PIDFILE` ]
+    ;;
+
+  *)
+    echo "Usage: $0 {start|stop|status}"
+
+    ;;
+esac
