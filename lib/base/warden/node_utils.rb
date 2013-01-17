@@ -11,7 +11,7 @@ module VCAP::Services::Base::Warden::NodeUtils
 
   attr_accessor :m_interval, :m_actions
 
-  def warden_node_init(options=[])
+  def warden_node_init(options={})
     @m_interval = options[:m_interval] || 10
     @m_actions = options[:m_actions] || []
     setup_monitor_timer
