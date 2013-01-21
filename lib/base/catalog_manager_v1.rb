@@ -210,7 +210,7 @@ module VCAP
               @logger.info("CC Catalog Manager: Successful update handle #{handle["service_id"]}")
               on_success_callback.call if on_success_callback
             else
-              @logger.error("CC Catalog Manager: Failed to update handle #{id}: http status #{http.response_header.status}")
+              @logger.error("CC Catalog Manager: Failed to update handle #{handle["service_id"]}: http status #{http.response_header.status}")
               on_failure_callback.call if on_failure_callback
             end
           else
