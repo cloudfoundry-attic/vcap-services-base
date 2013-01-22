@@ -172,7 +172,7 @@ module VCAP::Services::Base::Warden::NodeUtils
         begin
           instance.stop
         rescue => e
-          # Ingore the rollback error and just record a warning log
+          # Ignore the rollback error and just record a warning log
           @logger.warn("Error stopping instance #{instance.name} when rollback from a starting failure")
         end
       end

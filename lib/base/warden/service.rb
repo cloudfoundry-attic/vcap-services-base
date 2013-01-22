@@ -192,7 +192,7 @@ class VCAP::Services::Base::Warden::Service
       if self.class.quota
         self.class.sh("rm -f #{image_file}", {:block => false})
       end
-      # delete serivce data directory could be slow, so increase the timeout
+      # delete service data directory could be slow, so increase the timeout
       self.class.sh("rm -rf #{base_dir} #{log_dir} #{util_dirs.join(' ')}", {:block => false, :timeout => self.class.rm_instance_dir_timeout})
     end
   end
@@ -211,7 +211,7 @@ class VCAP::Services::Base::Warden::Service
   # 3. Run pre service start script (optional)
   # 4. Run service start script
   # 5. Create iptables rules for service process (optional)
-  # 6. Get container IP addresss and wait for the service finishing starting
+  # 6. Get container IP address and wait for the service finishing starting
   # 7. Run post service start script (optional)
   # 8. Run post service start block (optional)
   # 9. Save the instance info to local db
