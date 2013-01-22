@@ -38,9 +38,9 @@ class VCAP::Services::Base::Base
 
     @node_nats = nil
     if options[:mbus]
-
       NATS.on_error do |e|
         @logger.error("Exiting due to NATS error: #{e}")
+        shutdown
         exit
       end
       @logger.debug("Connecting with NATS")
