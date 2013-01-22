@@ -398,7 +398,7 @@ class VCAP::Services::Base::Warden::Service
 
   # Check where the service process finish starting,
   # the node subclass should override this function.
-  def first_start?
+  def finish_start?
     true
   end
 
