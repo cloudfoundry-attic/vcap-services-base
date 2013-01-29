@@ -63,7 +63,7 @@ describe VCAP::Services::Base::AsyncJob::Lock do
     lock_b_ran = false
     lock_a.lock do
       lock_a_ran = true
-      expect{lock_b.lock{ lock_b_ran = true } }.should raise_error(VCAP::Services::Base::Error::ServiceError, /Job timeout/)
+      expect{lock_b.lock{ lock_b_ran = true } }.to raise_error(VCAP::Services::Base::Error::ServiceError, /Job timeout/)
     end
 
     lock_a_ran.should be_true

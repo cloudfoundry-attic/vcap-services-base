@@ -63,7 +63,7 @@ describe VCAP::Services::Base::AsyncJob::Lock do
     lock_b_ran = false
     lock_a.lock do
       lock_a_ran = true
-      expect{lock_b.lock{ lock_b_ran = true } }.should raise_error(VCAP::Services::Base::Error::ServiceError, /Job timeout/)
+      expect{lock_b.lock{ lock_b_ran = true } }.to raise_error(VCAP::Services::Base::Error::ServiceError, /Job timeout/)
     end
 
     lock_a_ran.should be_true
@@ -112,7 +112,7 @@ describe VCAP::Services::Base::AsyncJob::Lock do
     lock = VCAP::Services::Base::AsyncJob::Lock.new(@name, :logger => @logger, :ttl => ttl)
 
     ran_once = false
-    expect { lock.lock{ ran_once = true; sleep ttl * 2} }.should raise_error(VCAP::Services::Base::Error::ServiceError, /ttl: #{ttl} seconds/)
+    expect { lock.lock{ ran_once = true; sleep ttl * 2} }.to raise_error(VCAP::Services::Base::Error::ServiceError, /ttl: #{ttl} seconds/)
     ran_once.should be_true
   end
 end

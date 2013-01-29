@@ -127,7 +127,7 @@ describe "Warden Service test" do
   it "should raise exception when run with wrong start options" do
     options = @instance.start_options
     options[:start_script] = {}
-    expect { @instance.run(options) }.should raise_error
+    expect { @instance.run(options) }.to raise_error
     @instance.running?.should be_false
   end
 

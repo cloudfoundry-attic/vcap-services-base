@@ -34,6 +34,7 @@ module VCAP
         http.errback  { f.resume(http) }
         Fiber.yield
         yield http if block_given?
+        http
       end
 
       abstract :snapshot_and_reset_stats

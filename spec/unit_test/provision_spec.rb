@@ -120,15 +120,14 @@ describe ProvisionerTests do
       }
       provisioner.nodes = mock_nodes
 
-      mock_nats.should_receive(:request).with(any_args()).and_return { |*args|
-          callback = args[2]
+      mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
           response = VCAP::Services::Internal::ProvisionResponse.new
           response.success = true
           response.credentials = {
               "node_id" => "node-1",
               "name" => "D501B915-5B50-4C3A-93B7-7E0C48B6A9FA"
           }
-          callback.call(response.encode)
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).with(any_args())
@@ -164,13 +163,12 @@ describe ProvisionerTests do
       }
       provisioner.nodes = mock_nodes
 
-      mock_nats.should_receive(:request).with(any_args()).and_return { |*args|
-          callback = args[2]
+      mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
           response = VCAP::Services::Internal::ProvisionResponse.new
           response.success = false
           response.error = ServiceError.new(ServiceError::INTERNAL_ERROR).\
                                         to_hash
-          callback.call(response.encode)
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).with(any_args())
@@ -218,7 +216,7 @@ describe ProvisionerTests do
       }
       provisioner.nodes = mock_nodes
 
-      mock_nats.should_receive(:request).with(any_args()).and_return { |*args|
+      mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
           nats_request = args[0]
           "5"
       }
@@ -254,15 +252,14 @@ describe ProvisionerTests do
       }
       provisioner.nodes = mock_nodes
 
-      mock_nats.should_receive(:request).with(any_args()).and_return { |*args|
-          callback = args[2]
+      mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
           response = VCAP::Services::Internal::ProvisionResponse.new
           response.success = true
           response.credentials = {
               "node_id" => "node-1",
               "name" => "622b4424-a644-4fcc-a363-6acb5f4952dd"
           }
-          callback.call(response.encode)
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).with(any_args())
@@ -336,23 +333,20 @@ describe ProvisionerTests do
       provisioner.nodes = mock_nodes
 
       mock_nats.should_receive(:request).twice.with(any_args()).\
-      and_return { |*args|
+      and_return { |*args, &cb|
           provision_request = args[0]
           if provision_request == "Test.provision.node-1"
-            callback = args[2]
             response = VCAP::Services::Internal::ProvisionResponse.new
             response.success = true
             response.credentials = {
                 "node_id" => "node-1",
                 "name" => "622b4424-a644-4fcc-a363-6acb5f4952dd"
             }
-            callback.call(response.encode)
           else
-            callback = args[2]
             response = VCAP::Services::Internal::SimpleResponse.new
             response.success = true
-            callback.call(response.encode)
           end
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).twice.with(any_args())
@@ -392,31 +386,26 @@ describe ProvisionerTests do
       provisioner.nodes = mock_nodes
 
       mock_nats.should_receive(:request).exactly(3).times.with(any_args()).\
-      and_return { |*args|
+      and_return { |*args, &cb|
           provision_request = args[0]
           if provision_request == "Test.provision.node-1"
-            callback = args[2]
             response = VCAP::Services::Internal::ProvisionResponse.new
             response.success = true
             response.credentials = {
                 "node_id" => "node-1",
                 "name" => "622b4424-a644-4fcc-a363-6acb5f4952dd"
             }
-            callback.call(response.encode)
           elsif provision_request == "Test.unprovision.node-1"
-            callback = args[2]
             response = VCAP::Services::Internal::SimpleResponse.new
             response.success = true
-            callback.call(response.encode)
           else
-            callback = args[2]
             response = VCAP::Services::Internal::BindResponse.new
             response.success = true
             response.credentials = {
                 "name" => "622b4424-a644-4fcc-a363-6acb5f4952dd"
             }
-            callback.call(response.encode)
           end
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).exactly(3).times.with(any_args())
@@ -460,13 +449,12 @@ describe ProvisionerTests do
       }
       provisioner.nodes = mock_nodes
 
-      mock_nats.should_receive(:request).with(any_args()).and_return { |*args|
-          callback = args[2]
+      mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
           response = VCAP::Services::Internal::SimpleResponse.new
           response.success = false
           response.error = ServiceError.new(ServiceError::INTERNAL_ERROR).\
                                         to_hash
-          callback.call(response.encode)
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).with(any_args())
@@ -508,9 +496,8 @@ describe ProvisionerTests do
       provisioner.nodes = mock_nodes
 
       mock_nats.should_receive(:request).twice.with(any_args()).\
-      and_return { |*args|
+      and_return { |*args, &cb|
           provision_request = args[0]
-          callback = args[2]
           if provision_request == "Test.provision.node-1"
             response = VCAP::Services::Internal::ProvisionResponse.new
             response.success = true
@@ -518,7 +505,6 @@ describe ProvisionerTests do
                 "node_id" => "node-1",
                 "name" => "b66e62e8-c87a-4adf-b08b-3cd30fcdbebb"
             }
-            callback.call(response.encode)
           else
             response = VCAP::Services::Internal::BindResponse.new
             response.success = true
@@ -526,8 +512,8 @@ describe ProvisionerTests do
                 "node_id" => "node-1",
                 "name" => "b66e62e8-c87a-4adf-b08b-3cd30fcdbebb"
             }
-            callback.call(response.encode)
           end
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).twice.with(any_args())
@@ -565,13 +551,12 @@ describe ProvisionerTests do
       }
       provisioner.nodes = mock_nodes
 
-      mock_nats.should_receive(:request).with(any_args).and_return { |*args|
-          callback = args[2]
+      mock_nats.should_receive(:request).with(any_args).and_return { |*args, &cb|
           response = VCAP::Services::Internal::BindResponse.new
           response.success = false
           response.error = ServiceError.new(ServiceError::INTERNAL_ERROR).\
                                         to_hash
-          callback.call(response.encode)
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).with(any_args())
@@ -612,13 +597,12 @@ describe ProvisionerTests do
       provisioner.nodes = mock_nodes
 
       mock_nats.should_receive(:request).with(any_args()).\
-      and_return { |*args|
-          callback = args[2]
+      and_return { |*args, &cb|
           response = VCAP::Services::Internal::SimpleResponse.new
           response.success = false
           response.error = ServiceError.new(ServiceError::INTERNAL_ERROR).\
                                         to_hash
-          callback.call(response.encode)
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).with(any_args())
@@ -662,9 +646,8 @@ describe ProvisionerTests do
       provisioner.nodes = mock_nodes
 
       mock_nats.should_receive(:request).twice.with(any_args()).\
-      and_return { |*args|
+      and_return { |*args, &cb|
           provision_request = args[0]
-          callback = args[2]
           if provision_request == "Test.provision.node-1"
             response = VCAP::Services::Internal::ProvisionResponse.new
             response.success = true
@@ -672,12 +655,11 @@ describe ProvisionerTests do
                 "node_id" => "node-1",
                 "name" => "b66e62e8-c87a-4adf-b08b-3cd30fcdbebb"
             }
-            callback.call(response.encode)
           else
             response = VCAP::Services::Internal::SimpleResponse.new
             response.success = true
-            callback.call(response.encode)
           end
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).twice.with(any_args())
@@ -714,13 +696,12 @@ describe ProvisionerTests do
       }
       provisioner.nodes = mock_nodes
 
-      mock_nats.should_receive(:request).with(any_args()).and_return { |*args|
-          callback = args[2]
+      mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
           response = VCAP::Services::Internal::SimpleResponse.new
           response.success = false
           response.error = ServiceError.new(ServiceError::INTERNAL_ERROR).\
                                         to_hash
-          callback.call(response.encode)
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).with(any_args())
@@ -761,9 +742,8 @@ describe ProvisionerTests do
       provisioner.nodes = mock_nodes
 
       mock_nats.should_receive(:request).at_least(:twice).with(any_args()).\
-      and_return { |*args|
+      and_return { |*args, &cb|
           provision_request = args[0]
-          callback = args[2]
           if provision_request == "Test.provision.node-1"
             response = VCAP::Services::Internal::ProvisionResponse.new
             response.success = true
@@ -771,11 +751,9 @@ describe ProvisionerTests do
                 "node_id" => "node-1",
                 "name" => "b66e62e8-c87a-4adf-b08b-3cd30fcdbebb"
             }
-            callback.call(response.encode)
           elsif provision_request == "Test.restore.node-1"
             response = VCAP::Services::Internal::SimpleResponse.new
             response.success = true
-            callback.call(response.encode)
           elsif provision_request == "Test.bind.node-1"
             response = VCAP::Services::Internal::BindResponse.new
             response.success = true
@@ -783,8 +761,8 @@ describe ProvisionerTests do
                 "node_id" => "node-1",
                 "name" => "b66e62e8-c87a-4adf-b08b-3cd30fcdbebb"
             }
-            callback.call(response.encode)
           end
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).at_least(:twice).with(any_args())
@@ -822,9 +800,8 @@ describe ProvisionerTests do
       provisioner.nodes = mock_nodes
 
       mock_nats.should_receive(:request).at_least(:twice).with(any_args()).\
-      and_return { |*args|
+      and_return { |*args, &cb|
           provision_request = args[0]
-          callback = args[2]
           if provision_request == "Test.provision.node-1"
             response = VCAP::Services::Internal::ProvisionResponse.new
             response.success = true
@@ -832,12 +809,11 @@ describe ProvisionerTests do
                 "node_id" => "node-1",
                 "name" => "b66e62e8-c87a-4adf-b08b-3cd30fcdbebb"
             }
-            callback.call(response.encode)
           elsif provision_request == "Test.disable_instance.node-1"
             response = VCAP::Services::Internal::SimpleResponse.new
             response.success = true
-            callback.call(response.encode)
           end
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).at_least(:twice).with(any_args())
@@ -874,13 +850,12 @@ describe ProvisionerTests do
       }
       provisioner.nodes = mock_nodes
 
-      mock_nats.should_receive(:request).with(any_args()).and_return { |*args|
-          callback = args[2]
+      mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
           response = VCAP::Services::Internal::SimpleResponse.new
           response.success = false
           response.error = ServiceError.new(ServiceError::INTERNAL_ERROR).\
                                         to_hash
-          callback.call(response.encode)
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).with(any_args)
@@ -919,15 +894,14 @@ describe ProvisionerTests do
       }
       provisioner.nodes = mock_nodes
 
-      mock_nats.should_receive(:request).with(any_args()).and_return { |*args|
-          callback = args[2]
+      mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
           response = VCAP::Services::Internal::ProvisionResponse.new
           response.success = true
           response.credentials = {
               "node_id" => "node-1",
               "name" => "b66e62e8-c87a-4adf-b08b-3cd30fcdbebb"
           }
-          callback.call(response.encode)
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).with(any_args())
@@ -964,13 +938,12 @@ describe ProvisionerTests do
       }
       provisioner.nodes = mock_nodes
 
-      mock_nats.should_receive(:request).with(any_args()).and_return { |*args|
-          callback = args[2]
+      mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
           response = VCAP::Services::Internal::SimpleResponse.new
           response.success = false
           response.error = ServiceError.new(ServiceError::INTERNAL_ERROR).\
                                         to_hash
-          callback.call(response.encode)
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).with(any_args())
@@ -1043,15 +1016,14 @@ describe ProvisionerTests do
       }
       provisioner.nodes = mock_nodes
 
-      mock_nats.should_receive(:request).with(any_args()).and_return { |*args|
-          callback = args[2]
+      mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
           response = VCAP::Services::Internal::ProvisionResponse.new
           response.success = true
           response.credentials = {
               "node_id" => "node-1",
               "name" => "D501B915-5B50-4C3A-93B7-7E0C48B6A9FA"
           }
-          callback.call(response.encode)
+          cb.call(response.encode)
           "5"
       }
       mock_nats.should_receive(:unsubscribe).with(any_args())
@@ -1205,7 +1177,7 @@ describe ProvisionerTests do
                                                 1024 * 16)
 
       mock_nats.should_receive(:publish).at_least(:once).with(any_args).\
-      and_return { |*args|
+      and_return { |*args, &cb|
           req = VCAP::Services::Internal::PurgeOrphanRequest.decode(args[1])
           purge_ins_list.concat(req.orphan_ins_list)
           purge_bind_list.concat(req.orphan_binding_list)

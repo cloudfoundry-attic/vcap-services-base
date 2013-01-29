@@ -27,7 +27,7 @@ describe "Service instance utilities test" do
 
   it "should raise exception when create warden with wrong bind mount argument" do
     bind_mount = @test.bind_mount_request(:src => "/non_existed_dir")
-    expect { @test.container_start([bind_mount]) }.should raise_error(Warden::Client::ServerError)
+    expect { @test.container_start([bind_mount]) }.to raise_error(Warden::Client::ServerError)
   end
 
   it "should destroy warden container successfully" do
@@ -36,7 +36,7 @@ describe "Service instance utilities test" do
   end
 
   it "should raise exception when destroy warden container" do
-    expect { @test.container_destroy("unknown_handle") }.should raise_error(Warden::Client::ServerError)
+    expect { @test.container_destroy("unknown_handle") }.to raise_error(Warden::Client::ServerError)
   end
 
   it "should return correct status of a running container" do
@@ -62,7 +62,7 @@ describe "Service instance utilities test" do
   end
 
   it "should failed to run privileged command without enable privileged options" do
-    expect { res = @test.container_run_command(@handle, "ifconfig") }.should raise_error(VCAP::Services::Base::Error::ServiceError)
+    expect { res = @test.container_run_command(@handle, "ifconfig") }.to raise_error(VCAP::Services::Base::Error::ServiceError)
   end
 
   it "should be able to spawn command" do
@@ -85,7 +85,7 @@ describe "Service instance utilities test" do
   end
 
   it "should raise exception when limit unknown container memory usage" do
-    expect { @test.limit_memory("unknown_handle", 1024) }.should raise_error(Warden::Client::ServerError)
+    expect { @test.limit_memory("unknown_handle", 1024) }.to raise_error(Warden::Client::ServerError)
   end
 
   it "should be able to limit bandwidth usage" do
@@ -93,7 +93,7 @@ describe "Service instance utilities test" do
   end
 
   it "should raise exception when limit unknown container bandwidth usage" do
-    expect { @test.limit_bandwidth("unknown_handle", 1024) }.should raise_error(Warden::Client::ServerError)
+    expect { @test.limit_bandwidth("unknown_handle", 1024) }.to raise_error(Warden::Client::ServerError)
   end
 
   it "should be able to map port for a running container" do
@@ -103,6 +103,6 @@ describe "Service instance utilities test" do
   end
 
   it "should raise exception when map port for unknown container" do
-    expect { @test.map_port("unknown_handle", 11111, 22222) }.should raise_error(Warden::Client::ServerError)
+    expect { @test.map_port("unknown_handle", 11111, 22222) }.to raise_error(Warden::Client::ServerError)
   end
 end

@@ -6,18 +6,6 @@ class BaseTests
 
     def self.nats_uri
       uri = "nats://localhost:4222"
-      if ENV["CLOUD_FOUNDRY_CONFIG_PATH"]
-        config = YAML.load_file(File.join(ENV["CLOUD_FOUNDRY_CONFIG_PATH"],
-                                          "nats_server", "nats_server.yml"))
-        if config['net']
-          if (auth = config['authorization']) && auth['user']
-            uri = "nats://#{auth['user']}:#{auth['password']}@"\
-                  "#{config['net']}:#{config['port']}"
-          else
-            uri = "nats://#{config['net']}:#{config['port']}"
-          end
-        end
-      end
       uri
     end
 

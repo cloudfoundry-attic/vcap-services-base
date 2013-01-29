@@ -33,7 +33,7 @@ describe "Service node utilities test" do
   it "should raise exception when return a new port from empty port set" do
     @test.init_ports([10000])
     @test.new_port
-    expect { @test.new_port }.should raise_error
+    expect { @test.new_port }.to raise_error
   end
 
   it "should be able to specify a port that want to get from the port set" do
@@ -51,7 +51,7 @@ describe "Service node utilities test" do
 
   it "should raise exception when recycle a free port" do
     @test.init_ports([10000])
-    expect { @test.free_port(10000) }.should raise_error
+    expect { @test.free_port(10000) }.to raise_error
   end
 
   it "should be able to get service instances list" do

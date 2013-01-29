@@ -88,7 +88,7 @@ describe VCAP::Services::Base::AsyncJob::Package do
       expect{
         package = VCAP::Services::Base::AsyncJob::Package.load temp_file.path
         package.unpack(temp_dir)
-      }.should raise_error(/corrupted/)
+      }.to raise_error(/corrupted/)
       # unpack should auto cleanup
       Dir.glob("#{temp_dir}/**/*").should be_empty
     ensure
