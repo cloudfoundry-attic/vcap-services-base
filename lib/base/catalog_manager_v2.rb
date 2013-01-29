@@ -8,10 +8,12 @@ require 'catalog_manager_base'
 module VCAP
   module Services
     class CatalogManagerV2 < VCAP::Services::CatalogManagerBase
+      HTTP_UNAUTHENTICATED_CODE = 401
 
       def initialize(opts)
         super(opts)
 
+        @opts = opts
         @test_mode = opts[:test_mode] || false
 
         required_opts = %w(cloud_controller_uri service_auth_tokens token gateway_name logger).map { |o| o.to_sym }
@@ -38,25 +40,47 @@ module VCAP
           gateway_token_hdr => opts[:token]
         }
 
-        if !@test_mode # use for specs only
-          # Load the auth token to be sent out in Authorization header when making CCNG-v2 requests
-          uaa_client_auth_credentials = opts[:uaa_client_auth_credentials]
-          client_id                   = opts[:uaa_client_id]
-
-          ti = CF::UAA::TokenIssuer.new(opts[:uaa_endpoint], client_id)
-          token = ti.implicit_grant_with_creds(uaa_client_auth_credentials).info
-          uaa_client_auth_token = "#{token["token_type"]} #{token["access_token"]}"
-          @logger.info("Successfully retrieved auth token for: #{uaa_client_auth_credentials[:username]}")
-
-          @cc_req_hdrs = {
-            'Content-Type' => 'application/json',
-            'Authorization' => uaa_client_auth_token
-          }
-        end
+        refresh_client_auth_token if !@test_mode # use for specs only
 
         @gateway_stats = {}
         @gateway_stats_lock = Mutex.new
         snapshot_and_reset_stats
+      end
+
+      def refresh_client_auth_token
+        # Load the auth token to be sent out in Authorization header when making CCNG-v2 requests
+        credentials = @opts[:uaa_client_auth_credentials]
+        client_id                   = @opts[:uaa_client_id]
+
+        ti = CF::UAA::TokenIssuer.new(@opts[:uaa_endpoint], client_id)
+        token = ti.implicit_grant_with_creds(credentials).info
+        uaa_client_auth_token = "#{token["token_type"]} #{token["access_token"]}"
+        expire_time = token["expires_in"].to_i
+        @logger.info("Successfully refresh auth token for:\
+                     #{credentials[:username]}, token expires in \
+                     #{expire_time} seconds.")
+
+        @cc_req_hdrs = {
+          'Content-Type' => 'application/json',
+          'Authorization' => uaa_client_auth_token
+        }
+      end
+
+      # wrapper of create_http_request, refresh @cc_req_hdrs if cc returns 401
+      def cc_http_request(args)
+        max_attempts = args[:max_attempts] || 2
+        attempts=0
+        while true
+          attempts += 1
+          http = create_http_request(args)
+          if attempts < max_attempts && http.response_header.status == HTTP_UNAUTHENTICATED_CODE
+            @logger.info("Refresh client auth token and retry, attmpts:#{attempts}")
+            refresh_client_auth_token
+          else
+            yield http if block_given?
+            return  http
+          end
+        end
       end
 
       def create_key(label, version, provider)
@@ -239,7 +263,7 @@ module VCAP
         registered_services = {}
 
         svcs = nil
-        create_http_request(:uri => @service_list_uri, :method => "get", :head => @cc_req_hdrs, :need_raise => true) do |http|
+        cc_http_request(:uri => @service_list_uri, :method => "get", :head => @cc_req_hdrs, :need_raise => true) do |http|
 
           if http.error.empty?
             if http.response_header.status == 200
@@ -365,7 +389,7 @@ module VCAP
         @logger.debug("CCNG Catalog Manager: #{update ? "Update" : "Advertise"} service offering #{offering.inspect} to cloud_controller: #{uri}")
 
         method = update ? "put" : "post"
-        create_http_request(:uri => uri, :method => method, :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(offering)) do |http|
+        cc_http_request(:uri => uri, :method => method, :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(offering)) do |http|
           if http.error.empty?
             if (200..299) === http.response_header.status
               response = JSON.parse(http.response)
@@ -389,7 +413,7 @@ module VCAP
         @logger.info("CCNG Catalog Manager: #{add_plan ? "Add new plan" : "Update plan (guid: #{plan_guid}) to"}: #{plan.inspect} via #{uri}")
 
         method = add_plan ? "post" : "put"
-        create_http_request(:uri => uri, :method => method, :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(plan)) do |http|
+        cc_http_request(:uri => uri, :method => method, :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(plan)) do |http|
           if http.error.empty?
             if (200..299) === http.response_header.status
               @logger.info("CCNG Catalog Manager: Successfully #{add_plan ? "added" : "updated"} service plan: #{plan.inspect}")
@@ -427,7 +451,7 @@ module VCAP
         uri = "#{@offering_uri}/#{offering_guid}"
         @logger.info("CCNG Catalog Manager: Deleting service offering:#{id} (#{provider}) via #{uri}")
 
-        create_http_request(:uri => uri, :method => "delete", :head => @cc_req_hdrs) do |http|
+        cc_http_request(:uri => uri, :method => "delete", :head => @cc_req_hdrs) do |http|
           if http.error.empty?
             if (200..299) === http.response_header.status
               @logger.info("CCNG Catalog Manager: Successfully deleted offering: #{id} (#{provider})")
