@@ -12,6 +12,7 @@ module VCAP
       def initialize(opts)
         super(opts)
 
+        @opts = opts
         @test_mode = opts[:test_mode] || false
 
         required_opts = %w(cloud_controller_uri service_auth_tokens token gateway_name logger).map { |o| o.to_sym }
@@ -39,24 +40,31 @@ module VCAP
         }
 
         if !@test_mode # use for specs only
-          # Load the auth token to be sent out in Authorization header when making CCNG-v2 requests
-          uaa_client_auth_credentials = opts[:uaa_client_auth_credentials]
-          client_id                   = opts[:uaa_client_id]
-
-          ti = CF::UAA::TokenIssuer.new(opts[:uaa_endpoint], client_id)
-          token = ti.implicit_grant_with_creds(uaa_client_auth_credentials).info
-          uaa_client_auth_token = "#{token["token_type"]} #{token["access_token"]}"
-          @logger.info("Successfully retrieved auth token for: #{uaa_client_auth_credentials[:username]}")
-
-          @cc_req_hdrs = {
-            'Content-Type' => 'application/json',
-            'Authorization' => uaa_client_auth_token
-          }
+          refresh_client_auth_token
         end
 
         @gateway_stats = {}
         @gateway_stats_lock = Mutex.new
         snapshot_and_reset_stats
+      end
+
+      def refresh_client_auth_token
+        # Load the auth token to be sent out in Authorization header when making CCNG-v2 requests
+        uaa_client_auth_credentials = @opts[:uaa_client_auth_credentials]
+        client_id                   = @opts[:uaa_client_id]
+
+        ti = CF::UAA::TokenIssuer.new(@opts[:uaa_endpoint], client_id)
+        token = ti.implicit_grant_with_creds(uaa_client_auth_credentials).info
+        uaa_client_auth_token = "#{token["token_type"]} #{token["access_token"]}"
+        @logger.info("Successfully refresh auth token for: #{uaa_client_auth_credentials[:username]}")
+
+        expire_time = token["expires_in"].to_i
+        EM.add_timer(expire_time/2) { refresh_client_auth_token}
+
+        @cc_req_hdrs = {
+          'Content-Type' => 'application/json',
+          'Authorization' => uaa_client_auth_token
+        }
       end
 
       def create_key(label, version, provider)
