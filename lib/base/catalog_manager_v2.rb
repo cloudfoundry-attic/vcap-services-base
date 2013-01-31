@@ -24,9 +24,9 @@ module VCAP
 
         @gateway_name         = opts[:gateway_name]
         @cld_ctrl_uri         = opts[:cloud_controller_uri]
-        @service_list_uri     = "#{@cld_ctrl_uri}/v2/services?inline-relations-depth=2"
-        @offering_uri         = "#{@cld_ctrl_uri}/v2/services"
-        @service_plans_uri    = "#{@cld_ctrl_uri}/v2/service_plans"
+        @service_list_uri     = "/v2/services?inline-relations-depth=2"
+        @offering_uri         = "/v2/services"
+        @service_plans_uri    = "/v2/service_plans"
 
         @logger               = opts[:logger]
 
@@ -68,8 +68,11 @@ module VCAP
 
       # wrapper of create_http_request, refresh @cc_req_hdrs if cc returns 401
       def cc_http_request(args)
+        args[:uri] = "#{@cld_ctrl_uri}#{args[:uri]}"
+
         max_attempts = args[:max_attempts] || 2
         attempts=0
+
         while true
           attempts += 1
           http = create_http_request(args)
@@ -85,6 +88,33 @@ module VCAP
 
       def create_key(label, version, provider)
         "#{label}_#{provider}"
+      end
+
+      def perform_multiple_page_get(seed_url, description)
+        url = seed_url
+
+        @logger.info("Fetching #{description} from: #{seed_url}")
+
+        page_num = 1
+        while  !url.nil? do
+          cc_http_request(:uri => url, :method => "get", :head => @cc_req_hdrs, :need_raise => true) do |http|
+            result = nil
+            if (200..299) === http.response_header.status
+              result = JSON.parse(http.response)
+            else
+              raise "CCNG Catalog Manager: #{@gateway_name} - Multiple page fetch via: #{url} failed: (#{http.response_header.status}) - #{http.response}"
+            end
+
+            raise "CCNG Catalog Manager: Failed parsing http response: #{http.response}" if result == nil
+
+            result["resources"].each { |r| yield r if block_given? }
+
+            page_num += 1
+
+            url = result["next_url"]
+            @logger.debug("CCNG Catalog Manager: Fetching #{description} pg. #{page_num} from: #{url}") unless url.nil?
+          end
+        end
       end
 
       ######### Stats Handling #########
@@ -259,33 +289,18 @@ module VCAP
       end
 
       def load_registered_services_from_cc
-        @logger.debug("CCNG Catalog Manager: Getting services listing from cloud_controller: #{@service_list_uri}")
+        @logger.debug("CCNG Catalog Manager: Getting services listing from cloud_controller")
         registered_services = {}
 
-        svcs = nil
-        cc_http_request(:uri => @service_list_uri, :method => "get", :head => @cc_req_hdrs, :need_raise => true) do |http|
-
-          if http.error.empty?
-            if http.response_header.status == 200
-              svcs = JSON.parse(http.response)
-            else
-              raise "CCNG Catalog Manager: Failed to fetch #{@gateway_name} service from CC - status=#{http.response_header.status}"
-            end
-          else
-            raise "CCNG Catalog Manager: Failed to fetch #{@gateway_name} service from CC: #{http.error}"
-          end
-        end
-
-        raise "CCNG Catalog Manager: Failed parsing http reponse when getting services listing from cc" if svcs == nil
-
-        svcs["resources"].each do |s|
+        perform_multiple_page_get(@service_list_uri, "Registered Offerings") { |s|
           key = "#{s["entity"]["label"]}_#{s["entity"]["provider"]}"
 
           if @service_auth_tokens.has_key?(key.to_sym)
             entity = s["entity"]
 
             plans = {}
-            entity["service_plans"].each { |p|
+            @logger.debug("CCNG Catalog Manager: Getting service plans for: #{entity["label"]}/#{entity["provider"]}")
+            perform_multiple_page_get(entity["service_plans_url"], "Service Plans") { |p|
               plans[p["entity"]["name"]] = {
                 "guid"        => p["metadata"]["guid"],
                 "name"        => p["entity"]["name"],
@@ -311,7 +326,7 @@ module VCAP
 
             @logger.debug("CCNG Catalog Manager: Found #{key} = #{registered_services[key].inspect}")
           end
-        end
+        }
 
         registered_services
       end
@@ -472,7 +487,7 @@ module VCAP
       # drilling down multiple levels into the V2 ccdb schema.
 
       def get_handles_uri(service_label)
-        "#{@cld_ctrl_uri}/services/v1/offerings/#{service_label}/handles"
+        "/services/v1/offerings/#{service_label}/handles"
       end
 
       def fetch_handles_from_cc(service_label, after_fetch_callback)
