@@ -24,9 +24,9 @@ module VCAP
 
         @gateway_name         = opts[:gateway_name]
         @cld_ctrl_uri         = opts[:cloud_controller_uri]
-        @service_list_uri     = "#{@cld_ctrl_uri}/v2/services?inline-relations-depth=2"
-        @offering_uri         = "#{@cld_ctrl_uri}/v2/services"
-        @service_plans_uri    = "#{@cld_ctrl_uri}/v2/service_plans"
+        @service_list_uri     = "/v2/services?inline-relations-depth=2"
+        @offering_uri         = "/v2/services"
+        @service_plans_uri    = "/v2/service_plans"
 
         @logger               = opts[:logger]
 
@@ -85,6 +85,33 @@ module VCAP
 
       def create_key(label, version, provider)
         "#{label}_#{provider}"
+      end
+
+      def perform_multiple_page_get(seed_url, description)
+        url = seed_url
+
+        @logger.info("Fetching #{description} from: #{@cld_ctrl_uri}#{seed_url}")
+
+        page_num = 1
+        while  !url.nil? do
+          cc_http_request(:uri => "#{@cld_ctrl_uri}#{url}", :method => "get", :head => @cc_req_hdrs, :need_raise => true) do |http|
+            result = nil
+            if (200..299) === http.response_header.status
+              result = JSON.parse(http.response)
+            else
+              raise "CCNG Catalog Manager: #{@gateway_name} - Multiple page fetch via: #{url} failed: (#{http.response_header.status}) - #{http.response}"
+            end
+
+            raise "CCNG Catalog Manager: Failed parsing http response: #{http.response}" if result == nil
+
+            result["resources"].each { |r| yield r if block_given? }
+
+            page_num += 1
+
+            url = result["next_url"]
+            @logger.debug("CCNG Catalog Manager: Fetching #{description} pg. #{page_num} from: #{@cld_ctrl_uri}#{url}") unless url.nil?
+          end
+        end
       end
 
       ######### Stats Handling #########
@@ -259,33 +286,18 @@ module VCAP
       end
 
       def load_registered_services_from_cc
-        @logger.debug("CCNG Catalog Manager: Getting services listing from cloud_controller: #{@service_list_uri}")
+        @logger.debug("CCNG Catalog Manager: Getting services listing from cloud_controller")
         registered_services = {}
 
-        svcs = nil
-        cc_http_request(:uri => @service_list_uri, :method => "get", :head => @cc_req_hdrs, :need_raise => true) do |http|
-
-          if http.error.empty?
-            if http.response_header.status == 200
-              svcs = JSON.parse(http.response)
-            else
-              raise "CCNG Catalog Manager: Failed to fetch #{@gateway_name} service from CC - status=#{http.response_header.status}"
-            end
-          else
-            raise "CCNG Catalog Manager: Failed to fetch #{@gateway_name} service from CC: #{http.error}"
-          end
-        end
-
-        raise "CCNG Catalog Manager: Failed parsing http reponse when getting services listing from cc" if svcs == nil
-
-        svcs["resources"].each do |s|
+        perform_multiple_page_get(@service_list_uri, "Registered Offerings") { |s|
           key = "#{s["entity"]["label"]}_#{s["entity"]["provider"]}"
 
           if @service_auth_tokens.has_key?(key.to_sym)
             entity = s["entity"]
 
             plans = {}
-            entity["service_plans"].each { |p|
+            @logger.debug("CCNG Catalog Manager: Getting service plans for: #{entity["label"]}/#{entity["provider"]}")
+            perform_multiple_page_get(entity["service_plans_url"], "Service Plans") { |p|
               plans[p["entity"]["name"]] = {
                 "guid"        => p["metadata"]["guid"],
                 "name"        => p["entity"]["name"],
@@ -311,7 +323,7 @@ module VCAP
 
             @logger.debug("CCNG Catalog Manager: Found #{key} = #{registered_services[key].inspect}")
           end
-        end
+        }
 
         registered_services
       end
@@ -384,6 +396,7 @@ module VCAP
       def add_or_update_offering(offering, guid)
         update = !guid.nil?
         uri = update ? "#{@offering_uri}/#{guid}" : @offering_uri
+        uri = "#{@cld_ctrl_uri}#{uri}"
         service_guid = nil
 
         @logger.debug("CCNG Catalog Manager: #{update ? "Update" : "Advertise"} service offering #{offering.inspect} to cloud_controller: #{uri}")
@@ -410,6 +423,7 @@ module VCAP
         add_plan = plan_guid.nil?
 
         uri = add_plan ? @service_plans_uri : "#{@service_plans_uri}/#{plan_guid}"
+        uri = "#{@cld_ctrl_uri}#{uri}"
         @logger.info("CCNG Catalog Manager: #{add_plan ? "Add new plan" : "Update plan (guid: #{plan_guid}) to"}: #{plan.inspect} via #{uri}")
 
         method = add_plan ? "post" : "put"
@@ -448,7 +462,7 @@ module VCAP
           return
         end
 
-        uri = "#{@offering_uri}/#{offering_guid}"
+        uri = "#{@cld_ctrl_uri}#{@offering_uri}/#{offering_guid}"
         @logger.info("CCNG Catalog Manager: Deleting service offering:#{id} (#{provider}) via #{uri}")
 
         cc_http_request(:uri => uri, :method => "delete", :head => @cc_req_hdrs) do |http|
@@ -486,21 +500,17 @@ module VCAP
         create_http_request(:uri => handles_uri, :method => "get", :head => @cc_req_hdrs_for_v1_api) do |http|
           @fetching_handles = false
 
-          if http.error.empty?
-            if http.response_header.status == 200
-              @logger.info("CCNG Catalog Manager:(v1) Successfully fetched handles")
+          if http.response_header.status == 200
+            @logger.info("CCNG Catalog Manager:(v1) Successfully fetched handles")
 
-              begin
-                resp = VCAP::Services::Api::ListHandlesResponse.decode(http.response)
-                after_fetch_callback.call(resp) if after_fetch_callback
-              rescue => e
-                @logger.error("CCNG Catalog Manager:(v1) Error decoding reply from gateway: #{e}")
-              end
-            else
-              @logger.error("CCNG Catalog Manager:(v1) Failed fetching handles, status=#{http.response_header.status}")
+            begin
+              resp = VCAP::Services::Api::ListHandlesResponse.decode(http.response)
+              after_fetch_callback.call(resp) if after_fetch_callback
+            rescue => e
+              @logger.error("CCNG Catalog Manager:(v1) Error decoding reply from gateway: #{e}")
             end
           else
-            @logger.error("CCNG Catalog Manager:(v1) Failed fetching handles: #{http.error}")
+            @logger.error("CCNG Catalog Manager:(v1) Failed fetching handles, status=#{http.response_header.status}")
           end
         end
       end
@@ -515,7 +525,7 @@ module VCAP
         uri = "#{get_handles_uri(service_label)}/#{handle["service_id"]}"
 
         create_http_request(:uri => uri, :method => "post", :head => @cc_req_hdrs_for_v1_api, :body => Yajl::Encoder.encode(handle)) do |http|
-          if http.error.empty?
+          begin
             if http.response_header.status == 200
               @logger.info("CCNG Catalog Manager:(v1) Successful update handle #{handle["service_id"]}")
               on_success_callback.call if on_success_callback
@@ -523,8 +533,8 @@ module VCAP
               @logger.error("CCNG Catalog Manager:(v1) Failed to update handle #{handle["service_id"]}: http status #{http.response_header.status}")
               on_failure_callback.call if on_failure_callback
             end
-          else
-            @logger.error("CCNG Catalog Manager:(v1) Failed to update handle #{handle["service_id"]}: #{http.error}")
+          rescue => e
+            @logger.error("CCNG Catalog Manager:(v1) Failed to update handle #{handle["service_id"]}: #{e.inspect}")
             on_failure_callback.call if on_failure_callback
           end
         end
