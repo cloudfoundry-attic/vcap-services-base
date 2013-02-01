@@ -690,7 +690,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
                       @logger.info("Recover: success re-bind binding: #{updated_bind_handle}")
                       @update_handle_callback.call(updated_bind_handle) do |update_response|
                         if update_response
-                          @logger.error("Recover: success to update handle: #{updated_prov_handle}")
+                          @logger.info("Recover: success to update handle: #{updated_prov_handle}")
                           bcb.call(updated_bind_handle)
                         else
                           @logger.error("Recover: failed to update handle: #{updated_prov_handle}")
