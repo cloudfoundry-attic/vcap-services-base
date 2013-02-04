@@ -24,7 +24,7 @@ module VCAP::Services
 
     def make_logger
       logger =  Logger.new STDOUT
-      logger.level = Logger::ERROR
+      logger.level = Logger::DEBUG
       logger
     end
   end
