@@ -59,7 +59,7 @@ module VCAP
       # update_handle_in_cc(service_label, handle, on_success_callback, on_failure_callback)
       abstract :update_handle_in_cc
 
-      # fetch_handles_from_cc(service_label, after_fetch_callback)
+      # fetch_handles_from_cc(id, version, provider, after_fetch_callback)
       abstract :fetch_handles_from_cc
 
     end

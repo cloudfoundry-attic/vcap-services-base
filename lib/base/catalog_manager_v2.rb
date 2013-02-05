@@ -482,6 +482,87 @@ module VCAP
         return false
       end
 
+      ######## (v2) Handles processing #########
+
+      def fetch_handles_from_cc(id, version, provider, after_fetch_callback)
+        return if @fetching_handles
+
+        return unless after_fetch_callback
+
+        @fetching_handles = true
+        @logger.info("CCNG Catalog Manager: Fetching handles from CC")
+        begin
+          catalog_key = "#{id}_#{provider}"
+          registered_services = load_registered_services_from_cc
+          svc = registered_services[catalog_key]
+
+          svc["service"]["plans"].each { |plan_id, plan_details|
+            plan_guid = plan_details["guid"]
+
+            url = "/v2/service_plans/#{plan_guid}/service_instances"
+
+            handle_so_far = []
+            perform_multiple_page_get(url, "Service Instances").each { |service_instance|
+              cfg = service_instance["entity"]
+              handles_so_far << {
+                :service_id    => cfg["gateway_name"],
+                :credentials   => cfg["credentials"],
+                :configuration => cfg["gateway_data"]
+              }
+
+              # Load bindings for this service instance
+              perform_multiple_page_get(cfg["service_bindings_url"], "Service Bindings").each { |binding|
+                handles_so_far << {
+                  :service_id    => binding["entity"]["gateway_name"],
+                  :credentials   => binding["entity"]["cedentials"],
+                  :configuration => binding["entity"]["gateway_data"]
+                }
+              }
+
+              # Send out whatever has been accumulated so far
+              @logger.debug("CCNG catalog Manager: Processing batch of: #{handles_so_far.size} handles")
+              resp = VCAP::Services::Api::ListHandlesResponse.decode(
+                Yajl::Encoder.encode({:handles => handles_so_far})
+              )
+              after_fetch_callback.call(resp)
+            }
+          }
+        ensure
+          @fetching_handles = false
+        end
+      end
+
+      def update_handle_in_cc(service_label, handle, is_instance_handle, on_success_callback, on_failure_callback)
+        @logger.debug("CCNG Catalog Manager: Update service handle: #{handle.inspect}")
+        if not handle
+          on_failure_callback.call if on_failure_callback
+          return
+        end
+
+        handle_type = is_instance_handle ? "service_instances" : "service_bindings"
+        uri = "/v2/#{handle_type}/#{handle["service_id"]}"
+
+        req = create_http_request(
+          :head => @cc_req_hdrs,
+          :body => Yajl::Encoder.encode(handle)
+        )
+
+        cc_http_request(:uri => uri, :method => method, :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(plan), :need_raise => true) do |http|
+          begin
+            if (200..299) === http.response_header.status
+              @logger.info("CCNG Catalog Manager: Successful update handle #{handle["service_id"]}")
+              on_success_callback.call if on_success_callback
+            else
+              @logger.error("CCNG Catalog Manager: Failed to update handle #{id}: http status #{response.status}")
+              on_failure_callback.call if on_failure_callback
+            end
+          rescue => e
+            @logger.error("CCNG Catalog Manager: Failed to update handle #{handle["service_id"]}: #{e.inspect}")
+            on_failure_callback.call if on_failure_callback
+          end
+        end
+      end
+
       ######## Handles processing #########
       #TODO: This will still use V1 api for first iteration. The V2 api call is more involved as it requires
       # drilling down multiple levels into the V2 ccdb schema.
@@ -490,7 +571,7 @@ module VCAP
         "/services/v1/offerings/#{service_label}/handles"
       end
 
-      def fetch_handles_from_cc(service_label, after_fetch_callback)
+      def fetch_handles_from_cc_v1(service_label, after_fetch_callback)
         return if @fetching_handles
 
         handles_uri = get_handles_uri(service_label)
@@ -520,7 +601,7 @@ module VCAP
         end
       end
 
-      def update_handle_in_cc(service_label, handle, on_success_callback, on_failure_callback)
+      def update_handle_in_cc_v1(service_label, handle, on_success_callback, on_failure_callback)
         @logger.debug("CCNG Catalog Manager:(v1) Update service handle: #{handle.inspect}")
         if not handle
           on_failure_callback.call if on_failure_callback
