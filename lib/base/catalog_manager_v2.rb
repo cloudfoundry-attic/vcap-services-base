@@ -498,7 +498,7 @@ module VCAP
         @logger.info("CCNG Catalog Manager:(v1) Fetching handles from cloud controller: #{handles_uri}")
         @fetching_handles = true
 
-        create_http_request(:uri => handles_uri, :method => "get", :head => @cc_req_hdrs_for_v1_api) do |http|
+        cc_http_request(:uri => handles_uri, :method => "get", :head => @cc_req_hdrs_for_v1_api) do |http|
           @fetching_handles = false
 
           if http.error.empty?
@@ -529,7 +529,7 @@ module VCAP
 
         uri = "#{get_handles_uri(service_label)}/#{handle["service_id"]}"
 
-        create_http_request(:uri => uri, :method => "post", :head => @cc_req_hdrs_for_v1_api, :body => Yajl::Encoder.encode(handle)) do |http|
+        cc_http_request(:uri => uri, :method => "post", :head => @cc_req_hdrs_for_v1_api, :body => Yajl::Encoder.encode(handle)) do |http|
           if http.error.empty?
             if http.response_header.status == 200
               @logger.info("CCNG Catalog Manager:(v1) Successful update handle #{handle["service_id"]}")
