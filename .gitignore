@@ -14,3 +14,4 @@ ci-working-dir
 nats-server.pid
 pkg
 tags
+/vendor

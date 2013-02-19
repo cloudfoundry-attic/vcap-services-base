@@ -54,15 +54,19 @@ namespace "test" do
     end
   end
 
+  def run_or_fail(cmd)
+    raise "Failed to run '#{cmd}'" unless system(cmd)
+  end
+
   task "spec" do |t|
-    run_spec { sh "rake spec" }
+    run_spec { run_or_fail "rake spec" }
   end
 
   task "spec:rcov" do |t|
-    run_spec { sh "rake simcov" }
+    run_spec { run_or_fail "rake simcov" }
   end
 
   task "spec:ci" do |t|
-    run_spec { sh "rake spec:ci" }
+    run_spec { run_or_fail "rake spec:ci" }
   end
 end
