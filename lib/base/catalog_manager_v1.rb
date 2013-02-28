@@ -67,12 +67,13 @@ module VCAP
       end
 
       def generate_cc_advertise_offering_request(svc, active = true)
-        plans = svc["plans"] if svc["plans"].is_a?(Array)
-        if svc["plans"].is_a?(Hash)
-          plans = []
-          svc["plans"].keys.each { |k| plans << k.to_s }
+        plans = svc["plans"]
+        plan_descriptions = nil
+        if plans.is_a?(Hash)
+          describe = Proc.new { |p| { p.to_s => plans[p][:description] } }
+          plan_descriptions = plans.keys.map(&describe).reduce(&:merge)
+          plans = plans.keys.map(&:to_s)
         end
-
         VCAP::Services::Api::ServiceOfferingRequest.new({
           :label => svc["label"],
           :description => svc["description"],
@@ -84,6 +85,7 @@ module VCAP
           :plans => plans,
           :cf_plan_id => svc["cf_plan_id"],
           :default_plan => svc["default_plan"],
+          :plan_descriptions => plan_descriptions,
 
           :tags => svc["tags"] || [],
 
