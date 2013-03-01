@@ -45,4 +45,14 @@ class Wardenservice < VCAP::Services::Base::Warden::Service
     options
   end
 
+  def finish_start?
+    if container_running?(self["container"])
+      begin
+        run_command(self[:container], status_options[:status_script])
+        return true
+      rescue => e
+      end
+    end
+    false
+  end
 end

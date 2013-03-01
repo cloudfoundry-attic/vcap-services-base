@@ -206,6 +206,7 @@ class VCAP::Services::Base::Warden::Service
   end
 
   # The logic in instance run function is:
+  # 0. To avoid to create orphan, clean up container if handle exists
   # 1. Generate bind mount request and create warden container with bind mount options
   # 2. Limit memory and bandwidth of the container (optional)
   # 3. Run pre service start script (optional)
@@ -216,6 +217,7 @@ class VCAP::Services::Base::Warden::Service
   # 8. Run post service start block (optional)
   # 9. Save the instance info to local db
   def run(options=nil, &post_start_block)
+    stop if self[:container] && self[:container].length > 0
     # If no options specified, then check whether the instance is stored in local db
     # to decide to use which start options
     options = (new? ? first_start_options : start_options) unless options
@@ -245,32 +247,7 @@ class VCAP::Services::Base::Warden::Service
   end
 
   def running?
-    ret = false
-    Timeout.timeout(self.class.service_status_timeout) do
-      ret = container_running?(self[:container]) && instance_status?
-    end
-    ret
-  rescue => e
-    logger.error("Error on querying status: #{e}")
-    false
-  end
-
-  def instance_status?
-    if status_options
-      begin
-        run_command(self[:container], status_options[:status_script]) if status_options[:status_script]
-        return true
-      rescue VCAP::Services::Base::Error::ServiceError => e
-        if e.error_code == VCAP::Services::Base::Error::ServiceError::WARDEN_RUN_COMMAND_FAILURE
-          logger.warn("Instance is down. Name: #{self[:name]}; Handle: #{self[:container]}; Error: #{e}")
-        else
-          logger.warn("run_command failed: #{e}")
-        end
-      rescue => e
-        logger.warn("run_command failed: #{e}")
-      end
-    end
-    false
+    finish_start?
   end
 
   # Usually, stop can retrieve container_name from local_db

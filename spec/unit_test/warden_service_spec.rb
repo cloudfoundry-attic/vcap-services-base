@@ -86,11 +86,6 @@ describe "Warden Service test" do
     first_options[:service_start_timeout].should == options[:service_start_timeout]
   end
 
-  it "should return true in default when check start status" do
-    @instance.finish_first_start?.should be_true
-    @instance.finish_start?.should be_true
-  end
-
   it "should have correct stop options" do
     options = @instance.stop_options
     options[:stop_script][:script].should be_instance_of String
