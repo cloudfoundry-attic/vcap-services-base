@@ -49,7 +49,7 @@ class ExternalServicesGatewayHelper
 
   def make_logger
     logger = Logger.new(STDOUT)
-    logger.level = DEBUG
+    logger.level = Logger::DEBUG
     logger
   end
 
