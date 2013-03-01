@@ -75,6 +75,7 @@ module VCAP
 
         while true
           attempts += 1
+          @logger.debug("#{args[:method].upcase} - #{args[:uri]}")
           http = create_http_request(args)
           if attempts < max_attempts && http.response_header.status == HTTP_UNAUTHENTICATED_CODE
             @logger.info("Refresh client auth token and retry, attmpts:#{attempts}")

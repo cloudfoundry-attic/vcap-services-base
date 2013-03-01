@@ -16,6 +16,7 @@ require "warden_service_spec_helper"
 require "instance_utils_spec_helper"
 require "node_utils_spec_helper"
 require "backup_spec_helper"
+require "external_services_gateway_spec_helper"
 require 'base/service_message'
 require 'base/service_error'
 
