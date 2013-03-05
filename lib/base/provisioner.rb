@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2009-2011 VMware, Inc.
+
 require "set"
 require "datamapper"
 require "uuidtools"
@@ -26,9 +27,8 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     super(options)
     @opts = options
     @node_timeout = options[:node_timeout]
-    @nodes     = {}
+    @nodes = {}
     @provision_refs = Hash.new(0)
-    @prov_svcs = {}
     @instance_handles_CO = {}
     @binding_handles_CO = {}
     @responses_metrics = {
@@ -39,6 +39,20 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
       :responses_5xx => 0,
     }
     @plan_mgmt = options[:plan_management] && options[:plan_management][:plans] || {}
+
+    gw_version = @opts[:cc_api_version]
+    if gw_version == "v1"
+      require 'provisioner_v1'
+      extend VCAP::Services::Base::ProvisionerV1
+      @prov_svcs = {}
+    elsif gw_version == "v2"
+      require 'provisioner_v2'
+      extend VCAP::Services::Base::ProvisionerV2
+      @service_instances = {}
+      @service_bindings = {}
+    else
+      raise "unknown cc api version: #{gw_version}"
+    end
 
     init_service_extensions
 
@@ -61,14 +75,14 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     EM.add_periodic_timer(60) { process_nodes }
   end
 
+  def flavor
+    'Provisioner'
+  end
+
   def create_redis(opt)
     redis_client = ::Redis.new(opt)
     raise "Can't connect to redis:#{opt.inspect}" unless redis_client
     redis_client
-  end
-
-  def flavor
-    'Provisioner'
   end
 
   def init_service_extensions
@@ -103,26 +117,6 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @logger.warn("Failed update responses metrics: #{e}")
   end
 
-  # Updates our internal state to match that supplied by handles
-  # +handles+  An array of config handles
-  def update_handles(handles)
-    @logger.info("[#{service_description}] Updating #{handles.size} handles")
-    handles.each do |handle|
-      unless verify_handle_format(handle)
-        @logger.warn("Skip not well-formed handle:#{handle}.")
-        next
-      end
-
-      h = handle.deep_dup
-      @prov_svcs[h['service_id']] = {
-        :configuration => h['configuration'],
-        :credentials => h['credentials'],
-        :service_id => h['service_id']
-      }
-    end
-    @logger.info("[#{service_description}] Handles updated")
-  end
-
   def verify_handle_format(handle)
     return nil unless handle
     return nil unless handle.is_a? Hash
@@ -132,14 +126,6 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   rescue => e
     @logger.warn("Verify handle #{handle} failed:#{e}")
     return nil
-  end
-
-  def find_all_bindings(name)
-    res = []
-    @prov_svcs.each do |k,v|
-      res << v if v[:credentials]["name"] == name && v[:service_id] != name
-    end
-    res
   end
 
   def process_nodes
@@ -166,8 +152,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @logger.debug("[#{service_description}] Update version of existing instances to '#{current_version}'")
 
     updated_prov_handles = []
-    @prov_svcs.each do |service_id, handle|
-      next unless service_id == handle[:credentials]["name"]
+    get_all_instance_handles do |handle|
       next if handle[:configuration].has_key? "version"
 
       updated_prov_handle = {}
@@ -230,18 +215,6 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     end
   end
 
-  # query all handles for a given instance
-  def on_handles(instance, reply)
-    @logger.debug("[#{service_description}] Receive query handles request for instance: #{instance}")
-    if instance.empty?
-      res = Yajl::Encoder.encode(@prov_svcs)
-    else
-      handles = find_all_bindings(instance)
-      res = Yajl::Encoder.encode(handles)
-    end
-    @node_nats.publish(reply, res)
-  end
-
   def on_node_handles(msg, reply)
     @logger.debug("[#{service_description}] Received node handles")
     response = NodeHandlesReport.decode(msg)
@@ -262,26 +235,6 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @logger.debug("Staging Orphans: Instances: #{oi_count}; Bindings: #{ob_count}")
   rescue => e
     @logger.warn("Exception at on_node_handles #{e}")
-  end
-
-  def indexing_handles(handles)
-    # instance handles hash's key is service_id, value is handle
-    # binding handles hash's key is credentials name & username, value is handle
-    ins_handles = {}
-    bin_handles = {}
-
-    handles.each do |h|
-      if h["service_id"] == h["credentials"]["name"]
-        ins_handles[h["service_id"]] = h
-      else
-        user = h["credentials"]["username"] || h["credentials"]["user"]
-        next unless user
-        key = h["credentials"]["name"] + user
-        bin_handles[key] = h
-      end
-    end
-
-    [ins_handles, bin_handles]
   end
 
   def check_orphan(handles, &blk)
@@ -363,14 +316,14 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   def unprovision_service(instance_id, &blk)
     @logger.debug("[#{service_description}] Unprovision service #{instance_id}")
     begin
-      svc = @prov_svcs[instance_id]
+      svc = get_instance_handle(instance_id)
       @logger.debug("[#{service_description}] Unprovision service #{instance_id} found instance: #{svc}")
       raise ServiceError.new(ServiceError::NOT_FOUND, "instance_id #{instance_id}") if svc.nil?
 
       node_id = svc[:credentials]["node_id"]
       raise "Cannot find node_id for #{instance_id}" if node_id.nil?
 
-      bindings = find_all_bindings(instance_id)
+      bindings = find_instance_bindings(instance_id)
       @logger.debug("[#{service_description}] Unprovisioning instance #{instance_id} from #{node_id}")
       request = UnprovisionRequest.new
       request.name = instance_id
@@ -386,9 +339,9 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
           "#{service_name}.unprovision.#{node_id}", request.encode
        ) do |msg|
           # Delete local entries
-          @prov_svcs.delete(instance_id)
-          bindings.each do |b|
-            @prov_svcs.delete(b[:service_id])
+          delete_instance_handle(svc)
+          bindings.each do |binding|
+            delete_binding_handle(binding)
           end
 
           EM.cancel_timer(timer)
@@ -465,7 +418,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
               credential = response.credentials
               svc = {:configuration => prov_req.dup, :service_id => credential['name'], :credentials => credential}
               @logger.debug("Provisioned: #{svc.inspect}")
-              @prov_svcs[svc[:service_id]] = svc
+              add_instance_handle(svc)
               blk.call(success(svc))
             else
               blk.call(wrap_error(response))
@@ -493,7 +446,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @logger.debug("[#{service_description}] Attempting to bind to service #{instance_id}")
 
     begin
-      svc = @prov_svcs[instance_id]
+      svc = get_instance_handle(instance_id)
       raise ServiceError.new(ServiceError::NOT_FOUND, instance_id) if svc.nil?
 
       node_id = svc[:credentials]["node_id"]
@@ -535,7 +488,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
               :credentials => opts
             }
             @logger.debug("[#{service_description}] Binded: #{res.inspect}")
-            @prov_svcs[res[:service_id]] = res
+            add_binding_handle(res)
             blk.call(success(res))
           else
             blk.call(wrap_error(opts))
@@ -551,19 +504,19 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     end
   end
 
-  def unbind_instance(instance_id, handle_id, binding_options, &blk)
+  def unbind_instance(instance_id, binding_id, binding_options, &blk)
     @logger.debug("[#{service_description}] Attempting to unbind to service #{instance_id}")
     begin
-      svc = @prov_svcs[instance_id]
+      svc = get_instance_handle(instance_id)
       raise ServiceError.new(ServiceError::NOT_FOUND, "instance_id #{instance_id}") if svc.nil?
 
-      handle = @prov_svcs[handle_id]
-      raise ServiceError.new(ServiceError::NOT_FOUND, "handle_id #{handle_id}") if handle.nil?
+      handle = get_binding_handle(binding_id)
+      raise ServiceError.new(ServiceError::NOT_FOUND, "binding_id #{binding_id}") if handle.nil?
 
       node_id = svc[:credentials]["node_id"]
       raise "Cannot find node_id for #{instance_id}" if node_id.nil?
 
-      @logger.debug("[#{service_description}] Unbind instance #{handle_id} from #{node_id}")
+      @logger.debug("[#{service_description}] Unbind instance #{binding_id} from #{node_id}")
       request = UnbindRequest.new
       request.credentials = handle[:credentials]
 
@@ -576,11 +529,11 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
         @node_nats.request( "#{service_name}.unbind.#{node_id}",
                            request.encode
        ) do |msg|
+          delete_binding_handle(handle)
           EM.cancel_timer(timer)
           @node_nats.unsubscribe(subscription)
           opts = SimpleResponse.decode(msg)
           if opts.success
-            @prov_svcs.delete(handle_id)
             blk.call(success())
           else
             blk.call(wrap_error(opts))
@@ -600,7 +553,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @logger.debug("[#{service_description}] Attempting to restore to service #{instance_id}")
 
     begin
-      svc = @prov_svcs[instance_id]
+      svc = get_instance_handle(instance_id)
       raise ServiceError.new(ServiceError::NOT_FOUND, instance_id) if svc.nil?
 
       node_id = svc[:credentials]["node_id"]
@@ -724,15 +677,10 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     @logger.debug("[#{service_description}] Attempting to #{action} instance #{instance_id} in node #{node_id}")
 
     begin
-      svc = @prov_svcs[instance_id]
+      svc = get_instance_handle(instance_id)
       raise ServiceError.new(ServiceError::NOT_FOUND, instance_id) if svc.nil?
 
-      binding_handles = []
-      @prov_svcs.each do |_, handle|
-        if handle[:service_id] != instance_id
-          binding_handles << handle if handle[:credentials]["name"] == instance_id
-        end
-      end
+      binding_handles = find_instance_bindings(instance_id)
       subscription = nil
       message = nil
       channel = nil
@@ -741,7 +689,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
         message = Yajl::Encoder.encode([svc, binding_handles])
       elsif action == "unprovision"
         channel = "#{service_name}.unprovision.#{node_id}"
-        bindings = find_all_bindings(instance_id)
+        bindings = find_instance_bindings(instance_id)
         request = UnprovisionRequest.new
         request.name = instance_id
         request.bindings = bindings.map{|h| h[:credentials]}
@@ -795,21 +743,11 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     end
   end
 
-  def get_instance_id_list(node_id, &blk)
-    @logger.debug("Get instance id list for migration")
-
-    id_list = []
-    @prov_svcs.each do |k, v|
-      id_list << k if (k == v[:credentials]["name"] && node_id == v[:credentials]["node_id"])
-    end
-    blk.call(success(id_list))
-  end
-
   # Snapshot apis filter
   def before_snapshot_apis service_id, *args, &blk
     raise "service_id can't be nil" unless service_id
 
-    svc = @prov_svcs[service_id]
+    svc = get_instance_handle(service_id)
     raise ServiceError.new(ServiceError::NOT_FOUND, service_id) unless svc
 
     plan = find_service_plan(svc)
@@ -831,7 +769,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   def before_serialization_apis service_id, *args, &blk
     raise "service_id can't be nil" unless service_id
 
-    svc = @prov_svcs[service_id]
+    svc = get_instance_handle(service_id)
     raise ServiceError.new(ServiceError::NOT_FOUND, service_id) unless svc
 
     plan = find_service_plan(svc)
@@ -844,7 +782,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   def before_job_apis service_id, *args, &blk
     raise "service_id can't be nil" unless service_id
 
-    svc = @prov_svcs[service_id]
+    svc = get_instance_handle(service_id)
     raise ServiceError.new(ServiceError::NOT_FOUND, service_id) unless svc
 
     plan = find_service_plan(svc)
@@ -866,7 +804,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
 
   def snapshot_metadata(service_id)
     service = @opts[:service]
-    instance = @prov_svcs[service_id]
+    instance = get_instance_handle(service_id)
 
     metadata = {
       :plan => find_service_plan(instance),
@@ -897,7 +835,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   #
   def job_details(service_id, job_id, &blk)
     @logger.debug("Get job_id=#{job_id} for service_id=#{service_id}")
-    svc = @prov_svcs[service_id]
+    svc = get_instance_handle(service_id)
     raise ServiceError.new(ServiceError::NOT_FOUND, service_id) unless svc
     job = get_job(job_id)
     raise ServiceError.new(ServiceError::NOT_FOUND, job_id) unless job
@@ -910,7 +848,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   #
   def get_snapshot(service_id, snapshot_id, &blk)
     @logger.debug("Get snapshot_id=#{snapshot_id} for service_id=#{service_id}")
-    svc = @prov_svcs[service_id]
+    svc = get_instance_handle(service_id)
     raise ServiceError.new(ServiceError::NOT_FOUND, service_id) unless svc
     snapshot = snapshot_details(service_id, snapshot_id)
     raise ServiceError.new(ServiceError::NOT_FOUND, snapshot_id) unless snapshot
@@ -922,7 +860,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   # Update the name of a snapshot
   def update_snapshot_name(service_id, snapshot_id, name, &blk)
     @logger.debug("Update name of snapshot=#{snapshot_id} for service_id=#{service_id} to '#{name}'")
-    svc = @prov_svcs[service_id]
+    svc = get_instance_handle(service_id)
     raise ServiceError.new(ServiceError::NOT_FOUND, service_id) unless svc
 
     update_name(service_id, snapshot_id, name)
@@ -935,7 +873,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   #
   def enumerate_snapshots(service_id, &blk)
     @logger.debug("Get snapshots for service_id=#{service_id}")
-    svc = @prov_svcs[service_id]
+    svc = get_instance_handle(service_id)
     raise ServiceError.new(ServiceError::NOT_FOUND, service_id) unless svc
     snapshots = service_snapshots(service_id)
     res = snapshots.map{|s| filter_keys(s)}
@@ -946,7 +884,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
 
   def rollback_snapshot(service_id, snapshot_id, &blk)
     @logger.debug("Rollback snapshot=#{snapshot_id} for service_id=#{service_id}")
-    svc = @prov_svcs[service_id]
+    svc = get_instance_handle(service_id)
     raise ServiceError.new(ServiceError::NOT_FOUND, service_id) unless svc
     snapshot = snapshot_details(service_id, snapshot_id)
     raise ServiceError.new(ServiceError::NOT_FOUND, snapshot_id) unless snapshot
@@ -1001,7 +939,6 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     handle_error(e, &blk)
   end
 
-  #
   def import_from_url(service_id, url, &blk)
     @logger.debug("import serialized data from url:#{url} for service_id=#{service_id}")
     job_id = import_from_url_job.create(:service_id => service_id, :url => url, :node_id => find_node(service_id))
@@ -1047,7 +984,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     # to provide service specific data beyond the following
 
     # Mask password from varz details
-    svcs = @prov_svcs.deep_dup
+    svcs = get_all_handles
     svcs.each do |k,v|
       v[:credentials]['pass'] &&= MASKED_PASSWORD
       v[:credentials]['password'] &&= MASKED_PASSWORD
@@ -1126,7 +1063,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
 
   # Find which node the service instance is running on.
   def find_node(instance_id)
-    svc = @prov_svcs[instance_id]
+    svc = get_instance_handle(instance_id)
     raise ServiceError.new(ServiceError::NOT_FOUND, "instance_id #{instance_id}") if svc.nil?
     node_id = svc[:credentials]["node_id"]
     raise "Cannot find node_id for #{instance_id}" if node_id.nil?
@@ -1150,6 +1087,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
 
   # various lifecycle jobs class
   abstract :create_snapshot_job, :rollback_snapshot_job, :delete_snapshot_job, :create_serialized_url_job, :import_from_url_job
+
   # register before filter
   before [:create_snapshot, :get_snapshot, :enumerate_snapshots, :delete_snapshot, :rollback_snapshot, :update_snapshot_name],  :before_snapshot_apis
 

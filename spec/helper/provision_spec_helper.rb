@@ -27,45 +27,147 @@ class ProvisionerTests
   def self.setup_fake_instance(gateway, provisioner, node)
     instance_id = "fake_instance"
     gateway.instance_id = instance_id
-    provisioner.prov_svcs[instance_id] = {:credentials => {'node_id' =>node.node_id }}
+    if provisioner.cc_api_version == 'v1'
+      provisioner.prov_svcs[instance_id] = {
+        :credentials => {
+          'name' => instance_id,
+          'node_id'=>node.node_id
+         },
+          :service_id=>instance_id
+      }
+    elsif provisioner.cc_api_version == 'v2'
+      provisioner.service_instances[instance_id] = {
+        :credentials => {
+          'name' => instance_id,
+          'node_id' => node.node_id
+      }}
+    end
   end
 
   def self.setup_fake_instance_by_id(gateway, provisioner, node_id)
     instance_id = "fake_instance"
     gateway.instance_id = instance_id
-    provisioner.prov_svcs[instance_id] = {:credentials => {'node_id' => node_id }}
+    if provisioner.cc_api_version == 'v1'
+      provisioner.prov_svcs[instance_id] = {
+        :credentials => {
+          'name' => instance_id,
+          'node_id'=>node_id
+         },
+          :service_id=>instance_id
+      }
+    elsif provisioner.cc_api_version == 'v2'
+      provisioner.service_instances[instance_id] = {
+        :credentials => {
+          'name' => instance_id,
+          'node_id' => node_id
+      }}
+    end
+  end
+
+  def self.setup_fake_binding(gateway, provisioner, node)
+    instance_id = "fake_instance"
+    binding_id = "fake_binding"
+    gateway.instance_id = instance_id
+    gateway.binding_id = binding_id
+    if provisioner.cc_api_version == 'v1'
+      provisioner.prov_svcs[binding_id] = {
+        :credentials => { 'name' => instance_id, 'node_id' => node.node_id },
+        :service_id  => binding_id
+      }
+    elsif provisioner.cc_api_version == 'v2'
+      provisioner.service_bindings[binding_id] = {
+        :credentials  => { 'name' => instance_id, 'node_id' => node.node_id },
+        :gateway_name => binding_id,
+      }
+    end
+  end
+
+  def self.setup_fake_binding_by_id(gateway, provisioner, node_id)
+    instance_id = "fake_instance"
+    binding_id = "fake_binding"
+    gateway.instance_id = instance_id
+    gateway.binding_id = binding_id
+    if provisioner.cc_api_version == 'v1'
+      provisioner.prov_svcs[binding_id] = {
+        :credentials => { 'name' => instance_id, 'node_id' => node_id },
+        :service_id  => binding_id
+      }
+    elsif provisioner.cc_api_version == 'v2'
+      provisioner.service_bindings[binding_id] = {
+        :credentials  => { 'name' => instance_id, 'node_id' => node_id },
+        :gateway_name => binding_id,
+      }
+    end
   end
 
   class ProvisionerTester < VCAP::Services::Base::Provisioner
+    attr_accessor :cc_api_version
     attr_accessor :varz_invoked
-    attr_accessor :prov_svcs
     attr_reader   :staging_orphan_instances
     attr_reader   :staging_orphan_bindings
     attr_reader   :final_orphan_instances
     attr_reader   :final_orphan_bindings
+
     def initialize(options)
       super(options)
+      @cc_api_version = options[:cc_api_version]
+      extend ProvisionerV2MonkeyPatch if @cc_api_version == "v2"
       @varz_invoked = false
       @healthz_invoked = false
     end
+
+    SERVICE_NAME = "Test"
+
     def nats=(mock_nats)
       @node_nats = mock_nats
     end
+
     def nodes=(mock_nodes)
       @nodes = mock_nodes
     end
-    SERVICE_NAME = "Test"
+
     def service_name
       SERVICE_NAME
     end
+
     def node_score(node)
       node["available_capacity"]
     end
+
     def node_count
       return @nodes.length
     end
+
     def varz_details
       @varz_invoked = true
+      super
+    end
+  end
+
+  module ProvisionerV2MonkeyPatch
+    def convert_handles(handles)
+      instance_handles = handles.select{|handle| handle['service_id'] == handle['credentials']['name']}
+      binding_handles  = handles - instance_handles
+      instance_handles = convert_handles_array_to_hash(instance_handles)
+      binding_handles  = convert_handles_array_to_hash(binding_handles)
+      [instance_handles, binding_handles]
+    end
+
+    def convert_handles_array_to_hash(handles)
+      handles_hash = {}
+      handles.each do |handle|
+        handles_hash[handle['service_id']] = handle
+      end
+      handles_hash
+    end
+
+    def check_orphan(handles, &blk)
+      handles = convert_handles(handles)
+      super
+    end
+
+    def double_check_orphan(handles, &blk)
+      handles = convert_handles(handles)
       super
     end
   end
@@ -80,8 +182,8 @@ class ProvisionerTests
     attr_accessor :got_recover_response
     attr_accessor :got_migrate_response
     attr_accessor :got_instances_response
-    attr_reader :got_purge_orphan_response
-    attr_reader :got_check_orphan_response
+    attr_reader   :got_purge_orphan_response
+    attr_reader   :got_check_orphan_response
     def initialize(provisioner, ins_count, bind_count)
       @provisioner = provisioner
       @got_announcement = false
@@ -96,7 +198,7 @@ class ProvisionerTests
       @got_purge_orphan_response = false
       @got_check_orphan_response = false
       @instance_id = nil
-      @bind_id = nil
+      @binding_id = nil
       @ins_count = ins_count
       @bind_count = bind_count
     end
@@ -117,12 +219,12 @@ class ProvisionerTests
     end
     def send_bind_request
       @provisioner.bind_instance(@instance_id, {}, nil) do |res|
-        @bind_id = res['response'][:service_id]
+        @binding_id = res['response'][:service_id]
         @got_bind_response = res['success']
       end
     end
     def send_unbind_request
-      @provisioner.unbind_instance(@instance_id, @bind_id, nil) do |res|
+      @provisioner.unbind_instance(@instance_id, @binding_id, nil) do |res|
         @got_unbind_response = res['success']
       end
     end
@@ -182,7 +284,7 @@ class ProvisionerTests
     attr_accessor :instances_response
     attr_accessor :error_msg
     attr_accessor :instance_id
-    attr_accessor :bind_id
+    attr_accessor :binding_id
     def initialize(provisioner, ins_count, bind_count)
       @provisioner = provisioner
       @got_announcement = false
@@ -196,7 +298,7 @@ class ProvisionerTests
       @instances_response = true
       @error_msg = nil
       @instance_id = nil
-      @bind_id = nil
+      @binding_id = nil
       @ins_count = ins_count
       @bind_count = bind_count
     end
@@ -219,13 +321,13 @@ class ProvisionerTests
     def send_bind_request
       @provisioner.bind_instance(@instance_id, {}, nil) do |res|
         @bind_response = res['success']
-        @bind_id = res['response'][:service_id]
+        @binding_id = res['response'][:service_id]
         @bind_response = res['success']
         @error_msg = res['response']
       end
     end
     def send_unbind_request
-      @provisioner.unbind_instance(@instance_id, @bind_id, nil) do |res|
+      @provisioner.unbind_instance(@instance_id, @binding_id, nil) do |res|
         @unbind_response = res['success']
         @error_msg = res['response']
       end
@@ -365,7 +467,7 @@ class ProvisionerTests
       }
     end
     def service_name
-      ProvisionerTester::SERVICE_NAME
+      "Test"
     end
     def node_id
       "node-#{@id}"

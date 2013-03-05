@@ -109,6 +109,7 @@ class VCAP::Services::Base::Gateway
              :plan_management => @config[:plan_management],
              :service => @config[:service],
              :download_url_template => @config[:download_url_template],
+             :cc_api_version => @config[:cc_api_version] || "v1" ,
            )
 
       opts = @config.dup

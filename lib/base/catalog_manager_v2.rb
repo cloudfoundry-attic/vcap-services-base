@@ -487,11 +487,11 @@ module VCAP
 
         @fetching_handles = true
 
-        handles = fetch_all_instance_handles_from_cc
-        binding_handles = fetch_all_binding_handles_from_cc(handles)
-        handles.concat(binding_handles)
+        instance_handles = fetch_all_instance_handles_from_cc
+        binding_handles = fetch_all_binding_handles_from_cc(instance_handles)
         @logger.info("CCNG Catalog Manager:(v2) Successfully fetched all handles from cloud controller...")
 
+        handles = [instance_handles, binding_handles]
         handles = VCAP::Services::Api::ListHandlesResponse.decode(Yajl::Encoder.encode({:handles => handles}))
         after_fetch_callback.call(handles) if after_fetch_callback
       ensure
@@ -500,17 +500,16 @@ module VCAP
 
       def fetch_all_instance_handles_from_cc
         @logger.info("CCNG Catalog Manager:(v2) Fetching all service instance handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
-        instance_handle_list = []
+        instance_handle_list = {}
 
         registered_services = load_registered_services_from_cc
-        registered_services.select{|service| @service_auth_tokens.has_key?(service)}
 
         registered_services.each_value do |registered_service|
           registered_service['service']['plans'].each_value do |plan_details|
             plan_guid = plan_details["guid"]
             instance_handles_query = "?q=service_plan_guid:#{plan_guid}"
             instance_handles = fetch_instance_handles_from_cc(instance_handles_query)
-            instance_handle_list.concat(instance_handles) if instance_handles
+            instance_handle_list.merge!(instance_handles) if instance_handles
           end
         end
         @logger.info("CCNG Catalog Manager:(v2) Successfully fetched all service instance handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
@@ -519,15 +518,14 @@ module VCAP
 
       def fetch_all_binding_handles_from_cc(instance_handles)
         @logger.info("CCNG Catalog Manager:(v2) Fetching all service binding handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
-        binding_handles_list = []
+        binding_handles_list = {}
 
         # currently we will fetch each binding handle according to instance handle
         # TODO: add a query parameter in ccng v2 to support query from service name to binding handle;
-        instance_handles.each do |instance_handle|
-          service_instance_guid = instance_handle[:service_id]
-          binding_handles_query = "?q=service_instance_guid:#{@handle_guid[service_instance_guid]}"
+        instance_handles.each do |instance_id, _|
+          binding_handles_query = "?q=service_instance_guid:#{@handle_guid[instance_id]}"
           binding_handles = fetch_binding_handles_from_cc(binding_handles_query)
-          binding_handles_list.concat(binding_handles) if binding_handles
+          binding_handles_list.merge!(binding_handles) if binding_handles
         end
         @logger.info("CCNG Catalog Manager:(v2) Successfully fetched all service binding handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
         binding_handles_list
@@ -541,21 +539,15 @@ module VCAP
       def fetch_instance_handles_from_cc(instance_handles_query)
         @logger.info("CCNG Catalog Manager:(v2) Fetching service instance handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}#{instance_handles_query}")
 
-        instance_handles = []
+        instance_handles = {}
         # currently we are fetching all the service instances from different plans;
         # TODO: add a query parameter in ccng v2 to support a query from service name to instance handle;
         service_instance_uri = "#{@service_instances_uri}#{instance_handles_query}"
 
         perform_multiple_page_get(service_instance_uri, "service instance handles") do |resources|
           instance_info = resources['entity']
-
-          instance_handle = {
-            :service_id    => instance_info['credentials']['name'],
-            :configuration => instance_info['gateway_data'],
-            :credentials   => instance_info['credentials'],
-          }
-          instance_handles << instance_handle
-          @handle_guid[instance_handle[:service_id]] = resources['metadata']['guid']
+          instance_handles[instance_info['credentials']['name']] = instance_info
+          @handle_guid[instance_info['credentials']['name']] = resources['metadata']['guid']
         end
         instance_handles
       rescue => e
@@ -570,19 +562,13 @@ module VCAP
       def fetch_binding_handles_from_cc(binding_handles_query)
         @logger.info("CCNG Catalog Manager:(v2) Fetching service binding handles from cloud controller: #{@cld_ctrl_uri}#{@service_bindings_uri}#{binding_handles_query}")
 
-        binding_handles = []
+        binding_handles = {}
         binding_handles_uri = "#{@service_bindings_uri}#{binding_handles_query}"
 
         perform_multiple_page_get(binding_handles_uri, "service binding handles") do |resources|
           binding_info = resources['entity']
-
-          binding_handle = {
-            :service_id    => binding_info['gateway_name'],
-            :configuration => binding_info['gateway_data'],
-            :credentials   => binding_info['credentials'],
-          }
-          binding_handles << binding_handle
-          @handle_guid[binding_handle[:service_id]] = resources['metadata']['guid']
+          binding_handles[binding_info['gateway_name']] = binding_info
+          @handle_guid[binding_info['gateway_name']] = resources['metadata']['guid']
         end
         binding_handles
       rescue => e
