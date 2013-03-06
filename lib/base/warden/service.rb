@@ -27,6 +27,7 @@ class VCAP::Services::Base::Warden::Service
       @service_port = options[:service_port]
       @rm_instance_dir_timeout = options[:rm_instance_dir_timeout] || 10
       @m_failed_times = options[:m_failed_times] || 3
+      @warden_socket_path = options[:warden_socket_path] || "/tmp/warden.sock"
       FileUtils.mkdir_p(File.dirname(options[:local_db].split(':')[1]))
       DataMapper.setup(:default, options[:local_db])
       DataMapper::auto_upgrade!
@@ -49,7 +50,10 @@ class VCAP::Services::Base::Warden::Service
       end
     end
 
-    attr_reader :base_dir, :log_dir, :bin_dir, :common_dir, :image_dir, :max_disk, :logger, :quota, :max_memory, :memory_overhead, :service_start_timeout, :service_status_timeout, :bandwidth_per_second, :service_port, :rm_instance_dir_timeout, :m_failed_times, :in_memory_status
+    attr_reader :base_dir, :log_dir, :bin_dir, :common_dir, :image_dir, :max_disk, :logger, :quota,
+                :max_memory, :memory_overhead, :service_start_timeout, :service_status_timeout,
+                :bandwidth_per_second, :service_port, :rm_instance_dir_timeout, :m_failed_times,
+                :in_memory_status, :warden_socket_path
 
   end
 

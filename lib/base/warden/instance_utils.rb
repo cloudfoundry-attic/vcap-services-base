@@ -24,9 +24,13 @@ module VCAP::Services::Base::Warden::InstanceUtils
 
   module ClassMethods
     def warden_connect
-      warden_client = Warden::Client.new("/tmp/warden.sock")
+      warden_client = Warden::Client.new(warden_socket_path)
       warden_client.connect
       warden_client
+    end
+
+    def warden_socket_path
+      "/tmp/warden.sock"
     end
   end
 

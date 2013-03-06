@@ -84,6 +84,7 @@ class VCAP::Services::Base::NodeBin
       :m_interval => parse_property(config, "m_interval", Integer, :optional => true, :default => 10),
       :m_actions => parse_property(config, "m_actions", Array, :optional => true, :default => []),
       :m_failed_times => parse_property(config, "m_failed_times", Integer, :optional => true, :default => 3),
+      :warden_socket_path => parse_property(config, "warden_socket_path", String, :optional => true),
     }
     # Workaround for services that support running the service both inside and outside warden
     use_warden = parse_property(config, "use_warden", Boolean, :optional => true, :default => false)

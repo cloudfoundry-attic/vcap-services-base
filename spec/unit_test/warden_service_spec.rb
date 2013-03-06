@@ -3,6 +3,7 @@ require "helper/spec_helper"
 
 describe "Warden Service test" do
   before :all do
+    DataMapper.initialize_lock_file('/tmp/test_lock_file')
     FileUtils.mkdir_p(DEF_OPTIONS[:base_dir])
     FileUtils.mkdir_p(DEF_OPTIONS[:service_log_dir])
     script_dir = File.join(DEF_OPTIONS[:service_common_dir], "bin")
@@ -24,6 +25,24 @@ describe "Warden Service test" do
   after :each do
     @instance.delete
   end
+
+  describe '.init' do
+    subject(:service) { Wardenservice }
+
+    context 'when a warden_socket_path is given' do
+      let(:custom_warden_socket_path) { '/tmp/custom.sock' }
+      before { service.init(DEF_OPTIONS.merge(warden_socket_path: custom_warden_socket_path)) }
+
+      its(:warden_socket_path) { should == custom_warden_socket_path }
+    end
+
+    context 'when no warden_socket_path is given' do
+      before { service.init(DEF_OPTIONS.merge(warden_socket_path: nil)) }
+
+      its(:warden_socket_path) { should == '/tmp/warden.sock' }
+    end
+  end
+
 
   it "should store in_memory properties" do
     5.times { Wardenservice.create }
