@@ -4,10 +4,8 @@ require "fileutils"
 require "vcap/logging"
 require "uuid"
 
-$LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..')
-require "service_error"
-$LOAD_PATH.unshift File.join(File.dirname(__FILE__))
-require "package.rb"
+require_relative "../service_error"
+require_relative "./package.rb"
 
 module VCAP::Services::Base::AsyncJob
   module Snapshot
@@ -184,7 +182,7 @@ module VCAP::Services::Base::AsyncJob
 
       def create_lock
         lock_name = "lock:lifecycle:#{name}"
-        ttl = @config[:job_ttl] || 600
+        ttl = @config['job_ttl'] || 600
         lock = Lock.new(lock_name, :logger => @logger, :ttl => ttl)
         lock
       end

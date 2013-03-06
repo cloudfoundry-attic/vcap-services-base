@@ -222,3 +222,11 @@ def generate_bind_list(count)
   end
   list
 end
+
+def with_env(changes, &blk)
+  old_env = ENV.to_hash
+  ENV.update(changes)
+  blk.yield
+ensure
+  ENV.replace(old_env)
+end
