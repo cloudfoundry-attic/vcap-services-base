@@ -43,17 +43,6 @@ namespace "bundler" do
 end
 
 namespace "test" do
-  def run_spec
-    Dir.chdir("spec")
-    if `ps ax | grep nats-server | grep -v grep` == ""
-      sh "nats-server &"
-      yield
-      sh "pkill -f nats-server"
-    else
-      yield
-    end
-  end
-
   def run_or_fail(cmd)
     raise "Failed to run '#{cmd}'" unless system(cmd)
   end
