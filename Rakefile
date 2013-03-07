@@ -47,6 +47,11 @@ namespace "test" do
     raise "Failed to run '#{cmd}'" unless system(cmd)
   end
 
+  def run_spec
+    Dir.chdir("spec")
+    yield
+  end
+
   task "spec" do |t|
     run_spec { run_or_fail "rake spec" }
   end
