@@ -6,6 +6,30 @@ require 'base/service_message'
 include VCAP::Services::Base::Error
 
 describe ProvisionerTests do
+
+  describe "#create_snapshot" do
+    it "create a job with service id, node id, and metadata" do
+      klass = mock("subclass")
+      mock_nats = mock("test_mock_nats")
+      klass.should_receive(:create).with(
+        :service_id => 'service_id',
+        :node_id => '1',
+        :metadata => {},
+      ).and_return(2)
+      EM.run do
+        provisioner = ProvisionerTests.create_provisioner
+        provisioner.nats = mock_nats
+        provisioner.should_receive(:create_snapshot_job).and_return(klass)
+        provisioner.should_receive(:before_snapshot_apis).and_return(true)
+        provisioner.should_receive(:find_node).and_return("1")
+        provisioner.should_receive(:snapshot_metadata).and_return({})
+        provisioner.should_receive(:get_job).and_return({})
+        provisioner.create_snapshot('service_id') {}
+        EM.next_tick {EM.stop}
+      end
+    end
+  end
+
   it "should autodiscover 1 node when started first" do
     provisioner = nil
     mock_nats = nil
@@ -24,10 +48,9 @@ describe ProvisionerTests do
       # mock nats subscribe callback function only can be invoked manually
       provisioner.on_announce(Yajl::Encoder.encode(msg))
 
-      provisioner.node_count.should == 1
-
       EM.stop
     end
+      provisioner.node_count.should == 1
   end
 
 
