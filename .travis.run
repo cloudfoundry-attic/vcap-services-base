@@ -28,11 +28,18 @@ set -x
 )
 
 # Wait for warden to come up
-while [ ! -e /tmp/warden.sock ]
+sleeps=15
+while [ ! -e /tmp/warden.sock ] && [ $sleeps -gt 0 ]
 do
+  let sleeps--
   sleep 1
 done
 
+if [ $sleeps -eq 0 ]
+then
+  echo 'Warden failed to start, failing the build'
+  exit 1
+if
 echo "/tmp/warden.sock exists, let's run the specs"
 
 bundle exec rake spec --trace
