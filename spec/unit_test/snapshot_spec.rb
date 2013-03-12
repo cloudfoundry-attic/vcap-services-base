@@ -35,5 +35,25 @@ describe VCAP::Services::Base::AsyncJob::Snapshot::SnapshotJob do
 end
 
 describe VCAP::Services::Base::AsyncJob::Snapshot::BaseCreateSnapshotJob do
-  it "should evoke execute method to sub class"
+  describe "#perform" do
+    before(:each) do
+      VCAP::Services::Base::AsyncJob::Config.stub(:logger => mock("logger").as_null_object)
+      VCAP::Services::Base::AsyncJob::Snapshot.stub(:redis_connect)
+    end
+
+    it "is sad without :service_id" do
+      job = nil
+      with_env("WORKER_CONFIG" => '{}') do
+        job = described_class.new("uuid", {})
+      end
+      job.stub(:set_status)
+      job.should_receive(:set_status).with(
+        {"status" => "failed"},
+        anything,
+      ).at_least(:once)
+      job.perform
+    end
+
+    it "should evoke execute method to sub class"
+  end
 end
