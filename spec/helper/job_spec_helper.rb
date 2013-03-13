@@ -1,4 +1,4 @@
-require 'helper/spec_helper'
+require 'spec_helper'
 
 require 'base/job/async_job'
 require 'base/job/lock'
