@@ -6,6 +6,7 @@ $:.unshift File.join(File.dirname(__FILE__), '..', '..', 'lib')
 require 'rubygems'
 require 'rspec'
 require 'logger'
+require "spec_helper"
 
 require "base_spec_helper"
 require "node_spec_helper"
@@ -279,22 +280,6 @@ module IntegrationHelpers
     true
   rescue Errno::ESRCH
     false
-  end
-end
-
-RSpec::Matchers.define :json_match do |matcher|
-  # RSpec matcher?
-  if matcher.respond_to?(:matches?)
-    match do |json|
-      actual = Yajl::Parser.parse(json)
-      matcher.matches?(actual)
-    end
-    # regular values or RSpec Mocks argument matchers
-  else
-    match do |json|
-      actual = Yajl::Parser.parse(json)
-      matcher == actual
-    end
   end
 end
 
