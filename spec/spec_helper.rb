@@ -1,3 +1,11 @@
+def with_env(changes, &blk)
+  old_env = ENV.to_hash
+  ENV.update(changes)
+  blk.yield
+ensure
+  ENV.replace(old_env)
+end
+
 RSpec::Matchers.define :json_match do |matcher|
   # RSpec matcher?
   if matcher.respond_to?(:matches?)

@@ -226,14 +226,6 @@ def generate_bind_list(count)
   list
 end
 
-def with_env(changes, &blk)
-  old_env = ENV.to_hash
-  ENV.update(changes)
-  blk.yield
-ensure
-  ENV.replace(old_env)
-end
-
 module IntegrationHelpers
   def run_cmd(cmd, opts={})
     project_path = File.join(File.dirname(__FILE__), "../..")
