@@ -15,8 +15,8 @@ GIT
 
 GIT
   remote: git://github.com/cloudfoundry/vcap-common.git
-  revision: 68d86f57fb82eb44489ace026b6c95102f050c86
-  ref: 68d86f57fb
+  revision: 06812223684d7b8385e828841be9737a98a4bdee
+  ref: 06812223
   specs:
     vcap_common (2.0.10)
       em-http-request (~> 1.0.0.beta3, < 1.0.0.beta4)
@@ -134,7 +134,7 @@ GEM
     eventmachine_httpserver (0.2.1)
     fastercsv (1.5.5)
     http_parser.rb (0.5.3)
-    httpclient (2.3.2)
+    httpclient (2.3.3)
     json (1.4.6)
     json_pure (1.7.5)
     macaddr (1.6.1)
@@ -142,7 +142,7 @@ GEM
     membrane (0.0.2)
     mime-types (1.21)
     multi_json (1.0.4)
-    multipart-post (1.1.5)
+    multipart-post (1.2.0)
     nats (0.4.24)
       daemons (>= 1.1.5)
       eventmachine (>= 0.12.10)
