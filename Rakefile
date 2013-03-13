@@ -1,6 +1,8 @@
 require 'rake'
 require 'bundler'
 
+task "default" => "spec"
+
 desc "Run specs"
 task "spec" => ["test:spec"]
 
