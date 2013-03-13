@@ -282,6 +282,22 @@ module IntegrationHelpers
   end
 end
 
+RSpec::Matchers.define :json_match do |matcher|
+  # RSpec matcher?
+  if matcher.respond_to?(:matches?)
+    match do |json|
+      actual = Yajl::Parser.parse(json)
+      matcher.matches?(actual)
+    end
+    # regular values or RSpec Mocks argument matchers
+  else
+    match do |json|
+      actual = Yajl::Parser.parse(json)
+      matcher == actual
+    end
+  end
+end
+
 RSpec.configure do |c|
   c.include IntegrationHelpers
   c.before(:all) do
