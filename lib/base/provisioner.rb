@@ -883,7 +883,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   def create_snapshot(service_id, &blk)
     @logger.debug("Create snapshot job for service_id=#{service_id}")
     job_id = create_snapshot_job.create(:service_id => service_id,
-                                        :node_id =>find_node(service_id),
+                                        :node_id => find_node(service_id),
                                         :metadata=> snapshot_metadata(service_id),
                                        )
     job = get_job(job_id)
