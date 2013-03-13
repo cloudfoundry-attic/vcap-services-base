@@ -1,3 +1,5 @@
+require "redis"
+require "time"
 require_relative "../service_error"
 
 module VCAP::Services::Base::SnapshotV2
