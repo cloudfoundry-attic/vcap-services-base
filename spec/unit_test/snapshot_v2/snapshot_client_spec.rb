@@ -1,6 +1,6 @@
 # FIXME: move stuff to the more conventional spec_helper
 require "helper/spec_helper"
-require "base/snapshot_v2/snapshot"
+require "base/snapshot_v2/snapshot_client"
 
 describe VCAP::Services::Base::SnapshotV2::SnapshotClient do
   let(:redis_mock) { mock("redis") }
