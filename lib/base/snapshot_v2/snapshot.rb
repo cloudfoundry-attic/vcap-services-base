@@ -5,34 +5,21 @@ require "vcap/logging"
 require "uuid"
 
 require_relative "../service_error"
-require_relative "./package.rb"
+require_relative "../../base/job/package.rb"
 
-module VCAP::Services::Base::AsyncJob
-  module Snapshot
+module VCAP::Services::Base::SnapshotV2
+  class SnapshotClient
     include VCAP::Services::Base::Error
 
-    SNAPSHOT_KEY_PREFIX = "vcap:snapshot".freeze
+    SNAPSHOT_KEY_PREFIX = "vcap:snapshotv2".freeze
     SNAPSHOT_ID = "maxid".freeze
     FILTER_KEYS = %w(snapshot_id date size name).freeze
     MAX_NAME_LENGTH = 512
 
-    class << self
-      attr_reader :redis
-
-      def redis_connect
-        @redis = ::Redis.new(Config.redis_config)
-
-        redis_init
-      end
-
-      # initialize necessary keys
-      def redis_init
-        @redis.setnx("#{SNAPSHOT_KEY_PREFIX}:#{SNAPSHOT_ID}", 1)
-      end
-    end
-
-    def client
-      Snapshot.redis
+    def initialize(redis_config)
+      @redis = ::Redis.new(redis_config)
+      # FIXME: use UUID?
+      redis_init
     end
 
     # Get all snapshots related to a service instance
@@ -60,7 +47,7 @@ module VCAP::Services::Base::AsyncJob
     end
 
     # filter internal keys of a given snapshot object, return a new snapshot object in canonical format
-    def filter_keys(snapshot)
+    def self.filter_keys(snapshot)
       return unless snapshot.is_a? Hash
       snapshot.select {|k,v| FILTER_KEYS.include? k.to_s}
     end
@@ -72,7 +59,7 @@ module VCAP::Services::Base::AsyncJob
 
     # Get the snapshot file path that service should save the dump file to.
     # the snapshot path structure looks like <base_dir>\snapshots\<service-name>\<aa>\<bb>\<cc>\<aabbcc-rest-of-instance-guid>\snapshot_id\<service specific data>
-    def snapshot_filepath(base_dir, service_name, service_id, snapshot_id)
+    def self.snapshot_filepath(base_dir, service_name, service_id, snapshot_id)
       File.join(base_dir, "snapshots", service_name, service_id[0,2], service_id[2,2], service_id[4,2], service_id, snapshot_id.to_s)
     end
 
@@ -84,7 +71,7 @@ module VCAP::Services::Base::AsyncJob
       return unless service_id && snapshot_id && name
       verify_input_name(name)
 
-      key = redis_key(service_id)
+      key = self.class.redis_key(service_id)
       # NOTE: idealy should watch on combination of (service_id, snapshot_id)
       # but current design doesn't support such fine-grained watching.
       client.watch(key)
@@ -106,7 +93,9 @@ module VCAP::Services::Base::AsyncJob
 
     def save_snapshot(service_id , snapshot)
       return unless service_id && snapshot
+      # FIXME: srsly? where are we using symbols?
       sid = snapshot[:snapshot_id] || snapshot["snapshot_id"]
+      return unless sid
       msg = Yajl::Encoder.encode(snapshot)
       client.hset(redis_key(service_id), sid, msg)
     end
@@ -117,15 +106,37 @@ module VCAP::Services::Base::AsyncJob
     end
 
 
-    def fmt_time()
+    def self.fmt_time()
       # UTC time in ISO 8601 format.
       Time.now.utc.strftime("%FT%TZ")
     end
 
-    protected
+    def self.redis_key(key)
+      "#{SNAPSHOT_KEY_PREFIX}:#{key}"
+    end
+
+    private
+    def filter_keys(snapshot)
+      self.class.filter_keys(snapshot)
+    end
+
+    def snapshot_filepath(base_dir, service_name, service_id, snapshot_id)
+      self.class.snapshot_filepath(base_dir, service_name, service_id, snapshot_id)
+    end
 
     def redis_key(key)
-      "#{SNAPSHOT_KEY_PREFIX}:#{key}"
+      self.class.redis_key(key)
+    end
+
+    attr_reader :redis
+
+    # initialize necessary keys
+    def redis_init
+      @redis.setnx("#{SNAPSHOT_KEY_PREFIX}:#{SNAPSHOT_ID}", 1)
+    end
+
+    def client
+      redis
     end
 
     def verify_input_name(name)
@@ -136,12 +147,14 @@ module VCAP::Services::Base::AsyncJob
 
       #TODO: shall we sanitize the input?
     end
+  end
 
     # common utils for snapshot job
     class SnapshotJob
       attr_reader :name, :snapshot_id
 
-      include Snapshot
+      # FIXME: untangle mixins
+      # include Snapshot
       include Resque::Plugins::Status
 
       class << self
@@ -352,5 +365,4 @@ module VCAP::Services::Base::AsyncJob
         end
       end
     end
-  end
 end
