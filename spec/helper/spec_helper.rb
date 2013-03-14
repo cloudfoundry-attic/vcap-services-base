@@ -6,7 +6,6 @@ $:.unshift File.join(File.dirname(__FILE__), '..', '..', 'lib')
 require 'rubygems'
 require 'rspec'
 require 'logger'
-require_relative "../spec_helper"
 
 require "base_spec_helper"
 require "node_spec_helper"
@@ -224,4 +223,34 @@ def generate_bind_list(count)
     }
   end
   list
+end
+
+module SpecHelpers
+  def with_env(changes, &blk)
+    old_env = ENV.to_hash
+    ENV.update(changes)
+    blk.yield
+  ensure
+    ENV.replace(old_env)
+  end
+end
+
+RSpec.configure do |c|
+  c.include SpecHelpers
+end
+
+RSpec::Matchers.define :json_match do |matcher|
+  # RSpec matcher?
+  if matcher.respond_to?(:matches?)
+    match do |json|
+      actual = Yajl::Parser.parse(json)
+      matcher.matches?(actual)
+    end
+    # regular values or RSpec Mocks argument matchers
+  else
+    match do |json|
+      actual = Yajl::Parser.parse(json)
+      matcher == actual
+    end
+  end
 end

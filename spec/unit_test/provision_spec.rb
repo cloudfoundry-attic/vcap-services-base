@@ -1250,4 +1250,49 @@ describe ProvisionerTests do
       EM.stop
     end
   end
+
+  def setup_required_snapshot_config(service_id)
+    provisioner = ProvisionerTests.create_provisioner(
+      snapshot_db: {},
+      plan_management: {
+        plans: {
+          :"100" => {
+            lifecycle: { snapshot: true }
+          }
+        }
+      }
+    )
+
+    provisioner.prov_svcs[service_id] = {
+      configuration: {
+        plan: "100"
+      }
+    }
+
+    provisioner
+  end
+
+  it "should be able to enumerate snapshots of a service instance" do
+    mock_snapshot_client = double('snapshot client')
+    service_id = "test"
+    snapshots = double('response')
+
+    EM.run do
+
+      VCAP::Services::Base::SnapshotV2::SnapshotClient.should_receive(:new).
+        and_return(mock_snapshot_client)
+
+      mock_snapshot_client.should_receive(:service_snapshots).with(service_id).
+        and_return(snapshots)
+
+      provisioner = setup_required_snapshot_config(service_id)
+
+      provisioner.enumerate_snapshots_v2(service_id) do |msg|
+        msg['success'].should be_true
+        msg['response'].should == snapshots
+      end
+
+      EM.stop
+    end
+  end
 end

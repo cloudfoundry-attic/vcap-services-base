@@ -40,6 +40,7 @@ class AsyncGatewayTests
     attr_reader   :instances_http_code
     attr_reader   :purge_orphan_http_code
     attr_reader   :check_orphan_http_code
+    attr_reader   :snapshots_http_code
 
     def initialize(nice, timeout=nil, check_interval=-1, double_check_interval=3, cc_invalid=false)
       @token = '0xdeadbeef'
@@ -97,6 +98,7 @@ class AsyncGatewayTests
       @instances_http_code = 0
       @purge_orphan_http_code = 0
       @check_orphan_http_code = 0
+      @snapshots_http_code = 0
       @last_service_id = nil
       @last_bind_id = nil
     end
@@ -267,6 +269,18 @@ class AsyncGatewayTests
         @check_orphan_http_code = -1
       }
     end
+    def send_get_v2_snapshots_request
+      http = EM::HttpRequest.new("http://localhost:#{GW_PORT}/gateway/v2/configurations/test/snapshots").get(gen_req)
+      http.callback {
+        @snapshots_http_code = http.response_header.status
+        if @snapshots_http_code == 200
+          res = VCAP::Services::Api::SnapshotListV2.decode(http.response)
+        end
+      }
+      http.errback {
+        @check_orphan_http_code = -1
+      }
+    end
   end
 
   class MockCloudController
@@ -402,6 +416,10 @@ class AsyncGatewayTests
 
     def double_check_orphan(handles)
       @double_check_orphan_invoked = true
+    end
+
+    def enumerate_snapshots_v2(service_id, &blk)
+      blk.call(success(:snapshots => []))
     end
   end
 

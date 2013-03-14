@@ -324,4 +324,16 @@ describe AsyncGatewayTests do
     end
     gateway.instances_http_code.should == 500
   end
+
+  it "should be able to list the existing v2 snapshots" do
+    cc = nil
+    gateway = nil
+    EM.run do
+      Do.at(0) { cc = AsyncGatewayTests.create_cloudcontroller ; cc.start }
+      Do.at(1) { gateway = AsyncGatewayTests.create_nice_gateway ; gateway.start }
+      Do.at(2) { gateway.send_get_v2_snapshots_request }
+      Do.at(3) { cc.stop; gateway.stop ; EM.stop }
+    end
+    gateway.snapshots_http_code.should == 200
+  end
 end
