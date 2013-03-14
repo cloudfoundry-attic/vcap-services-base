@@ -1272,27 +1272,44 @@ describe ProvisionerTests do
     provisioner
   end
 
-  it "should be able to enumerate snapshots of a service instance" do
-    mock_snapshot_client = double('snapshot client')
-    service_id = "test"
-    snapshots = double('response')
+  context 'Snapshots V2' do
+    let(:snapshots) { double('response') }
+    let(:snapshot) { double('response') }
+    let(:service_id) { "test" }
+    let(:name) { "test" }
+    let(:mock_snapshot_client) { double('snapshot client') }
+    before do
+        VCAP::Services::Base::SnapshotV2::SnapshotClient.should_receive(:new).
+          and_return(mock_snapshot_client)
+    end
 
-    EM.run do
+    it "should be able to create a v2 snapshot" do
+      EM.run do
+        mock_snapshot_client.should_receive(:create_empty_snapshot).with(service_id, name).
+          and_return(snapshot)
+        provisioner = setup_required_snapshot_config(service_id)
 
-      VCAP::Services::Base::SnapshotV2::SnapshotClient.should_receive(:new).
-        and_return(mock_snapshot_client)
-
-      mock_snapshot_client.should_receive(:service_snapshots).with(service_id).
-        and_return(snapshots)
-
-      provisioner = setup_required_snapshot_config(service_id)
-
-      provisioner.enumerate_snapshots_v2(service_id) do |msg|
-        msg['success'].should be_true
-        msg['response'].should == snapshots
+        provisioner.create_snapshot_v2(service_id, name) do |msg|
+          msg['success'].should be_true
+          msg['response'].should == snapshot
+        end
+        EM.stop
       end
+    end
 
-      EM.stop
+    it "should be able to enumerate v2 snapshots of a service instance" do
+      EM.run do
+        mock_snapshot_client.should_receive(:service_snapshots).with(service_id).
+          and_return(snapshots)
+
+        provisioner = setup_required_snapshot_config(service_id)
+
+        provisioner.enumerate_snapshots_v2(service_id) do |msg|
+          msg['success'].should be_true
+          msg['response'].should == snapshots
+        end
+        EM.stop
+      end
     end
   end
 end

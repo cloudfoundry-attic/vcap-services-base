@@ -10,6 +10,7 @@ $:.unshift(File.dirname(__FILE__))
 class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchronousServiceGateway
 
   REQ_OPTS = %w(service token provisioner cloud_controller_uri).map {|o| o.to_sym}
+  attr_reader :event_machine
 
   def initialize(opts)
     super(opts)
@@ -29,7 +30,7 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
     @handle_fetch_interval = opts[:handle_fetch_interval] || 1
     @check_orphan_interval = opts[:check_orphan_interval] || -1
     @double_check_orphan_interval = opts[:double_check_orphan_interval] || 300
-    @handle_fetched = false
+    @handle_fetched = opts[:handle_fetched] || false
     @fetching_handles = false
     @version_aliases = @service[:version_aliases] || {}
 
@@ -46,15 +47,17 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
       raise "Unknown cc_api_version: #{@cc_api_version}"
     end
 
+    @event_machine = opts[:event_machine] || EM
+
     # Setup heartbeats and exit handlers
-    EM.add_periodic_timer(@hb_interval) { send_heartbeat }
-    EM.next_tick { send_heartbeat }
+    event_machine.add_periodic_timer(@hb_interval) { send_heartbeat }
+    event_machine.next_tick { send_heartbeat }
     Kernel.at_exit do
-      if EM.reactor_running?
+      if event_machine.reactor_running?
         # :/ We can't stop others from killing the event-loop here. Let's hope that they play nice
         send_deactivation_notice(false)
       else
-        EM.run { send_deactivation_notice }
+        event_machine.run { send_deactivation_notice }
       end
     end
 
@@ -62,7 +65,7 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
     update_callback = Proc.new do |resp|
       @provisioner.update_handles(resp.handles)
       @handle_fetched = true
-      EM.cancel_timer(@fetch_handle_timer)
+      event_machine.cancel_timer(@fetch_handle_timer)
 
       # TODO remove it when we finish the migration
       current_version = @version_aliases && @version_aliases[:current]
@@ -73,8 +76,8 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
       end
     end
 
-    @fetch_handle_timer = EM.add_periodic_timer(@handle_fetch_interval) { fetch_handles(&update_callback) }
-    EM.next_tick { fetch_handles(&update_callback) }
+    @fetch_handle_timer = event_machine.add_periodic_timer(@handle_fetch_interval) { fetch_handles(&update_callback) }
+    event_machine.next_tick { fetch_handles(&update_callback) }
 
     if @check_orphan_interval > 0
       handler_check_orphan = Proc.new do |resp|
@@ -82,7 +85,7 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
                      lambda { @logger.info("Check orphan is requested") },
                      lambda { |errmsg| @logger.error("Error on requesting to check orphan #{errmsg}") })
       end
-      EM.add_periodic_timer(@check_orphan_interval) { fetch_handles(&handler_check_orphan) }
+      event_machine.add_periodic_timer(@check_orphan_interval) { fetch_handles(&handler_check_orphan) }
     end
 
     # Register update handle callback
@@ -123,7 +126,7 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
     @provisioner.check_orphan(handles) do |msg|
       if msg['success']
         callback.call
-        EM.add_timer(@double_check_orphan_interval) { fetch_handles{ |rs| @provisioner.double_check_orphan(rs.handles) } }
+        event_machine.add_timer(@double_check_orphan_interval) { fetch_handles{ |rs| @provisioner.double_check_orphan(rs.handles) } }
       else
         errback.call(msg['response'])
       end
@@ -211,7 +214,7 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
   # Unbinds a previously bound instance of the service
   #
   delete '/gateway/v1/configurations/:service_id/handles/:handle_id' do
-    @logger.info("Unbind request for service_id=#{params['service_id']} handle_id=#{params['handle_id']}")
+    @logger.info("Unbind request for service_id={params['service_id']} handle_id=#{params['handle_id']}")
 
     req = VCAP::Services::Api::GatewayUnbindRequest.decode(request_body)
 
@@ -225,16 +228,30 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
     async_mode
   end
 
+  post "/gateway/v2/configurations/:service_id/snapshots" do
+    service_id = params["service_id"]
+    name = Yajl::Parser.parse(request_body).fetch('name')
+
+    @provisioner.create_snapshot_v2(service_id, name) do |msg|
+      if msg['success']
+        async_reply(VCAP::Services::Api::SnapshotV2.new(msg['response']).encode)
+      else
+        async_reply_error(msg['response'])
+      end
+    end
+    async_mode
+  end
+
   # create a snapshot
   post "/gateway/v1/configurations/:service_id/snapshots" do
     service_id = params["service_id"]
-    @logger.info("Create snapshot request for service_id=#{service_id}")
     @provisioner.create_snapshot(service_id) do |msg|
       if msg['success']
         async_reply(VCAP::Services::Api::Job.new(msg['response']).encode)
       else
         async_reply_error(msg['response'])
       end
+      async_reply
     end
     async_mode
   end
@@ -471,6 +488,10 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
     async_mode
   end
 
+  ###################### V2 handlers ########################
+
+
+
 
   #################### Helpers ####################
 
@@ -515,7 +536,7 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
       @catalog_manager.update_catalog(
         false,
         lambda { return get_current_catalog },
-        lambda { EM.stop if stop_event_loop }
+        lambda { event_machine.stop if stop_event_loop }
       )
     end
 

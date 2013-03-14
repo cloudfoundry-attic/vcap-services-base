@@ -336,4 +336,31 @@ describe AsyncGatewayTests do
     end
     gateway.snapshots_http_code.should == 200
   end
+
+  context 'creating a snapshot v2' do
+    it "should be able to create a new v2 snapshot" do
+      cc = nil
+      gateway = nil
+      EM.run do
+        Do.at(0) { cc = AsyncGatewayTests.create_cloudcontroller ; cc.start }
+        Do.at(1) { gateway = AsyncGatewayTests.create_nice_gateway ; gateway.start }
+        Do.at(2) { gateway.send_create_v2_snapshot_request('new_name') }
+        Do.at(3) { cc.stop; gateway.stop ; EM.stop }
+      end
+      gateway.last_snapshot.name.should == 'new name'
+      gateway.snapshots_http_code.should == 200
+    end
+
+    it "should return error" do
+      cc = nil
+      gateway = nil
+      EM.run do
+        Do.at(0) { cc = AsyncGatewayTests.create_cloudcontroller ; cc.start }
+        Do.at(1) { gateway = AsyncGatewayTests.create_nasty_gateway; gateway.start }
+        Do.at(2) { gateway.send_create_v2_snapshot_request('new_name') }
+        Do.at(3) { cc.stop; gateway.stop ; EM.stop }
+      end
+      gateway.snapshots_http_code.should == 500
+    end
+  end
 end

@@ -1155,6 +1155,14 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   #
 
   # Snapshot v2 API
+
+  def create_snapshot_v2(service_id, name, &blk)
+    snapshot = snapshot_client.create_empty_snapshot(service_id, name)
+    blk.call(success(snapshot))
+  rescue => e
+    handle_error(e, &blk)
+  end
+
   def enumerate_snapshots_v2(service_id, &blk)
     snapshots = snapshot_client.service_snapshots(service_id)
     blk.call(success(snapshots))
@@ -1165,10 +1173,9 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   # various lifecycle jobs class
   abstract :create_snapshot_job, :rollback_snapshot_job, :delete_snapshot_job, :create_serialized_url_job, :import_from_url_job
   # register before filter
-  before [:create_snapshot, :get_snapshot, :enumerate_snapshots, :delete_snapshot, :rollback_snapshot, :update_snapshot_name, :enumerate_snapshots_v2],  :before_snapshot_apis
+  before [:create_snapshot, :get_snapshot, :enumerate_snapshots, :delete_snapshot, :rollback_snapshot, :update_snapshot_name, :enumerate_snapshots_v2, :create_snapshot_v2],  :before_snapshot_apis
 
   before [:create_serialized_url, :get_serialized_url, :import_from_url], :before_serialization_apis
 
   before :job_details, :before_job_apis
-
 end

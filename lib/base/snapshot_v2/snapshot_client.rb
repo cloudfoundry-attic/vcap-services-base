@@ -17,6 +17,18 @@ module VCAP::Services::Base::SnapshotV2
       redis_init
     end
 
+    def create_empty_snapshot(service_id, name)
+      snapshot = {
+        'state' => 'empty',
+        'size'  => 0,
+        'name'  => name,
+        'snapshot_id' => new_snapshot_id,
+      }
+      msg = Yajl::Encoder.encode(snapshot)
+      client.hset(redis_key(service_id), snapshot['snapshot_id'], msg)
+      snapshot
+    end
+
     # Get all snapshots related to a service instance
     #
     def service_snapshots(service_id)

@@ -27,43 +27,74 @@ describe VCAP::Services::Base::SnapshotV2::SnapshotClient do
     end
   end
 
-  describe "#service_snapshots" do
+  context 'with fake redis' do
+    let(:new_snapshot_id) { 'new snapshot id' }
     before :each do
       redis_mock.stub(:setnx)
+      redis_mock.stub(:incr).and_return(new_snapshot_id)
+      redis_mock.stub(:hset)
       Redis.should_receive(:new).and_return(redis_mock)
     end
 
-    subject { described_class.new({}).service_snapshots(service_id) }
+    describe "#create_empty_snapshot" do
+      it "create an emty snapshot with empty state" do
+        new_empty_snapshot = described_class.new({}).create_empty_snapshot(1234, 'Awesome sn')
+        new_empty_snapshot.fetch('state').should == 'empty'
+        new_empty_snapshot.fetch('size').should == 0
+        new_empty_snapshot.fetch('name').should == 'Awesome sn'
+        new_empty_snapshot.fetch('snapshot_id').should == new_snapshot_id
+      end
 
-    context "with nil service_id" do
-      let(:service_id) { nil }
-      it "returns nil" do
-        expect(subject).to be(nil)
+      it "should be persisted to redis" do
+        encoded_message = Yajl::Encoder.encode(
+          {
+            'state' => 'empty',
+            'size'  => 0,
+            'name'  => 'Awesome sn',
+            'snapshot_id' => new_snapshot_id,
+          }
+        )
+        redis_mock.should_receive(:hset).with(described_class.redis_key("1234"),
+                                              new_snapshot_id,
+                                              encoded_message)
+        new_empty_snapshot = described_class.new({}).create_empty_snapshot('1234', 'Awesome sn')
       end
     end
 
-    context "when service_id is not nil" do
-      let(:service_id) { "svc-id" }
-      context "when service instance isn't in redis" do
-        it "returns an empty array" do
+    describe "#service_snapshots" do
+
+      subject { described_class.new({}).service_snapshots(service_id) }
+
+      context "with nil service_id" do
+        let(:service_id) { nil }
+        it "returns nil" do
+          expect(subject).to be(nil)
+        end
+      end
+
+      context "when service_id is not nil" do
+        let(:service_id) { "svc-id" }
+        context "when service instance isn't in redis" do
+          it "returns an empty array" do
+            redis_mock.should_receive(:hgetall).
+              with(described_class.redis_key("#{service_id}")).and_return( {} )
+            expect(subject).to eq([])
+          end
+        end
+
+        it "gets all hash values from the v2 key" do
           redis_mock.should_receive(:hgetall).
             with(described_class.redis_key("#{service_id}")).and_return( {} )
           expect(subject).to eq([])
         end
-      end
 
-      it "gets all hash values from the v2 key" do
-        redis_mock.should_receive(:hgetall).
-          with(described_class.redis_key("#{service_id}")).and_return( {} )
-        expect(subject).to eq([])
-      end
-
-      it "deserializes all values" do
-        snapshots = {
-          "snapshot-1" => '{"foo":"bar"}',
-        }
-        redis_mock.should_receive(:hgetall).and_return(snapshots)
-        expect(subject).to eq([{"foo" => "bar"}])
+        it "deserializes all values" do
+          snapshots = {
+            "snapshot-1" => '{"foo":"bar"}',
+          }
+          redis_mock.should_receive(:hgetall).and_return(snapshots)
+          expect(subject).to eq([{"foo" => "bar"}])
+        end
       end
     end
   end
