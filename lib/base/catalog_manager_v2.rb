@@ -43,7 +43,7 @@ module VCAP
               refresh_client_auth_token
               ok = true
             ensure
-              f.resume(ok)
+              EM.next_tick { f.resume(ok) }
             end
           end
           ok = Fiber.yield
