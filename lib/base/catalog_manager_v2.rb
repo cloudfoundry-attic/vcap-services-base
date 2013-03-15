@@ -36,17 +36,19 @@ module VCAP
         @service_auth_tokens  = opts[:service_auth_tokens]
 
         unless @test_mode
-          f = Fiber.current
-          ok = false
-          EM.defer do
-            begin
-              refresh_client_auth_token
-              ok = true
-            ensure
-              EM.next_tick { f.resume(ok) }
+          f = Fiber.new do
+            ok = false
+            EM.defer do
+              begin
+                refresh_client_auth_token
+                ok = true
+              ensure
+                EM.next_tick { f.resume(ok) }
+              end
             end
+            ok = Fiber.yield
           end
-          ok = Fiber.yield
+          ok = f.resume
         end
 
         @gateway_stats = {}
