@@ -47,13 +47,17 @@ module VCAP
         credentials = @opts[:uaa_client_auth_credentials]
         client_id                   = @opts[:uaa_client_id]
 
-        ti = CF::UAA::TokenIssuer.new(@opts[:uaa_endpoint], client_id)
-        token = ti.implicit_grant_with_creds(credentials).info
-        uaa_client_auth_token = "#{token["token_type"]} #{token["access_token"]}"
-        expire_time = token["expires_in"].to_i
-        @logger.info("Successfully refresh auth token for:\
-                     #{credentials[:username]}, token expires in \
-                     #{expire_time} seconds.")
+        if ENV["AUTHORIZATION_TOKEN"]
+          uaa_client_auth_token = ENV["AUTHORIZATION_TOKEN"]
+        else
+          ti = CF::UAA::TokenIssuer.new(@opts[:uaa_endpoint], client_id)
+          token = ti.implicit_grant_with_creds(credentials).info
+          uaa_client_auth_token = "#{token["token_type"]} #{token["access_token"]}"
+          expire_time = token["expires_in"].to_i
+          @logger.info("Successfully refresh auth token for:\
+                       #{credentials[:username]}, token expires in \
+                       #{expire_time} seconds.")
+        end
 
         @cc_req_hdrs = {
           'Content-Type' => 'application/json',
