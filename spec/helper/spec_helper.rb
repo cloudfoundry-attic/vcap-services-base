@@ -280,6 +280,39 @@ module IntegrationHelpers
   rescue Errno::ESRCH
     false
   end
+
+  def generate_cc_handles(gw_version)
+    provision_request = VCAP::Services::Internal::ProvisionRequest.new
+    plan = 'free'
+    version = '1.0'
+    provision_request.plan = plan
+    provision_request.version = '1.0'
+
+    if gw_version == 'v1'
+      handle = {
+        'service_id' => 'foo',
+        'configuration' => provision_request.dup,
+        'credentials' => {'name' => 'foo'},
+      }
+      return [handle]
+    elsif gw_version == 'v2'
+      instance_handle = {
+        'foo' => {
+          'name'                 => 'foo',
+          'credentials'          => {'name' => 'foo'},
+          'service_plan_guid'    => 'random-plan-guid',
+          'space_guid'           => 'random-space-guid',
+          'gateway_data'         => provision_request.dup,
+          'service_bindings_url' => '/v2/random-binding-guid',
+          'space_url'            => '/v2/random-space-guid',
+          'service_plan_url'     => '/v2/free-guid',
+        }
+      }
+      return [instance_handle, {}]
+    else
+      return nil
+    end
+  end
 end
 
 RSpec.configure do |c|
@@ -297,3 +330,5 @@ RSpec.configure do |c|
     graceful_kill(:nats, @nats_pid)
   end
 end
+
+
