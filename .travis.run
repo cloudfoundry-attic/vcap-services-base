@@ -4,6 +4,7 @@ set -e
 set -x
 
 (
+  rm -fr vendor/warden
   git clone --depth=100 --quiet --branch=master git://github.com/cloudfoundry/warden.git vendor/warden
   cd vendor/warden
 
