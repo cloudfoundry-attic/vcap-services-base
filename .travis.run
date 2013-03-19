@@ -21,8 +21,8 @@ set -x
 
   cd warden
   bundle install
-  rvmsudo bundle exec rake setup[config/linux.yml]
-  rvmsudo bundle exec rake warden:start[config/linux.yml] &
+  rvmsudo bundle exec rake setup[config/linux.yml] --trace
+  rvmsudo bundle exec rake warden:start[config/linux.yml] --trace &
 )
 
 # Wait for warden to come up
