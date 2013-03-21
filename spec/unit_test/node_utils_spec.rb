@@ -1,4 +1,5 @@
 # Copyright (c) 2009-2012 VMware, Inc.
+require 'helper/nats_server_helper'
 require "helper/spec_helper"
 
 describe "Service node utilities test" do

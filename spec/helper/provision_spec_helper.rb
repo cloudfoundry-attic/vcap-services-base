@@ -269,6 +269,12 @@ class ProvisionerTests
         @got_purge_orphan_response = res['success']
       end
     end
+    def send_enumerate_snapshots_v2_request(service_id)
+      @provisioner.enumerate_snapshots_v2(service_id) do |res|
+        @snapshot_response = res['success']
+        @error_msg = res['response']
+      end
+    end
   end
 
   # Gateway that catch error from node

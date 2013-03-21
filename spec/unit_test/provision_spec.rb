@@ -1,5 +1,6 @@
 # Copyright (c) 2009-2011 VMware, Inc.
 require 'helper/spec_helper'
+require 'helper/nats_server_helper'
 require 'eventmachine'
 require 'base/service_message'
 
@@ -1288,6 +1289,70 @@ describe ProvisionerTests do
         metadata[:provider].should == 'myprovider'
         metadata[:service_version].should == '1.0'
 
+        EM.stop
+      end
+    end
+  end
+
+  def setup_required_snapshot_config(service_id)
+    provisioner = ProvisionerTests.create_provisioner(
+      snapshot_db: {},
+      plan_management: {
+        plans: {
+          :"100" => {
+            lifecycle: { snapshot: true }
+          }
+        }
+      },
+      :cc_api_version => "v2"
+    )
+
+    provisioner.add_instance_handle(
+      configuration: {
+        plan: "100"
+      },
+      service_id: service_id
+    )
+
+    provisioner
+  end
+
+  context 'Snapshots V2' do
+    let(:snapshots) { double('response') }
+    let(:snapshot) { double('response') }
+    let(:service_id) { "test" }
+    let(:name) { "test" }
+    let(:mock_snapshot_client) { double('snapshot client') }
+    before do
+        VCAP::Services::Base::SnapshotV2::SnapshotClient.should_receive(:new).
+          and_return(mock_snapshot_client)
+    end
+
+    it "should be able to create a v2 snapshot" do
+      EM.run do
+        mock_snapshot_client.should_receive(:create_empty_snapshot).with(service_id, name).
+          and_return(snapshot)
+        provisioner = setup_required_snapshot_config(service_id)
+
+        provisioner.create_snapshot_v2(service_id, name) do |msg|
+          msg['success'].should be_true
+          msg['response'].should == snapshot
+        end
+        EM.stop
+      end
+    end
+
+    it "should be able to enumerate v2 snapshots of a service instance" do
+      EM.run do
+        mock_snapshot_client.should_receive(:service_snapshots).with(service_id).
+          and_return(snapshots)
+
+        provisioner = setup_required_snapshot_config(service_id)
+
+        provisioner.enumerate_snapshots_v2(service_id) do |msg|
+          msg['success'].should be_true
+          msg['response'].should == snapshots
+        end
         EM.stop
       end
     end

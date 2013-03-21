@@ -110,6 +110,7 @@ class VCAP::Services::Base::Gateway
              :service => @config[:service],
              :download_url_template => @config[:download_url_template],
              :cc_api_version => @config[:cc_api_version] || "v1" ,
+             :snapshot_db => @config[:resque],
            )
 
       opts = @config.dup

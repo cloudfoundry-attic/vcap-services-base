@@ -11,6 +11,7 @@ require 'base/simple_aop'
 require 'base/job/async_job'
 require 'base/job/snapshot'
 require 'base/job/serialization'
+require 'base/snapshot_v2/snapshot_client'
 require 'barrier'
 require 'service_message'
 
@@ -23,9 +24,15 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   BARRIER_TIMEOUT = 2
   MASKED_PASSWORD = '********'
 
+  def snapshot_client
+    @snapshot_client ||= VCAP::Services::Base::SnapshotV2::SnapshotClient.new(options.fetch(:snapshot_db))
+  end
+
+  attr_reader :options
+
   def initialize(options)
     super(options)
-    @opts = options
+    @options = options
     @node_timeout = options[:node_timeout]
     @nodes = {}
     @provision_refs = Hash.new(0)
@@ -40,7 +47,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     }
     @plan_mgmt = options[:plan_management] && options[:plan_management][:plans] || {}
 
-    gw_version = @opts[:cc_api_version]
+    gw_version = options[:cc_api_version]
     if gw_version == "v1"
       require 'provisioner_v1'
       extend VCAP::Services::Base::ProvisionerV1
@@ -137,7 +144,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   end
 
   def pre_send_announcement
-    addition_opts = @opts[:additional_options]
+    addition_opts = self.options[:additional_options]
     if addition_opts
       if addition_opts[:resque]
         # Initial AsyncJob module
@@ -803,7 +810,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   end
 
   def snapshot_metadata(service_id)
-    service = @opts[:service]
+    service = self.options[:service]
     instance = get_instance_handle(service_id)
 
     metadata = {
@@ -821,7 +828,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   def create_snapshot(service_id, &blk)
     @logger.debug("Create snapshot job for service_id=#{service_id}")
     job_id = create_snapshot_job.create(:service_id => service_id,
-                                        :node_id =>find_node(service_id),
+                                        :node_id => find_node(service_id),
                                         :metadata=> snapshot_metadata(service_id),
                                        )
     job = get_job(job_id)
@@ -929,8 +936,8 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
     token = snapshot["token"]
     raise ServiceError.new(ServiceError::NOT_FOUND, "Download url for service_id=#{service_id}, snapshot=#{snapshot_id}") unless token
 
-    url_template = @opts[:download_url_template]
-    service = @opts[:service][:name]
+    url_template = self.options[:download_url_template]
+    service = self.options[:service][:name]
     raise "Configuration error, can't find download_url_template" unless url_template
     raise "Configuration error, can't find service name." unless service
     url = url_template % {:service => service, :name => service_id, :snapshot_id => snapshot_id, :token => token}
@@ -1085,14 +1092,29 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   # (inhereted from VCAP::Services::Base::Base)
   #
 
+  # Snapshot v2 API
+
+  def create_snapshot_v2(service_id, name, &blk)
+    snapshot = snapshot_client.create_empty_snapshot(service_id, name)
+    blk.call(success(snapshot))
+  rescue => e
+    handle_error(e, &blk)
+  end
+
+  def enumerate_snapshots_v2(service_id, &blk)
+    snapshots = snapshot_client.service_snapshots(service_id)
+    blk.call(success(snapshots))
+  rescue => e
+    handle_error(e, &blk)
+  end
+
   # various lifecycle jobs class
   abstract :create_snapshot_job, :rollback_snapshot_job, :delete_snapshot_job, :create_serialized_url_job, :import_from_url_job
 
   # register before filter
-  before [:create_snapshot, :get_snapshot, :enumerate_snapshots, :delete_snapshot, :rollback_snapshot, :update_snapshot_name],  :before_snapshot_apis
+  before [:create_snapshot, :get_snapshot, :enumerate_snapshots, :delete_snapshot, :rollback_snapshot, :update_snapshot_name, :enumerate_snapshots_v2, :create_snapshot_v2],  :before_snapshot_apis
 
   before [:create_serialized_url, :get_serialized_url, :import_from_url], :before_serialization_apis
 
   before :job_details, :before_job_apis
-
 end

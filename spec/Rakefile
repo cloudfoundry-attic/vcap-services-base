@@ -39,8 +39,8 @@ task "simcov" => "cleanup_coverage" do
   SimpleCov.start do
     add_filter "/spec/"
     spec_dir = File.expand_path("../unit_test/", __FILE__)
-    Rspec::Core::Runner.disable_autorun!
-    Rspec::Core::Runner.run([spec_dir], STDERR, STDOUT)
+    RSpec::Core::Runner.disable_autorun!
+    RSpec::Core::Runner.run([spec_dir], STDERR, STDOUT)
   end
 end
 

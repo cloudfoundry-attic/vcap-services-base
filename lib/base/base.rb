@@ -39,6 +39,8 @@ class VCAP::Services::Base::Base
     @node_nats = nil
     if options[:mbus]
       NATS.on_error do |e|
+        # p $!
+        # puts $!.backtrace.join("\n")
         @logger.error("Exiting due to NATS error: #{e}")
         shutdown
         exit
