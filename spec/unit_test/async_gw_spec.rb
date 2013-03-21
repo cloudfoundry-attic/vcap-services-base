@@ -347,7 +347,7 @@ describe AsyncGatewayTests do
         Do.at(2) { gateway.send_create_v2_snapshot_request('new_name') }
         Do.at(3) { cc.stop; gateway.stop ; EM.stop }
       end
-      gateway.last_snapshot.name.should == 'new name'
+      gateway.last_snapshot.name.should == 'new_name'
       gateway.snapshots_http_code.should == 200
     end
 
