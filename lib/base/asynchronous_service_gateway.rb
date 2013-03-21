@@ -306,7 +306,7 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
     @logger.info("Enumerate snapshots request for service_id=#{service_id}")
     @provisioner.enumerate_snapshots_v2(params["service_id"]) do |msg|
       if msg['success']
-        async_reply(VCAP::Services::Api::SnapshotListV2.new(msg['response']).encode)
+        async_reply(VCAP::Services::Api::SnapshotListV2.new(:snapshots => msg['response']).encode)
       else
         async_reply_error(msg['response'])
       end

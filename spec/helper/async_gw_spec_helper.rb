@@ -436,7 +436,7 @@ class AsyncGatewayTests
     end
 
     def enumerate_snapshots_v2(service_id, &blk)
-      blk.call(success(:snapshots => []))
+      blk.call(success([]))
     end
 
     def create_snapshot_v2(service_id, name, &blk)
