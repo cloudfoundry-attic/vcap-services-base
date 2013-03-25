@@ -49,6 +49,8 @@ class AsyncGatewayTests
         'Content-Type'         => 'application/json',
         'X-VCAP-Service-Token' => @token,
       }
+      logger = Logger.new(STDOUT)
+      logger.level = Logger::ERROR
       @label = "service-1.0"
       if timeout
         # Nice timeout provisioner will finish the job in timeout,
@@ -81,7 +83,7 @@ class AsyncGatewayTests
         :cloud_controller_uri => "http://localhost:#{CC_PORT}",
         :check_orphan_interval => check_interval,
         :double_check_orphan_interval => double_check_interval,
-        :logger => Logger.new(STDOUT),
+        :logger => logger,
       }
       options[:cloud_controller_uri] = "http://invalid_uri" if cc_invalid
       sg = VCAP::Services::AsynchronousServiceGateway.new(options)
