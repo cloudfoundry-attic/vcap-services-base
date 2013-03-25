@@ -19,7 +19,7 @@ set -e -u -x
   cd warden
   bundle install
   rvmsudo bundle exec rake setup[config/linux.yml] --trace
-  rvmsudo bundle exec rake warden:start[config/linux.yml] --trace &
+  rvmsudo bundle exec rake warden:start[config/linux.yml] --trace >/dev/null 2>&1 &
 )
 
 # Wait for warden to come up
@@ -36,5 +36,5 @@ bundle install
 failure=0
 bundle exec rake spec || failure=$?
 
-sudo pkill -f ruby
+sudo pkill -f ruby || true
 exit $failure
