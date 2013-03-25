@@ -2,7 +2,9 @@
 require 'tmpdir'
 require 'timeout'
 require 'fileutils'
+
 BUILD_TIMEOUT_IN_SECONDS = 1200
+
 def sh(cmd)
   ok = system(cmd)
   raise RuntimeError unless ok
