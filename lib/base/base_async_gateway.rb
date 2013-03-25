@@ -145,9 +145,9 @@ class VCAP::Services::BaseAsynchronousServiceGateway < Sinatra::Base
     req
   end
 
-  def make_logger()
+  def make_logger(level=Logger::INFO)
     logger = Logger.new(STDOUT)
-    logger.level = Logger::DEBUG
+    logger.level = level
     logger
   end
 

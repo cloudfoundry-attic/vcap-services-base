@@ -1,11 +1,7 @@
 #!/bin/bash
-
-set -e
-set -x
-
+set -e -u -x
 (
-  rm -fr vendor/warden
-  git clone --depth=100 --quiet --branch=master git://github.com/cloudfoundry/warden.git vendor/warden
+  git clone --depth=1 --quiet --branch=fix_ubuntu_deboot git://github.com/cloudfoundry/warden.git vendor/warden
   cd vendor/warden
 
   # Ignore this project's BUNDLE_GEMFILE
@@ -18,7 +14,7 @@ set -x
   sudo dpkg --purge apparmor
 
   # Install dependencies
-  sudo apt-get -y install debootstrap quota
+  # sudo apt-get -y install debootstrap quota
 
   cd warden
   bundle install
@@ -34,4 +30,11 @@ done
 
 echo "/tmp/warden.sock exists, let's run the specs"
 
-bundle exec rake spec --trace
+sudo aptitude install -y libsqlite3-dev
+bundle install
+
+failure=0
+bundle exec rake spec || failure=$?
+
+sudo pkill -f ruby
+exit $failure
