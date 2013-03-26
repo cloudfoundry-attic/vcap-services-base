@@ -69,24 +69,24 @@ module VCAP::Services::Internal
   end
 
   class ServiceInstanceHandleV2 < ServiceMessage
-    required :name,                 String
-    required :credentials,          Hash
-    required :service_plan_guid,    String
-    required :space_guid,           String
     required :gateway_data,         Hash
-    required :service_bindings_url, String
-    required :space_url,            String
-    required :service_plan_url,     String
+    required :credentials,          Hash
+    optional :name,                 String
+    optional :service_plan_guid,    String
+    optional :space_guid,           String
+    optional :service_bindings_url, String
+    optional :space_url,            String
+    optional :service_plan_url,     String
   end
 
   class ServiceBindingHandleV2 < ServiceMessage
-    required :app_guid,              String
-    required :service_instance_guid, String
     required :credentials,           Hash
-    optional :binding_options,       Hash
     required :gateway_data,          Hash
     required :gateway_name,          String
-    required :app_url,               String
-    required :service_instance_url,  String
+    optional :app_guid,              String
+    optional :service_instance_guid, String
+    optional :binding_options,       Hash
+    optional :app_url,               String
+    optional :service_instance_url,  String
   end
 end
