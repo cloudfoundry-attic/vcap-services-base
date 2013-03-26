@@ -1281,7 +1281,35 @@ describe ProvisionerTests do
         provisioner = ProvisionerTests.create_provisioner(options)
 
         handle = generate_cc_handles(version)
-        puts handle
+        provisioner.update_handles(handle)
+        metadata = provisioner.snapshot_metadata('foo')
+
+        metadata[:plan].should == 'free'
+        metadata[:provider].should == 'myprovider'
+        metadata[:service_version].should == '1.0'
+
+        EM.stop
+      end
+    end
+  end
+
+  context 'Update Handles V2' do
+    def generate_cc_v2_instance_handles
+      handle = []
+      handle << generate_cc_handles("v2")[0]["foo"]
+    end
+
+    it "should update handle when update handle locally in v2" do
+      provisioner = nil
+
+      EM.run do
+        options = {
+          :service => {:provider => 'myprovider'},
+          :cc_api_version => "v2"
+        }
+        provisioner = ProvisionerTests.create_provisioner(options)
+
+        handle = generate_cc_v2_instance_handles
         provisioner.update_handles(handle)
         metadata = provisioner.snapshot_metadata('foo')
 

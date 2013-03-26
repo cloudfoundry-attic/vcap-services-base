@@ -14,16 +14,31 @@ module VCAP::Services::Base::ProvisionerV2
   #    handles[0] contains all instance handles
   #    handles[1] contains all binding handles
   def update_handles(handles)
-    @logger.info("[#{service_description}] Updating #{handles[0].size} instance handles and #{handles[1].size} binding handles in v2 api...")
-    update_instance_handles(handles[0])
-    update_binding_handles(handles[1])
-    @logger.info("[#{service_description}] Handles updated")
+    if handles.size == 2
+      @logger.info("[#{service_description}] Updating #{handles[0].size} instance handles and #{handles[1].size} binding handles in v2 api...")
+      update_instance_handles(handles[0])
+      update_binding_handles(handles[1])
+      @logger.info("[#{service_description}] Handles updated")
+    elsif handles.size == 1
+      # this is for the internal update when doing version update and some other updates
+      # and thus it would only be updating either binding or instance handle;
+      # binding handle would have a field of gateway_name but instance handle would not;
+      if handles[0].has_key?('gateway_name')
+        internal_handle = { handles[0]['gateway_name'] => handles[0] }
+        update_binding_handles(internal_handle)
+      else
+        internal_handle = { handles[0]['credentials']['name'] => handles[0] }
+        update_instance_handles(internal_handle)
+      end
+    else
+      raise "unknown handle type in update handles v2"
+    end
   end
 
   def update_instance_handles(instance_handles)
     instance_handles.each do |instance_id, instance_handle|
       unless verify_instance_handle_format(instance_handle)
-        @logger.warn("Skip not well-formed instance handle:#{handle}.")
+        @logger.warn("Skip not well-formed instance handle:#{instance_handle}.")
         next
       end
 
@@ -34,7 +49,7 @@ module VCAP::Services::Base::ProvisionerV2
         # of the 'gateway_data' field as in ccdb handle, this is for a easy management/translation
         # between gateway v1 and v2 provisioner code
         :configuration => handle['gateway_data'],
-        :handle        => handle,
+        :gateway_name  => handle['credentials']['name'],
       }
     end
   end
@@ -42,7 +57,7 @@ module VCAP::Services::Base::ProvisionerV2
   def update_binding_handles(binding_handles)
     binding_handles.each do |binding_id, binding_handle|
       unless verify_binding_handle_format(binding_handle)
-        @logger.warn("Skip not well-formed binding handle:#{handle}.")
+        @logger.warn("Skip not well-formed binding handle:#{binding_handle}.")
         next
       end
 
@@ -53,7 +68,7 @@ module VCAP::Services::Base::ProvisionerV2
         # of the 'gateway_data' field as in ccdb, this is for a easy management/translation
         # between gateway v1 and v2 provisioner code
         :configuration => handle['gateway_data'],
-        :handle        => handle,
+        :gateway_name  => handle['gateway_name'],
       }
     end
   end
@@ -139,7 +154,8 @@ module VCAP::Services::Base::ProvisionerV2
     # for current operations
     @service_instances[entity[:service_id]] = {
       :credentials   => entity[:credentials],
-      :configuration => entity[:configuration]
+      :configuration => entity[:configuration],
+      :gateway_name  => entity[:service_id],
     }
   end
 

@@ -579,13 +579,14 @@ module VCAP
         @logger.error("CCNG Catalog Manager:(v2) Error decoding reply from gateway: #{e}")
       end
 
-      def get_handles_uri(service_label)
-        "/services/v1/offerings/#{service_label}/handles"
+      def update_handle_uri(handle)
+        if handle['gateway_name'] == handle['credentials']['name']
+          return "#{@service_instances_uri}/internal/#{handle['gateway_name']}"
+        else
+          return "#{@service_bindings_uri}/internal/#{handle['gateway_name']}"
+        end
       end
 
-      # update handles in ccdb
-      # TODO update the handles using the code in v2 api after ccng added a new api endpoint for update handle
-      #      tracking: https://www.pivotaltracker.com/s/projects/166935/stories/45086405
       def update_handle_in_cc(service_label, handle, on_success_callback, on_failure_callback)
         @logger.debug("CCNG Catalog Manager:(v1) Update service handle: #{handle.inspect}")
         if not handle
@@ -593,9 +594,20 @@ module VCAP
           return
         end
 
-        uri = "#{get_handles_uri(service_label)}/#{handle["service_id"]}"
+        uri = update_handle_uri(handle)
 
-        cc_http_request(:uri => uri, :method => "post", :head => @cc_req_hdrs_for_v1_api, :body => Yajl::Encoder.encode(handle)) do |http|
+        # replace the "configuration" field with "gateway_data", and remove "gateway_name" for the internal update
+        handle["gateway_data"] = handle.delete("configuration")
+        handle.delete("gateway_name")
+
+        # manipulate handle to be a handle that is acceptable to ccng
+        cc_handle = {
+          "token"        => @service_auth_tokens.values[0],
+          "credentials"  => handle["credentials"],
+          "gateway_data" => handle["gateway_data"],
+        }
+
+        cc_http_request(:uri => uri, :method => "put", :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(cc_handle)) do |http|
           if http.error.empty?
             if http.response_header.status == 200
               @logger.info("CCNG Catalog Manager:(v1) Successful update handle #{handle["service_id"]}")
