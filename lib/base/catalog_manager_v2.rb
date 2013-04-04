@@ -404,8 +404,9 @@ module VCAP
         @logger.debug("CCNG Catalog Manager: #{update ? "Update" : "Advertise"} service offering #{offering.inspect} to cloud_controller: #{uri}")
 
         method = update ? "put" : "post"
-        cc_http_request(:uri => uri, :method => method, :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(offering)) do |http|
-          if http.error.empty?
+        cc_http_request(:uri => uri, :method => method,
+                        :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(offering)) do |http|
+          if ! http.error
             if (200..299) === http.response_header.status
               response = JSON.parse(http.response)
               @logger.info("CCNG Catalog Manager: Advertise offering response (code=#{http.response_header.status}): #{response.inspect}")
@@ -429,7 +430,7 @@ module VCAP
 
         method = add_plan ? "post" : "put"
         cc_http_request(:uri => uri, :method => method, :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(plan)) do |http|
-          if http.error.empty?
+          if ! http.error
             if (200..299) === http.response_header.status
               @logger.info("CCNG Catalog Manager: Successfully #{add_plan ? "added" : "updated"} service plan: #{plan.inspect}")
               return true
@@ -467,7 +468,7 @@ module VCAP
         @logger.info("CCNG Catalog Manager: Deleting service offering:#{id} (#{provider}) via #{uri}")
 
         cc_http_request(:uri => uri, :method => "delete", :head => @cc_req_hdrs) do |http|
-          if http.error.empty?
+          if ! http.error
             if (200..299) === http.response_header.status
               @logger.info("CCNG Catalog Manager: Successfully deleted offering: #{id} (#{provider})")
               return true
@@ -608,7 +609,7 @@ module VCAP
         }
 
         cc_http_request(:uri => uri, :method => "put", :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(cc_handle)) do |http|
-          if http.error.empty?
+          if ! http.error
             if http.response_header.status == 200
               @logger.info("CCNG Catalog Manager:(v1) Successful update handle #{handle["service_id"]}")
               on_success_callback.call if on_success_callback

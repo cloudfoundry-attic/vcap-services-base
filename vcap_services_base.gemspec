@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
   s.add_dependency "json", "~> 1.4.6"
   s.add_dependency "uuidtools", "~> 2.1.2"
   s.add_dependency "ruby-hmac", "~> 0.4.0"
-  s.add_dependency "em-http-request"
+  s.add_dependency "em-http-request", "~> 1.0"
   s.add_dependency "sinatra", "~> 1.2.3"
   s.add_dependency "thin", "~> 1.3.1"
   s.add_dependency "vcap_common", ">= 1.0.8"

@@ -30,10 +30,10 @@ module VCAP
             raise("CC Catalog Manager: Failed to connect to CC, the error is #{http.error}")
           end
         end
-        http.callback { f.resume(http) }
-        http.errback  { f.resume(http) }
-        Fiber.yield
-        yield http if block_given?
+        http.callback { f.resume(http, nil) }
+        http.errback  { |e| f.resume(http, e) }
+        _, error = Fiber.yield
+        yield http, error if block_given?
         http
       end
 

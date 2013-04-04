@@ -102,8 +102,8 @@ module VCAP
         @logger.info("CC Catalog Manager: Get registred services from cloud_controller: #{@service_list_uri}")
 
         services = {}
-        create_http_request(:uri => @service_list_uri, :method => "get", :head => @cc_req_hdrs, :need_raise => true) do |http|
-          if http.error.empty?
+        create_http_request(:uri => @service_list_uri, :method => "get", :head => @cc_req_hdrs, :need_raise => true) do |http, error|
+          if !error
             if http.response_header.status == 200
               resp = JSON.parse(http.response)
               resp["proxied_services"].each {|svc|
@@ -127,8 +127,8 @@ module VCAP
         @logger.debug("CC Catalog Manager: Advertise service offering #{offering.inspect} to cloud_controller: #{@offering_uri}")
         return false unless offering
 
-        req = create_http_request(:uri => @offering_uri, :method => "post", :head => @cc_req_hdrs, :body => offering) do |http|
-          if http.error.empty?
+        create_http_request(:uri => @offering_uri, :method => "post", :head => @cc_req_hdrs, :body => offering) do |http, error|
+          if !error
             if http.response_header.status == 200
               @logger.info("CC Catalog Manager: Successfully advertised offering: #{offering.inspect}")
               return true
@@ -148,8 +148,8 @@ module VCAP
         uri = "#{@offering_uri}/#{offering_id}"
         @logger.info("CC Catalog Manager: Delete service offering: #{offering_id}")
 
-        create_http_request(:uri => uri, :method => "delete", :head => @cc_req_hdrs) do |http|
-          if http.error.empty?
+        create_http_request(:uri => uri, :method => "delete", :head => @cc_req_hdrs) do |http, error|
+          if !error
             if http.response_header.status == 200
               @logger.info("CC Catalog Manager: Successfully deleted offering: #{offering_id}")
               return true
@@ -173,10 +173,10 @@ module VCAP
         @logger.info("CC Catalog Manager: Fetching handles from cloud controller: #{handles_uri}")
         @fetching_handles = true
 
-        create_http_request(:uri => handles_uri, :method => "get", :head => @cc_req_hdrs) do |http|
+        create_http_request(:uri => handles_uri, :method => "get", :head => @cc_req_hdrs) do |http, error|
           @fetching_handles = false
 
-          if http.error.empty?
+          if !error
             if http.response_header.status == 200
               @logger.info("CC Catalog Manager: Successfully fetched handles")
 
@@ -204,8 +204,8 @@ module VCAP
 
         uri = "#{get_handles_uri(service_label)}/#{handle["service_id"]}"
 
-        create_http_request(:uri => uri, method => "post", :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(handle)) do |http|
-          if http.error.empty?
+        create_http_request(:uri => uri, method => "post", :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(handle)) do |http, error|
+          if !error
             if http.response_header.status == 200
               @logger.info("CC Catalog Manager: Successful update handle #{handle["service_id"]}")
               on_success_callback.call if on_success_callback
