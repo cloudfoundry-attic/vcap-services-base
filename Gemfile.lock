@@ -15,8 +15,8 @@ GIT
 
 GIT
   remote: git://github.com/cloudfoundry/vcap-common.git
-  revision: eca8a8a1a3f717ed76badc9b2188bf3318ab5edc
-  ref: eca8a8a1a3f
+  revision: 98b07c6b45cae25b2cdf808c1c69a1328a912a61
+  ref: 98b07c6b
   specs:
     vcap_common (2.0.10)
       em-http-request (~> 1.0.0.beta3, < 1.0.0.beta4)
@@ -148,7 +148,7 @@ GEM
     macaddr (1.6.1)
       systemu (~> 2.5.0)
     membrane (0.0.2)
-    mime-types (1.21)
+    mime-types (1.22)
     multi_json (1.0.4)
     multipart-post (1.2.0)
     nats (0.4.24)
