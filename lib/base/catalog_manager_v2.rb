@@ -65,25 +65,40 @@ module VCAP
         }
       end
 
-      # wrapper of create_http_request, refresh @cc_req_hdrs if cc returns 401
-      def cc_http_request(args)
-        args[:uri] = "#{@cld_ctrl_uri}#{args[:uri]}"
+      class RetriableCloudControllerHitter
+        attr_reader :max_attempts, :logger, :http_request_creator
 
-        max_attempts = args[:max_attempts] || 2
-        attempts=0
+        def initialize(max_attempts, http_request_creator, logger)
+          @max_attempts = max_attempts
+          @logger       = logger
+          @http_request_creator = http_request_creator
+        end
 
-        while true
-          attempts += 1
-          @logger.debug("#{args[:method].upcase} - #{args[:uri]}")
-          http = create_http_request(args)
-          if attempts < max_attempts && http.response_header.status == HTTP_UNAUTHENTICATED_CODE
-            @logger.info("Refresh client auth token and retry, attmpts:#{attempts}")
-            refresh_client_auth_token
-          else
-            yield http if block_given?
-            return  http
+        def make_request(args, failed_callback, &block)
+          attempts=0
+          while true
+            attempts += 1
+            @logger.debug("#{args[:method].upcase} - #{args[:uri]}")
+            http = http_request_creator.call(args)
+            if attempts < max_attempts &&
+              http.response_header.status == HTTP_UNAUTHENTICATED_CODE
+              failed_callback.call
+            else
+              block.call(http)
+              return  http
+            end
           end
         end
+      end
+      # wrapper of create_http_request, refresh @cc_req_hdrs if cc returns 401
+      def cc_http_request(args, &block)
+        retriable_hitter = RetriableCloudControllerHitter.new(args[:max_attempts]||2,
+                                                              self.method(:create_http_request),
+                                                              @logger)
+
+        args[:uri] = "#{@cld_ctrl_uri}#{args[:uri]}"
+
+        retriable_hitter.make_request(args, method(:refresh_client_auth_token), &block)
       end
 
       def create_key(label, version, provider)
@@ -97,7 +112,10 @@ module VCAP
 
         page_num = 1
         while  !url.nil? do
-          cc_http_request(:uri => url, :method => "get", :head => @cc_req_hdrs, :need_raise => true) do |http|
+          cc_http_request(:uri => url,
+                          :method => "get",
+                          :head => @cc_req_hdrs,
+                          :need_raise => true) do |http|
             result = nil
             if (200..299) === http.response_header.status
               result = JSON.parse(http.response)
@@ -404,8 +422,10 @@ module VCAP
         @logger.debug("CCNG Catalog Manager: #{update ? "Update" : "Advertise"} service offering #{offering.inspect} to cloud_controller: #{uri}")
 
         method = update ? "put" : "post"
-        cc_http_request(:uri => uri, :method => method,
-                        :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(offering)) do |http|
+        cc_http_request(:uri => uri,
+                        :method => method,
+                        :head => @cc_req_hdrs,
+                        :body => Yajl::Encoder.encode(offering)) do |http|
           if ! http.error
             if (200..299) === http.response_header.status
               response = JSON.parse(http.response)
@@ -424,12 +444,14 @@ module VCAP
 
       def add_or_update_plan(plan, plan_guid = nil)
         add_plan = plan_guid.nil?
-
         uri = add_plan ? @service_plans_uri : "#{@service_plans_uri}/#{plan_guid}"
         @logger.info("CCNG Catalog Manager: #{add_plan ? "Add new plan" : "Update plan (guid: #{plan_guid}) to"}: #{plan.inspect} via #{uri}")
 
         method = add_plan ? "post" : "put"
-        cc_http_request(:uri => uri, :method => method, :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(plan)) do |http|
+        cc_http_request(:uri => uri,
+                        :method => method,
+                        :head => @cc_req_hdrs,
+                        :body => Yajl::Encoder.encode(plan)) do |http|
           if ! http.error
             if (200..299) === http.response_header.status
               @logger.info("CCNG Catalog Manager: Successfully #{add_plan ? "added" : "updated"} service plan: #{plan.inspect}")
@@ -467,7 +489,9 @@ module VCAP
         uri = "#{@offering_uri}/#{offering_guid}"
         @logger.info("CCNG Catalog Manager: Deleting service offering:#{id} (#{provider}) via #{uri}")
 
-        cc_http_request(:uri => uri, :method => "delete", :head => @cc_req_hdrs) do |http|
+        cc_http_request(:uri => uri,
+                        :method => "delete",
+                        :head => @cc_req_hdrs) do |http|
           if ! http.error
             if (200..299) === http.response_header.status
               @logger.info("CCNG Catalog Manager: Successfully deleted offering: #{id} (#{provider})")
@@ -608,7 +632,10 @@ module VCAP
           "gateway_data" => handle["gateway_data"],
         }
 
-        cc_http_request(:uri => uri, :method => "put", :head => @cc_req_hdrs, :body => Yajl::Encoder.encode(cc_handle)) do |http|
+        cc_http_request(:uri => uri,
+                        :method => "put",
+                        :head => @cc_req_hdrs,
+                        :body => Yajl::Encoder.encode(cc_handle)) do |http|
           if ! http.error
             if http.response_header.status == 200
               @logger.info("CCNG Catalog Manager:(v1) Successful update handle #{handle["service_id"]}")
