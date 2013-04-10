@@ -5,18 +5,6 @@ require 'eventmachine'
 describe NodeTests do
   include VCAP::Services::Internal
 
-  it "should announce on startup" do
-    node = nil
-    provisioner = nil
-    EM.run do
-      # start provisioner then node
-      Do.at(0) { provisioner = NodeTests.create_provisioner }
-      Do.at(1) { node = NodeTests.create_node }
-      Do.at(2) { EM.stop }
-    end
-    provisioner.got_announcement.should be_true
-  end
-
   it "should call varz" do
     node = nil
     provisioner = nil
@@ -39,19 +27,6 @@ describe NodeTests do
       Do.at(12) { EM.stop }
     end
     node.healthz_ok.should == "ok\n"
-  end
-
-  it "should announce on request" do
-    node = nil
-    provisioner = nil
-    EM.run do
-      # start node then provisioner
-      Do.at(0) { node = NodeTests.create_node }
-      Do.at(1) { provisioner = NodeTests.create_provisioner }
-      Do.at(2) { EM.stop }
-    end
-    node.announcement_invoked.should be_true
-    provisioner.got_announcement.should be_true
   end
 
   it "should announce on identical plan" do
@@ -92,23 +67,6 @@ describe NodeTests do
     provisioner.got_announcement.should be_false
   end
 
-  it "should support concurrent provision" do
-    node = nil
-    provisioner = nil
-    EM.run do
-      # start node then provisioner
-      Do.sec(0) { node = NodeTests.create_node }
-      Do.sec(1) { provisioner = NodeTests.create_provisioner }
-      # Start 5 concurrent provision requests, each of which takes 5 seconds to finish
-      # Non-concurrent provision handler won't finish in 10 seconds
-      Do.sec(2) { 5.times { provisioner.send_provision_request } }
-      Do.sec(20) { EM.stop }
-    end
-    node.provision_invoked.should be_true
-    node.provision_times.should == 5
-    provisioner.got_provision_response.should be_true
-  end
-
   it "should handle error in node provision" do
     node = nil
     provisioner = nil
@@ -147,22 +105,6 @@ describe NodeTests do
       Do.sec(10) { EM.stop }
     end
     (original_capacity - node.capacity).should == 0
-  end
-
-  it "should handle long time provision" do
-    node = nil
-    provisioner = nil
-    EM.run do
-      Do.sec(0) do
-        node = NodeTests.create_node;
-        node.stub!(:provision){ sleep 6; {"name" => "test"} }
-        node.should_receive(:provision)
-      end
-      Do.sec(1) { provisioner = NodeTests.create_error_provisioner}
-      Do.sec(2) { provisioner.send_provision_request }
-      Do.sec(10) { EM.stop }
-    end
-    provisioner.response["success"].should be_true
   end
 
   it "should support unprovision" do
@@ -244,23 +186,6 @@ describe NodeTests do
     node.bind_invoked.should be_true
     provisioner.response.should =~ /Service unavailable/
   end
-
-  it "should handle long time bind" do
-    node = nil
-    provisioner = nil
-    EM.run do
-      Do.sec(0) do
-        node = NodeTests.create_node;
-        node.stub!(:bind){ sleep 6; BindResponse.new }
-        node.should_receive(:bind)
-      end
-      Do.sec(1) { provisioner = NodeTests.create_error_provisioner}
-      Do.sec(2) { provisioner.send_bind_request }
-      Do.sec(10) { EM.stop }
-    end
-    provisioner.response["success"].should be_true
-  end
-
 
   it "should support unbind" do
     node = nil

@@ -22,21 +22,6 @@ describe ProvisionerTests do
       provisioner.node_count.should == 1
     end
 
-    it "should autodiscover 1 node when started second (#{version})" do
-      provisioner = nil
-      node = nil
-      EM.run do
-        # start node, then provisioner
-        Do.at(0) { node = ProvisionerTests.create_node(1) }
-        Do.at(1) do
-          options = {:cc_api_version => version}
-          provisioner = ProvisionerTests.create_provisioner(options)
-        end
-        Do.at(2) { EM.stop }
-      end
-      provisioner.node_count.should == 1
-    end
-
     it "should autodiscover 3 nodes when started first (#{version})" do
       provisioner = nil
       node1 = nil
@@ -51,25 +36,6 @@ describe ProvisionerTests do
         Do.at(1) { node1 = ProvisionerTests.create_node(1) }
         Do.at(2) { node2 = ProvisionerTests.create_node(2) }
         Do.at(3) { node3 = ProvisionerTests.create_node(3) }
-        Do.at(4) { EM.stop }
-      end
-      provisioner.node_count.should == 3
-    end
-
-    it "should autodiscover 3 nodes when started second (#{version})" do
-      provisioner = nil
-      node1 = nil
-      node2 = nil
-      node3 = nil
-      EM.run do
-        # start nodes, then provisioner
-        Do.at(0) { node1 = ProvisionerTests.create_node(1) }
-        Do.at(1) { node2 = ProvisionerTests.create_node(2) }
-        Do.at(2) { node3 = ProvisionerTests.create_node(3) }
-        Do.at(3) do
-          options = {:cc_api_version => version}
-          provisioner = ProvisionerTests.create_provisioner(options)
-        end
         Do.at(4) { EM.stop }
       end
       provisioner.node_count.should == 3
@@ -445,39 +411,6 @@ describe ProvisionerTests do
       end
       gateway.error_msg['status'].should == 500
       gateway.error_msg['msg']['code'].should == 30500
-    end
-
-    it "should support varz (#{version})" do
-      provisioner = nil
-      gateway = nil
-      node = nil
-      prov_svcs_before = nil
-      prov_svcs_after = nil
-      varz_invoked_before = nil
-      varz_invoked_after = nil
-      EM.run do
-        Do.at(0) do
-          options = {:cc_api_version => version}
-          provisioner = ProvisionerTests.create_provisioner(options)
-        end
-        Do.at(1) { gateway = ProvisionerTests.create_gateway(provisioner) }
-        Do.at(2) { node = ProvisionerTests.create_node(1) }
-        Do.at(3) { gateway.send_provision_request }
-        Do.at(4) { gateway.send_bind_request }
-        Do.at(5) {
-          prov_svcs_before = Marshal.dump(provisioner.get_all_handles)
-          varz_invoked_before = provisioner.varz_invoked
-        }
-        # varz is invoked 5 seconds after provisioner is created
-        Do.at(11) {
-          prov_svcs_after = Marshal.dump(provisioner.get_all_handles)
-          varz_invoked_after = provisioner.varz_invoked
-        }
-        Do.at(12) { EM.stop }
-      end
-      varz_invoked_before.should be_false
-      varz_invoked_after.should be_true
-      prov_svcs_before.should == prov_svcs_after
     end
 
     it "should allow over provisioning when it is configured so (#{version})" do
