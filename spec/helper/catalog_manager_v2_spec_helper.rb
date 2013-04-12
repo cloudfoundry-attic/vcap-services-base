@@ -5,7 +5,7 @@ module VCAP::Services
   module CatalogManagerV2Helper
 
     def load_config
-      config = {
+      {
         :cloud_controller_uri => 'api.vcap.me',
         :service_auth_tokens => {
           :test_core => 'token',

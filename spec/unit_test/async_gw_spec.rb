@@ -4,14 +4,12 @@ require 'eventmachine'
 
 describe AsyncGatewayTests do
 
-  it "should be able to return error when cc uri is invalid" do
-    cc = nil
-    gateway = nil
-    EM.run do
-      Do.at(0) { cc = AsyncGatewayTests.create_cloudcontroller ; cc.start }
-      Do.at(1) { gateway = AsyncGatewayTests.create_nice_gateway_with_invalid_cc; gateway.start }
-      Do.at(2) { cc.stop ; gateway.stop ; EM.stop }
-    end
+  before do
+    WebMock.allow_net_connect!
+  end
+
+  after do
+    WebMock.disable_net_connect!(:allow_localhost => true)
   end
 
   it "should invoke check_orphan in check_orphan_interval time" do

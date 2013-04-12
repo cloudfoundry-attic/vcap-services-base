@@ -7,6 +7,7 @@ require 'rubygems'
 require 'rspec'
 require 'logger'
 
+require 'webmock/rspec'
 require "base_spec_helper"
 require "node_spec_helper"
 require "provision_spec_helper"
@@ -270,6 +271,7 @@ end
 
 RSpec.configure do |c|
   c.include SpecHelpers
+  WebMock.disable_net_connect!(:allow_localhost => true)
 end
 
 RSpec::Matchers.define :json_match do |matcher|
@@ -287,5 +289,3 @@ RSpec::Matchers.define :json_match do |matcher|
     end
   end
 end
-
-
