@@ -90,14 +90,13 @@ module VCAP
           end
         end
       end
+
       # wrapper of create_http_request, refresh @cc_req_hdrs if cc returns 401
       def cc_http_request(args, &block)
         retriable_hitter = RetriableCloudControllerHitter.new(args[:max_attempts]||2,
                                                               self.method(:create_http_request),
                                                               @logger)
-
         args[:uri] = "#{@cld_ctrl_uri}#{args[:uri]}"
-
         retriable_hitter.make_request(args, method(:refresh_client_auth_token), &block)
       end
 
@@ -174,6 +173,7 @@ module VCAP
           rescue => e
             failed = true
             @logger.error("CCNG Catalog Manager: Failed to get currently advertized offerings from cc: #{e.inspect}")
+            @logger.error(e.backtrace)
           ensure
             update_stats("refresh_cc_services", failed)
           end
@@ -186,6 +186,7 @@ module VCAP
           rescue => e1
             failed = true
             @logger.error("CCNG Catalog Manager: Failed to get latest service catalog: #{e1.inspect}")
+            @logger.error(e1.backtrace)
           ensure
             update_stats("refresh_catalog", failed)
           end
@@ -205,6 +206,7 @@ module VCAP
 
       def advertise_services(active=true)
         @logger.info("CCNG Catalog Manager: #{active ? "Activate" : "Deactivate"} services...")
+
         if !(@current_catalog && @catalog_in_ccdb)
           @logger.warn("CCNG Catalog Manager: Cannot advertise services since the offerings list from either the catalog or ccdb could not be retrieved")
           return
@@ -217,7 +219,8 @@ module VCAP
 
         registered_offerings = @catalog_in_ccdb.keys
         catalog_offerings = @current_catalog.keys
-        @logger.debug("CCNG Catalog Manager: Registered in ccng: #{registered_offerings.inspect}, Current catalog: #{catalog_offerings.inspect}")
+        @logger.debug("CCNG Catalog Manager: Registered in ccng: #{registered_offerings.inspect},
+                      Current catalog: #{catalog_offerings.inspect}")
 
         # POST updates to active and disabled services
         # Active offerings is intersection of catalog and ccdb offerings, we only need to update these
@@ -280,6 +283,7 @@ module VCAP
         req[:acls]        = svc["acls"]
         req[:url]         = svc["url"]
         req[:timeout]     = svc["timeout"]
+        req[:extra]       = svc["extra"]
 
         # NOTE: In CCNG, multiple versions is expected to be supported via multiple plans
         # The gateway will have to maintain a mapping of plan-name to version so that
