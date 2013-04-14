@@ -163,7 +163,7 @@ module VCAP
 
       ######### Catalog update functionality #######
 
-      def update_catalog(activate, load_catalog_callback, after_update_callback = nil)
+      def update_catalog(activate, catalog_loader, after_update_callback = nil)
         f = Fiber.new do
           # Load offering from ccdb
           @logger.info("CCNG Catalog Manager: Loading services from CC")
@@ -182,7 +182,7 @@ module VCAP
           @logger.info("CCNG Catalog Manager: Loading current catalog...")
           failed = false
           begin
-            @current_catalog = load_catalog_callback.call()
+            @current_catalog = catalog_loader.call()
           rescue => e1
             failed = true
             @logger.error("CCNG Catalog Manager: Failed to get latest service catalog: #{e1.inspect}")
@@ -204,72 +204,6 @@ module VCAP
         f.resume
       end
 
-      def advertise_services(active=true)
-        @logger.info("CCNG Catalog Manager: #{active ? "Activate" : "Deactivate"} services...")
-
-        if !(@current_catalog && @catalog_in_ccdb)
-          @logger.warn("CCNG Catalog Manager: Cannot advertise services since the offerings list from either the catalog or ccdb could not be retrieved")
-          return
-        end
-
-        # Set services missing from catalog offerings to inactive
-        # Process all services currently in catalog
-        # NOTE: Existing service offerings in ccdb will have a guid and require a PUT operation for update
-        # New service offerings will not have guid and require POST operation for create
-
-        registered_offerings = @catalog_in_ccdb.keys
-        catalog_offerings = @current_catalog.keys
-        @logger.debug("CCNG Catalog Manager: Registered in ccng: #{registered_offerings.inspect},
-                      Current catalog: #{catalog_offerings.inspect}")
-
-        # POST updates to active and disabled services
-        # Active offerings is intersection of catalog and ccdb offerings, we only need to update these
-        active_offerings = catalog_offerings & registered_offerings
-        active_offerings.each do |label|
-          svc = @current_catalog[label]
-          req, plans = generate_cc_advertise_offering_request(svc, active)
-          guid = (@catalog_in_ccdb[label])["guid"]
-
-          plans_to_add, plans_to_update = process_plans(plans, @catalog_in_ccdb[label]["service"]["plans"])
-
-          @logger.debug("CCNG Catalog Manager: Refresh offering: #{req.inspect}")
-          advertise_service_to_cc(req, guid, plans_to_add, plans_to_update)
-        end
-
-        # Inactive offerings is ccdb_offerings - active_offerings
-        inactive_offerings = registered_offerings - active_offerings
-        inactive_offerings.each do |label|
-          svc = @catalog_in_ccdb[label]
-          guid = svc["guid"]
-          service = svc["service"]
-
-          req, plans = generate_cc_advertise_offering_request(service, false)
-
-          @logger.debug("CCNG Catalog Manager: Deactivating offering: #{req.inspect}")
-          advertise_service_to_cc(req, guid, [], {}) # don't touch plans, just deactivate
-        end
-
-        # PUT new offerings (yet to be registered) = catalog_offerings - active_offerings
-        new_offerings = catalog_offerings - active_offerings
-        new_offerings.each do |label|
-          svc = @current_catalog[label]
-          req, plans = generate_cc_advertise_offering_request(svc, active)
-          plans_to_add = plans.values
-
-          @logger.debug("CCNG Catalog Manager: Add new offering: #{req.inspect}")
-          advertise_service_to_cc(req, nil, plans_to_add, {}) # nil guid => new service, so add all plans
-        end
-
-        active_count = active ? active_offerings.size + new_offerings.size : 0
-        disabled_count = inactive_offerings.size + (active ? 0 : active_offerings.size)
-
-        @logger.info("CCNG Catalog Manager: Found #{active_offerings.size} active, #{disabled_count} disabled and #{new_offerings.size} new service offerings")
-
-        @gateway_stats_lock.synchronize do
-          @gateway_stats[:active_offerings] = active_count
-          @gateway_stats[:disabled_services] = disabled_count
-        end
-      end
 
       def generate_cc_advertise_offering_request(svc, active = true)
         req = {}
@@ -655,6 +589,73 @@ module VCAP
         end
       end
 
+      private
+      def advertise_services(active=true)
+        @logger.info("CCNG Catalog Manager: #{active ? "Activate" : "Deactivate"} services...")
+
+        if !(@current_catalog && @catalog_in_ccdb)
+          @logger.warn("CCNG Catalog Manager: Cannot advertise services since the offerings list from either the catalog or ccdb could not be retrieved")
+          return
+        end
+
+        # Set services missing from catalog offerings to inactive
+        # Process all services currently in catalog
+        # NOTE: Existing service offerings in ccdb will have a guid and require a PUT operation for update
+        # New service offerings will not have guid and require POST operation for create
+
+        registered_offerings = @catalog_in_ccdb.keys
+        catalog_offerings = @current_catalog.keys
+        @logger.debug("CCNG Catalog Manager: Registered in ccng: #{registered_offerings.inspect},
+                      Current catalog: #{catalog_offerings.inspect}")
+
+        # POST updates to active and disabled services
+        # Active offerings is intersection of catalog and ccdb offerings, we only need to update these
+        active_offerings = catalog_offerings & registered_offerings
+        active_offerings.each do |label|
+          svc = @current_catalog[label]
+          req, plans = generate_cc_advertise_offering_request(svc, active)
+          guid = (@catalog_in_ccdb[label])["guid"]
+
+          plans_to_add, plans_to_update = process_plans(plans, @catalog_in_ccdb[label]["service"]["plans"])
+
+          @logger.debug("CCNG Catalog Manager: Refresh offering: #{req.inspect}")
+          advertise_service_to_cc(req, guid, plans_to_add, plans_to_update)
+        end
+
+        # Inactive offerings is ccdb_offerings - active_offerings
+        inactive_offerings = registered_offerings - active_offerings
+        inactive_offerings.each do |label|
+          svc = @catalog_in_ccdb[label]
+          guid = svc["guid"]
+          service = svc["service"]
+
+          req, plans = generate_cc_advertise_offering_request(service, false)
+
+          @logger.debug("CCNG Catalog Manager: Deactivating offering: #{req.inspect}")
+          advertise_service_to_cc(req, guid, [], {}) # don't touch plans, just deactivate
+        end
+
+        # PUT new offerings (yet to be registered) = catalog_offerings - active_offerings
+        new_offerings = catalog_offerings - active_offerings
+        new_offerings.each do |label|
+          svc = @current_catalog[label]
+          req, plans = generate_cc_advertise_offering_request(svc, active)
+          plans_to_add = plans.values
+
+          @logger.debug("CCNG Catalog Manager: Add new offering: #{req.inspect}")
+          advertise_service_to_cc(req, nil, plans_to_add, {}) # nil guid => new service, so add all plans
+        end
+
+        active_count = active ? active_offerings.size + new_offerings.size : 0
+        disabled_count = inactive_offerings.size + (active ? 0 : active_offerings.size)
+
+        @logger.info("CCNG Catalog Manager: Found #{active_offerings.size} active, #{disabled_count} disabled and #{new_offerings.size} new service offerings")
+
+        @gateway_stats_lock.synchronize do
+          @gateway_stats[:active_offerings] = active_count
+          @gateway_stats[:disabled_services] = disabled_count
+        end
+      end
     end
   end
 end
