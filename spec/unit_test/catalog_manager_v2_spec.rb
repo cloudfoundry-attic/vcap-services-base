@@ -23,7 +23,7 @@ describe VCAP::Services::CatalogManagerV2 do
     @cm.should_receive(:create_http_request).and_return(@normal_request)
     @run_once = false
     @cm.cc_http_request(:uri => config[:cloud_controller_uri],
-                      :method => 'get') do |http|
+                        :method => 'get') do |http|
       @run_once = true
       http.response_header.status.should == 200
     end

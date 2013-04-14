@@ -3,7 +3,6 @@ require 'helper/spec_helper'
 
 module VCAP::Services
   module CatalogManagerV2Helper
-
     def load_config
       config = {
         :cloud_controller_uri => 'api.vcap.me',
