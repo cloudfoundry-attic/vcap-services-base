@@ -162,7 +162,6 @@ module VCAP
       end
 
       ######### Catalog update functionality #######
-
       def update_catalog(activate, catalog_loader, after_update_callback = nil)
         f = Fiber.new do
           # Load offering from ccdb
@@ -305,7 +304,6 @@ module VCAP
         plans_to_update.each { |plan_guid, plan|
           add_or_update_plan(plan, plan_guid)
         }
-
         return true
       end
 
@@ -380,30 +378,6 @@ module VCAP
         return service_guid
       end
 
-      def add_or_update_plan(plan, plan_guid = nil)
-        add_plan = plan_guid.nil?
-        uri = add_plan ? @service_plans_uri : "#{@service_plans_uri}/#{plan_guid}"
-        @logger.info("CCNG Catalog Manager: #{add_plan ? "Add new plan" : "Update plan (guid: #{plan_guid}) to"}: #{plan.inspect} via #{uri}")
-
-        method = add_plan ? "post" : "put"
-        cc_http_request(:uri => uri,
-                        :method => method,
-                        :head => @cc_req_hdrs,
-                        :body => Yajl::Encoder.encode(plan)) do |http|
-          if ! http.error
-            if (200..299) === http.response_header.status
-              @logger.info("CCNG Catalog Manager: Successfully #{add_plan ? "added" : "updated"} service plan: #{plan.inspect}")
-              return true
-            else
-              @logger.error("CCNG Catalog Manager: Failed to #{add_plan ? "add" : "update"} plan: #{plan.inspect}, status=#{http.response_header.status}")
-            end
-          else
-            @logger.error("CCNG Catalog Manager: Failed to #{add_plan ? "add" : "update"} plan: #{plan.inspect}: #{http.error}")
-          end
-        end
-
-        return false
-      end
 
       def delete_offering(id, version, provider)
 
@@ -590,6 +564,31 @@ module VCAP
       end
 
       private
+      def add_or_update_plan(plan, plan_guid = nil)
+        add_plan = plan_guid.nil?
+        uri = add_plan ? @service_plans_uri : "#{@service_plans_uri}/#{plan_guid}"
+        @logger.info("CCNG Catalog Manager: #{add_plan ? "Add new plan" : "Update plan (guid: #{plan_guid}) to"}: #{plan.inspect} via #{uri}")
+
+        method = add_plan ? "post" : "put"
+        cc_http_request(:uri => uri,
+                        :method => method,
+                        :head => @cc_req_hdrs,
+                        :body => Yajl::Encoder.encode(plan)) do |http|
+          if ! http.error
+            if (200..299) === http.response_header.status
+              @logger.info("CCNG Catalog Manager: Successfully #{add_plan ? "added" : "updated"} service plan: #{plan.inspect}")
+              return true
+            else
+              @logger.error("CCNG Catalog Manager: Failed to #{add_plan ? "add" : "update"} plan: #{plan.inspect}, status=#{http.response_header.status}")
+            end
+          else
+            @logger.error("CCNG Catalog Manager: Failed to #{add_plan ? "add" : "update"} plan: #{plan.inspect}: #{http.error}")
+          end
+        end
+
+        return false
+      end
+
       def advertise_services(active=true)
         @logger.info("CCNG Catalog Manager: #{active ? "Activate" : "Deactivate"} services...")
 
