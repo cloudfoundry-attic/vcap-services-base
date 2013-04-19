@@ -48,35 +48,35 @@ describe VCAP::Services::CatalogManagerV2 do
   end
 
   it "should read multiple pages from cloud_controller" do
-      config = load_config
-      @cm = described_class.new(config)
+    config = load_config
+    @cm = described_class.new(config)
 
-      @page_1 = mock("page_1")
-      @page_1.stub_chain("response_header.status").and_return(200)
-      @page_1.stub("response") {
-        {
-          "total_results" => 2, "total_pages" => 2, "prev_url" => nil, "next_url" => "/page/2",
-          "resources" => [ "a", "b" ]
-        }.to_json
-      }
+    @page_1 = mock("page_1")
+    @page_1.stub_chain("response_header.status").and_return(200)
+    @page_1.stub("response") {
+      {
+        "total_results" => 2, "total_pages" => 2, "prev_url" => nil, "next_url" => "/page/2",
+        "resources" => [ "a", "b" ]
+      }.to_json
+    }
 
-      @page_2 = mock("page_2")
-      @page_2.stub_chain("response_header.status").and_return(200)
-      @page_2.stub("response") {
-        {
-          "total_results" => 2, "total_pages" => 2, "prev_url" => "/page/1", "next_url" => nil,
-          "resources" => [ "c", "d" ]
-        }.to_json
-      }
+    @page_2 = mock("page_2")
+    @page_2.stub_chain("response_header.status").and_return(200)
+    @page_2.stub("response") {
+      {
+        "total_results" => 2, "total_pages" => 2, "prev_url" => "/page/1", "next_url" => nil,
+        "resources" => [ "c", "d" ]
+      }.to_json
+    }
 
-      @cm.should_receive(:create_http_request).and_return(@page_1)
-      @cm.should_receive(:create_http_request).and_return(@page_2)
+    @cm.should_receive(:create_http_request).and_return(@page_1)
+    @cm.should_receive(:create_http_request).and_return(@page_2)
 
-      response = []
-      @cm.perform_multiple_page_get("/page", "Test Entries") do |r|
-        response << r
-      end
-      response.size.should == 4
-      response.should eq(["a", "b", "c", "d"])
+    response = []
+    @cm.perform_multiple_page_get("/page", "Test Entries") do |r|
+      response << r
+    end
+    response.size.should == 4
+    response.should eq(["a", "b", "c", "d"])
   end
 end

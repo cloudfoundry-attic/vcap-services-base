@@ -233,7 +233,8 @@ module VCAP
             plans[plan_name] = {
               "name"        => plan_name,
               "description" => v[:description],
-              "free"        => v[:free]
+              "free"        => v[:free],
+              "extra"       => v[:extra],
             }
           }
         else
