@@ -321,14 +321,16 @@ module VCAP
         active_plans.each { |plan_name|
           plan_details = plans_from_catalog[plan_name]
 
-          # The changeable aspects are the descritption and free flag
+          # The changeable aspects are the description and free flag
           if (plan_details["description"] != plans_already_in_cc[plan_name]["description"] ||
-              plan_details["free"] != plans_already_in_cc[plan_name]["free"])
+              plan_details["free"] != plans_already_in_cc[plan_name]["free"] ||
+              plan_details["extra"] != plans_already_in_cc[plan_name]["extra"])
             plan_guid = plans_already_in_cc[plan_name]["guid"]
             plans_to_update[plan_guid] = {
               "name"        => plan_name,
               "description" => plan_details["description"],
-              "free"        => plan_details["free"]
+              "free"        => plan_details["free"],
+              "extra"        => plan_details["extra"],
             }
             @logger.debug("CCNG Catalog Manager: Updating plan: #{plan_name} to: #{plans_to_update[plan_guid].inspect}")
           else
