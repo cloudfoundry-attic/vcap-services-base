@@ -10,6 +10,8 @@ module VCAP
     class CatalogManagerV2 < VCAP::Services::CatalogManagerBase
       HTTP_UNAUTHENTICATED_CODE = 401
 
+      attr_reader :logger
+
       def initialize(opts)
         super(opts)
 
@@ -54,7 +56,7 @@ module VCAP
           token = ti.implicit_grant_with_creds(credentials).info
           uaa_client_auth_token = "#{token["token_type"]} #{token["access_token"]}"
           expire_time = token["expires_in"].to_i
-          @logger.info("Successfully refresh auth token for:\
+          logger.info("Successfully refresh auth token for:\
                        #{credentials[:username]}, token expires in \
                        #{expire_time} seconds.")
         end
@@ -78,7 +80,7 @@ module VCAP
           attempts=0
           while true
             attempts += 1
-            @logger.debug("#{args[:method].upcase} - #{args[:uri]}")
+            logger.debug("#{args[:method].upcase} - #{args[:uri]}")
             http = http_request_creator.call(args)
             if attempts < max_attempts &&
               http.response_header.status == HTTP_UNAUTHENTICATED_CODE
@@ -95,7 +97,7 @@ module VCAP
       def cc_http_request(args, &block)
         retriable_hitter = RetriableCloudControllerHitter.new(args[:max_attempts]||2,
                                                               self.method(:create_http_request),
-                                                              @logger)
+                                                              logger)
         args[:uri] = "#{@cld_ctrl_uri}#{args[:uri]}"
         retriable_hitter.make_request(args, method(:refresh_client_auth_token), &block)
       end
@@ -107,7 +109,7 @@ module VCAP
       def perform_multiple_page_get(seed_url, description)
         url = seed_url
 
-        @logger.info("Fetching #{description} from: #{seed_url}")
+        logger.info("Fetching #{description} from: #{seed_url}")
 
         page_num = 1
         while  !url.nil? do
@@ -129,7 +131,7 @@ module VCAP
             page_num += 1
 
             url = result["next_url"]
-            @logger.debug("CCNG Catalog Manager: Fetching #{description} pg. #{page_num} from: #{url}") unless url.nil?
+            logger.debug("CCNG Catalog Manager: Fetching #{description} pg. #{page_num} from: #{url}") unless url.nil?
           end
         end
       end
@@ -165,38 +167,38 @@ module VCAP
       def update_catalog(activate, catalog_loader, after_update_callback = nil)
         f = Fiber.new do
           # Load offering from ccdb
-          @logger.info("CCNG Catalog Manager: Loading services from CC")
+          logger.info("CCNG Catalog Manager: Loading services from CC")
           failed = false
           begin
             @catalog_in_ccdb = load_registered_services_from_cc
           rescue => e
             failed = true
-            @logger.error("CCNG Catalog Manager: Failed to get currently advertized offerings from cc: #{e.inspect}")
-            @logger.error(e.backtrace)
+            logger.error("CCNG Catalog Manager: Failed to get currently advertized offerings from cc: #{e.inspect}")
+            logger.error(e.backtrace)
           ensure
             update_stats("refresh_cc_services", failed)
           end
 
           # Load current catalog (e.g. config, external marketplace etc...)
-          @logger.info("CCNG Catalog Manager: Loading current catalog...")
+          logger.info("CCNG Catalog Manager: Loading current catalog...")
           failed = false
           begin
             @current_catalog = catalog_loader.call()
           rescue => e1
             failed = true
-            @logger.error("CCNG Catalog Manager: Failed to get latest service catalog: #{e1.inspect}")
-            @logger.error(e1.backtrace)
+            logger.error("CCNG Catalog Manager: Failed to get latest service catalog: #{e1.inspect}")
+            logger.error(e1.backtrace)
           ensure
             update_stats("refresh_catalog", failed)
           end
 
           # Update
-          @logger.info("CCNG Catalog Manager: Updating Offerings...")
+          logger.info("CCNG Catalog Manager: Updating Offerings...")
           advertise_services(activate)
 
           # Post-update processing
           if after_update_callback
-            @logger.info("CCNG Catalog Manager: Invoking after update callback...")
+            logger.info("CCNG Catalog Manager: Invoking after update callback...")
             after_update_callback.call()
           end
         end
@@ -245,7 +247,7 @@ module VCAP
       end
 
       def load_registered_services_from_cc
-        @logger.debug("CCNG Catalog Manager: Getting services listing from cloud_controller")
+        logger.debug("CCNG Catalog Manager: Getting services listing from cloud_controller")
         registered_services = {}
 
         perform_multiple_page_get(@service_list_uri, "Registered Offerings") { |s|
@@ -255,7 +257,7 @@ module VCAP
             entity = s["entity"]
 
             plans = {}
-            @logger.debug("CCNG Catalog Manager: Getting service plans for: #{entity["label"]}/#{entity["provider"]}")
+            logger.debug("CCNG Catalog Manager: Getting service plans for: #{entity["label"]}/#{entity["provider"]}")
             perform_multiple_page_get(entity["service_plans_url"], "Service Plans") { |p|
               plans[p["entity"]["name"]] = {
                 "guid"        => p["metadata"]["guid"],
@@ -280,7 +282,7 @@ module VCAP
               "service" => svc,
             }
 
-            @logger.debug("CCNG Catalog Manager: Found #{key} = #{registered_services[key].inspect}")
+            logger.debug("CCNG Catalog Manager: Found #{key} = #{registered_services[key].inspect}")
           end
         }
 
@@ -293,7 +295,7 @@ module VCAP
 
         return true if !offering[:active] # If deactivating, don't update plans
 
-        @logger.debug("CCNG Catalog Manager: Processing plans for: #{service_guid} -Add: #{plans_to_add.size} plans, Update: #{plans_to_update.size} plans")
+        logger.debug("CCNG Catalog Manager: Processing plans for: #{service_guid} -Add: #{plans_to_add.size} plans, Update: #{plans_to_update.size} plans")
 
         # Add plans to add
         plans_to_add.each { |plan|
@@ -332,23 +334,23 @@ module VCAP
               "free"        => plan_details["free"],
               "extra"        => plan_details["extra"],
             }
-            @logger.debug("CCNG Catalog Manager: Updating plan: #{plan_name} to: #{plans_to_update[plan_guid].inspect}")
+            logger.debug("CCNG Catalog Manager: Updating plan: #{plan_name} to: #{plans_to_update[plan_guid].inspect}")
           else
-            @logger.debug("CCNG Catalog Manager: No changes to plan: #{plan_name}")
+            logger.debug("CCNG Catalog Manager: No changes to plan: #{plan_name}")
           end
         }
 
         # Add new plans -> catalog_plans - active_plans
         new_plans = catalog_plans - active_plans
         new_plans.each { |plan_name|
-          @logger.debug("CCNG Catalog Manager: Adding new plan: #{plans_from_catalog[plan_name].inspect}")
+          logger.debug("CCNG Catalog Manager: Adding new plan: #{plans_from_catalog[plan_name].inspect}")
           plans_to_add << plans_from_catalog[plan_name]
         }
 
         # TODO: What to do with deactivated plans?
         # Should handle this manually for now?
         deactivated_plans = registered_plans - active_plans
-        @logger.warn("CCNG Catalog Manager: Found #{deactivated_plans.size} deactivated plans: - #{deactivated_plans.inspect}") unless deactivated_plans.empty?
+        logger.warn("CCNG Catalog Manager: Found #{deactivated_plans.size} deactivated plans: - #{deactivated_plans.inspect}") unless deactivated_plans.empty?
 
         [ plans_to_add, plans_to_update ]
       end
@@ -358,7 +360,7 @@ module VCAP
         uri = update ? "#{@offering_uri}/#{guid}" : @offering_uri
         service_guid = nil
 
-        @logger.debug("CCNG Catalog Manager: #{update ? "Update" : "Advertise"} service offering #{offering.inspect} to cloud_controller: #{uri}")
+        logger.debug("CCNG Catalog Manager: #{update ? "Update" : "Advertise"} service offering #{offering.inspect} to cloud_controller: #{uri}")
 
         method = update ? "put" : "post"
         cc_http_request(:uri => uri,
@@ -368,13 +370,13 @@ module VCAP
           if ! http.error
             if (200..299) === http.response_header.status
               response = JSON.parse(http.response)
-              @logger.info("CCNG Catalog Manager: Advertise offering response (code=#{http.response_header.status}): #{response.inspect}")
+              logger.info("CCNG Catalog Manager: Advertise offering response (code=#{http.response_header.status}): #{response.inspect}")
               service_guid = response["metadata"]["guid"]
             else
-              @logger.error("CCNG Catalog Manager: Failed advertise offerings:#{offering.inspect}, status=#{http.response_header.status}")
+              logger.error("CCNG Catalog Manager: Failed advertise offerings:#{offering.inspect}, status=#{http.response_header.status}")
             end
           else
-            @logger.error("CCNG Catalog Manager: Failed advertise offerings:#{offering.inspect}: #{http.error}")
+            logger.error("CCNG Catalog Manager: Failed advertise offerings:#{offering.inspect}: #{http.error}")
           end
         end
 
@@ -397,25 +399,25 @@ module VCAP
         offering_guid = registered_services[offering_key]["guid"] if registered_services.has_key?(offering_key)
 
         if !offering_guid
-          @logger.error("CCNG Catalog Manager: Offering #{id} (#{provider}) is not registered")
+          logger.error("CCNG Catalog Manager: Offering #{id} (#{provider}) is not registered")
           return
         end
 
         uri = "#{@offering_uri}/#{offering_guid}"
-        @logger.info("CCNG Catalog Manager: Deleting service offering:#{id} (#{provider}) via #{uri}")
+        logger.info("CCNG Catalog Manager: Deleting service offering:#{id} (#{provider}) via #{uri}")
 
         cc_http_request(:uri => uri,
                         :method => "delete",
                         :head => @cc_req_hdrs) do |http|
           if ! http.error
             if (200..299) === http.response_header.status
-              @logger.info("CCNG Catalog Manager: Successfully deleted offering: #{id} (#{provider})")
+              logger.info("CCNG Catalog Manager: Successfully deleted offering: #{id} (#{provider})")
               return true
             else
-              @logger.error("CCNG Catalog Manager: Failed to delete offering: #{id} (#{provider}), status=#{http.response_header.status}")
+              logger.error("CCNG Catalog Manager: Failed to delete offering: #{id} (#{provider}), status=#{http.response_header.status}")
             end
           else
-            @logger.error("CCNG Catalog Manager: Failed to delete offering: #{id} (#{provider}) due to: #{http.error}")
+            logger.error("CCNG Catalog Manager: Failed to delete offering: #{id} (#{provider}) due to: #{http.error}")
           end
         end
 
@@ -426,14 +428,14 @@ module VCAP
       # this function allows user gateway to fetch all the instance and binding handles
       # from cloud_controller_ng with a certain service label
       def fetch_handles_from_cc(service_label, after_fetch_callback)
-        @logger.info("CCNG Catalog Manager:(v2) Fetching all handles from cloud controller...")
+        logger.info("CCNG Catalog Manager:(v2) Fetching all handles from cloud controller...")
         return unless after_fetch_callback
 
         @fetching_handles = true
 
         instance_handles = fetch_all_instance_handles_from_cc
         binding_handles = fetch_all_binding_handles_from_cc(instance_handles)
-        @logger.info("CCNG Catalog Manager:(v2) Successfully fetched all handles from cloud controller...")
+        logger.info("CCNG Catalog Manager:(v2) Successfully fetched all handles from cloud controller...")
 
         handles = [instance_handles, binding_handles]
         handles = VCAP::Services::Api::ListHandlesResponse.decode(Yajl::Encoder.encode({:handles => handles}))
@@ -443,7 +445,7 @@ module VCAP
       end
 
       def fetch_all_instance_handles_from_cc
-        @logger.info("CCNG Catalog Manager:(v2) Fetching all service instance handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
+        logger.info("CCNG Catalog Manager:(v2) Fetching all service instance handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
         instance_handle_list = {}
 
         registered_services = load_registered_services_from_cc
@@ -456,12 +458,12 @@ module VCAP
             instance_handle_list.merge!(instance_handles) if instance_handles
           end
         end
-        @logger.info("CCNG Catalog Manager:(v2) Successfully fetched all service instance handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
+        logger.info("CCNG Catalog Manager:(v2) Successfully fetched all service instance handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
         instance_handle_list
       end
 
       def fetch_all_binding_handles_from_cc(instance_handles)
-        @logger.info("CCNG Catalog Manager:(v2) Fetching all service binding handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
+        logger.info("CCNG Catalog Manager:(v2) Fetching all service binding handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
         binding_handles_list = {}
 
         # currently we will fetch each binding handle according to instance handle
@@ -471,7 +473,7 @@ module VCAP
           binding_handles = fetch_binding_handles_from_cc(binding_handles_query)
           binding_handles_list.merge!(binding_handles) if binding_handles
         end
-        @logger.info("CCNG Catalog Manager:(v2) Successfully fetched all service binding handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
+        logger.info("CCNG Catalog Manager:(v2) Successfully fetched all service binding handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
         binding_handles_list
       end
 
@@ -481,7 +483,7 @@ module VCAP
       #
       # @param string instance_handles_query
       def fetch_instance_handles_from_cc(instance_handles_query)
-        @logger.info("CCNG Catalog Manager:(v2) Fetching service instance handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}#{instance_handles_query}")
+        logger.info("CCNG Catalog Manager:(v2) Fetching service instance handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}#{instance_handles_query}")
 
         instance_handles = {}
         # currently we are fetching all the service instances from different plans;
@@ -495,7 +497,7 @@ module VCAP
         end
         instance_handles
       rescue => e
-        @logger.error("CCNG Catalog Manager:(v2) Error decoding reply from gateway: #{e.backtrace}")
+        logger.error("CCNG Catalog Manager:(v2) Error decoding reply from gateway: #{e.backtrace}")
       end
 
       # fetch binding handles from cloud_controller_ng
@@ -504,7 +506,7 @@ module VCAP
       #
       # @param string binding_handles_query
       def fetch_binding_handles_from_cc(binding_handles_query)
-        @logger.info("CCNG Catalog Manager:(v2) Fetching service binding handles from cloud controller: #{@cld_ctrl_uri}#{@service_bindings_uri}#{binding_handles_query}")
+        logger.info("CCNG Catalog Manager:(v2) Fetching service binding handles from cloud controller: #{@cld_ctrl_uri}#{@service_bindings_uri}#{binding_handles_query}")
 
         binding_handles = {}
         binding_handles_uri = "#{@service_bindings_uri}#{binding_handles_query}"
@@ -516,7 +518,7 @@ module VCAP
         end
         binding_handles
       rescue => e
-        @logger.error("CCNG Catalog Manager:(v2) Error decoding reply from gateway: #{e}")
+        logger.error("CCNG Catalog Manager:(v2) Error decoding reply from gateway: #{e}")
       end
 
       def update_handle_uri(handle)
@@ -528,7 +530,7 @@ module VCAP
       end
 
       def update_handle_in_cc(service_label, handle, on_success_callback, on_failure_callback)
-        @logger.debug("CCNG Catalog Manager:(v1) Update service handle: #{handle.inspect}")
+        logger.debug("CCNG Catalog Manager:(v1) Update service handle: #{handle.inspect}")
         if not handle
           on_failure_callback.call if on_failure_callback
           return
@@ -553,14 +555,14 @@ module VCAP
                         :body => Yajl::Encoder.encode(cc_handle)) do |http|
           if ! http.error
             if http.response_header.status == 200
-              @logger.info("CCNG Catalog Manager:(v1) Successful update handle #{handle["service_id"]}")
+              logger.info("CCNG Catalog Manager:(v1) Successful update handle #{handle["service_id"]}")
               on_success_callback.call if on_success_callback
             else
-              @logger.error("CCNG Catalog Manager:(v1) Failed to update handle #{handle["service_id"]}: http status #{http.response_header.status}")
+              logger.error("CCNG Catalog Manager:(v1) Failed to update handle #{handle["service_id"]}: http status #{http.response_header.status}")
               on_failure_callback.call if on_failure_callback
             end
           else
-            @logger.error("CCNG Catalog Manager:(v1) Failed to update handle #{handle["service_id"]}: #{http.error}")
+            logger.error("CCNG Catalog Manager:(v1) Failed to update handle #{handle["service_id"]}: #{http.error}")
             on_failure_callback.call if on_failure_callback
           end
         end
@@ -570,7 +572,7 @@ module VCAP
       def add_or_update_plan(plan, plan_guid = nil)
         add_plan = plan_guid.nil?
         uri = add_plan ? @service_plans_uri : "#{@service_plans_uri}/#{plan_guid}"
-        @logger.info("CCNG Catalog Manager: #{add_plan ? "Add new plan" : "Update plan (guid: #{plan_guid}) to"}: #{plan.inspect} via #{uri}")
+        logger.info("CCNG Catalog Manager: #{add_plan ? "Add new plan" : "Update plan (guid: #{plan_guid}) to"}: #{plan.inspect} via #{uri}")
 
         method = add_plan ? "post" : "put"
         cc_http_request(:uri => uri,
@@ -579,13 +581,13 @@ module VCAP
                         :body => Yajl::Encoder.encode(plan)) do |http|
           if ! http.error
             if (200..299) === http.response_header.status
-              @logger.info("CCNG Catalog Manager: Successfully #{add_plan ? "added" : "updated"} service plan: #{plan.inspect}")
+              logger.info("CCNG Catalog Manager: Successfully #{add_plan ? "added" : "updated"} service plan: #{plan.inspect}")
               return true
             else
-              @logger.error("CCNG Catalog Manager: Failed to #{add_plan ? "add" : "update"} plan: #{plan.inspect}, status=#{http.response_header.status}")
+              logger.error("CCNG Catalog Manager: Failed to #{add_plan ? "add" : "update"} plan: #{plan.inspect}, status=#{http.response_header.status}")
             end
           else
-            @logger.error("CCNG Catalog Manager: Failed to #{add_plan ? "add" : "update"} plan: #{plan.inspect}: #{http.error}")
+            logger.error("CCNG Catalog Manager: Failed to #{add_plan ? "add" : "update"} plan: #{plan.inspect}: #{http.error}")
           end
         end
 
@@ -593,10 +595,10 @@ module VCAP
       end
 
       def advertise_services(active=true)
-        @logger.info("CCNG Catalog Manager: #{active ? "Activate" : "Deactivate"} services...")
+        logger.info("CCNG Catalog Manager: #{active ? "Activate" : "Deactivate"} services...")
 
         if !(@current_catalog && @catalog_in_ccdb)
-          @logger.warn("CCNG Catalog Manager: Cannot advertise services since the offerings list from either the catalog or ccdb could not be retrieved")
+          logger.warn("CCNG Catalog Manager: Cannot advertise services since the offerings list from either the catalog or ccdb could not be retrieved")
           return
         end
 
@@ -607,7 +609,7 @@ module VCAP
 
         registered_offerings = @catalog_in_ccdb.keys
         catalog_offerings = @current_catalog.keys
-        @logger.debug("CCNG Catalog Manager: Registered in ccng: #{registered_offerings.inspect},
+        logger.debug("CCNG Catalog Manager: Registered in ccng: #{registered_offerings.inspect},
                       Current catalog: #{catalog_offerings.inspect}")
 
         # POST updates to active and disabled services
@@ -619,8 +621,10 @@ module VCAP
           guid = (@catalog_in_ccdb[label])["guid"]
 
           plans_to_add, plans_to_update = process_plans(plans, @catalog_in_ccdb[label]["service"]["plans"])
+          logger.debug("CCNG Catalog Manager: plans_to_add = #{plans_to_add.inspect}")
+          logger.debug("CCNG Catalog Manager: plans_to_update = #{plans_to_add.inspect}")
 
-          @logger.debug("CCNG Catalog Manager: Refresh offering: #{req.inspect}")
+          logger.debug("CCNG Catalog Manager: Refresh offering: #{req.inspect}")
           advertise_service_to_cc(req, guid, plans_to_add, plans_to_update)
         end
 
@@ -633,7 +637,7 @@ module VCAP
 
           req, plans = generate_cc_advertise_offering_request(service, false)
 
-          @logger.debug("CCNG Catalog Manager: Deactivating offering: #{req.inspect}")
+          logger.debug("CCNG Catalog Manager: Deactivating offering: #{req.inspect}")
           advertise_service_to_cc(req, guid, [], {}) # don't touch plans, just deactivate
         end
 
@@ -643,15 +647,17 @@ module VCAP
           svc = @current_catalog[label]
           req, plans = generate_cc_advertise_offering_request(svc, active)
           plans_to_add = plans.values
+          logger.debug("CCNG Catalog Manager: plans_to_add = #{plans_to_add.inspect}")
 
-          @logger.debug("CCNG Catalog Manager: Add new offering: #{req.inspect}")
+
+          logger.debug("CCNG Catalog Manager: Add new offering: #{req.inspect}")
           advertise_service_to_cc(req, nil, plans_to_add, {}) # nil guid => new service, so add all plans
         end
 
         active_count = active ? active_offerings.size + new_offerings.size : 0
         disabled_count = inactive_offerings.size + (active ? 0 : active_offerings.size)
 
-        @logger.info("CCNG Catalog Manager: Found #{active_offerings.size} active, #{disabled_count} disabled and #{new_offerings.size} new service offerings")
+        logger.info("CCNG Catalog Manager: Found #{active_offerings.size} active, #{disabled_count} disabled and #{new_offerings.size} new service offerings")
 
         @gateway_stats_lock.synchronize do
           @gateway_stats[:active_offerings] = active_count
