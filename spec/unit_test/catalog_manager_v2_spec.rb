@@ -132,4 +132,21 @@ describe VCAP::Services::CatalogManagerV2 do
       end
     end
   end
+
+  describe "#create_http_request" do
+    let(:manager) { described_class.new(load_config) }
+
+    it "makes the appropriate request" do
+      uri = 'http://example.com'
+      stub_request(:get, uri).to_return(body: "something, something, something... dark side")
+
+      EM.run_block do
+        Fiber.new do
+          manager.create_http_request(method: 'get', uri: uri)
+        end.resume
+      end
+
+      a_request(:get, uri).should have_been_made
+    end
+  end
 end

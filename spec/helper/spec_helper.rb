@@ -19,6 +19,7 @@ require "backup_spec_helper"
 require "external_services_gateway_spec_helper"
 require 'base/service_message'
 require 'base/service_error'
+require "webmock/rspec"
 
 require "socket"
 
@@ -270,6 +271,7 @@ end
 
 RSpec.configure do |c|
   c.include SpecHelpers
+  WebMock.allow_net_connect!
 end
 
 RSpec::Matchers.define :json_match do |matcher|

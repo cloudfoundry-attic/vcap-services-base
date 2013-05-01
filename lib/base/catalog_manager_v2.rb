@@ -209,6 +209,7 @@ module VCAP
       def generate_cc_advertise_offering_request(svc, active = true)
         req = {}
 
+        req[:unique_id]   = svc["unique_id"]
         req[:label]       = svc["id"]
         req[:version]     = svc["version"]
         req[:active]      = active
@@ -233,6 +234,7 @@ module VCAP
           svc["plans"].each { |k, v|
             plan_name = k.to_s
             plans[plan_name] = {
+              "unique_id"   => v[:unique_id],
               "name"        => plan_name,
               "description" => v[:description],
               "free"        => v[:free],
