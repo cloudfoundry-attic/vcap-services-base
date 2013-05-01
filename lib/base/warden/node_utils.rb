@@ -84,7 +84,7 @@ module VCAP::Services::Base::Warden::NodeUtils
           begin
             yield(param, tid)
           rescue => e
-            @logger.warn("pool_run error: #{e}")
+            @logger.warn("pool_run error: #{e} from #{caller(1).first(3).join(";")}")
           end
         end
       end
