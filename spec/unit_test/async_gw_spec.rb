@@ -3,6 +3,16 @@ require 'helper/spec_helper'
 require 'eventmachine'
 
 describe AsyncGatewayTests do
+  it "allows a dash in the label name" do
+    catalog_manager = stub("Catalog mgr")
+    catalog_manager.should_receive(:create_key).with("test-data-here", "version", "provider")
+
+    VCAP::Services::AsynchronousServiceGateway.any_instance.stub(:setup)
+    gw = VCAP::Services::AsynchronousServiceGateway.new({}).instance_variable_get(:@app)
+    gw.instance_variable_set(:@service, {:version_aliases => {}, :provider => "provider", :label => "test-data-here-version"})
+    gw.instance_variable_set(:@catalog_manager, catalog_manager)
+    gw.get_current_catalog
+  end
 
   it "should be able to return error when cc uri is invalid" do
     cc = nil
