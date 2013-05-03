@@ -117,9 +117,26 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
       "default_plan" => @service[:default_plan],
       "supported_versions" => @service[:supported_versions],
       "version_aliases" => @service[:version_aliases],
-    }
+    }.merge(extra)
 
     return catalog
+  end
+
+  def extra
+    if (@service.keys & [:logo_url, :blurb, :provider_name]).empty?
+      {}
+    else
+      { "extra" => {
+          "listing" => {
+            "imageUrl" => @service[:logo_url],
+            "blurb" => @service[:blurb]
+          },
+          "provider" => {
+            "name" => @service[:provider_name]
+          }
+        }
+      }
+    end
   end
 
   def check_orphan(handles, callback, errback)

@@ -3,15 +3,34 @@ require 'helper/spec_helper'
 require 'eventmachine'
 
 describe AsyncGatewayTests do
-  it "allows a dash in the label name" do
-    catalog_manager = stub("Catalog mgr")
-    catalog_manager.should_receive(:create_key).with("test-data-here", "version", "provider")
+  describe '#get_current_catalog' do
+    let(:catalog_manager) {stub("Catalog mgr")}
+    let!(:gw) do
+      VCAP::Services::AsynchronousServiceGateway.any_instance.stub(:setup)
+      gaw = VCAP::Services::AsynchronousServiceGateway.new({}).instance_variable_get(:@app)
+      gaw.instance_variable_set(:@catalog_manager, catalog_manager)
+      gaw
+    end
 
-    VCAP::Services::AsynchronousServiceGateway.any_instance.stub(:setup)
-    gw = VCAP::Services::AsynchronousServiceGateway.new({}).instance_variable_get(:@app)
-    gw.instance_variable_set(:@service, {:version_aliases => {}, :provider => "provider", :label => "test-data-here-version"})
-    gw.instance_variable_set(:@catalog_manager, catalog_manager)
-    gw.get_current_catalog
+    it "allows a dash in the label name" do
+      catalog_manager.should_receive(:create_key).with("test-data-here", "version", "provider")
+
+      gw.instance_variable_set(:@service, {:version_aliases => {}, :provider => "provider", :label => "test-data-here-version"})
+      gw.get_current_catalog
+    end
+
+    it 'constructs extra data from parts via the config file' do
+      catalog_manager.stub!(:create_key).and_return("key")
+      gw.instance_variable_set(:@service, {:version_aliases => {}, :provider => "provider", :label => "test-data-here-version",
+      :logo_url => "http://example.com/pic.png", :blurb => "One sweet service", :provider_name => "USGOV"})
+      gw.get_current_catalog["key"]["extra"].should == {"listing"=>{"imageUrl"=>"http://example.com/pic.png","blurb"=>"One sweet service"},"provider"=>{"name"=>"USGOV"}}
+    end
+
+    it 'wont send extra if not needed' do
+      catalog_manager.stub!(:create_key).and_return("key")
+      gw.instance_variable_set(:@service, {:version_aliases => {}, :provider => "provider", :label => "test-data-here-version"})
+      gw.get_current_catalog["key"].should_not have_key("extra")
+    end
   end
 
   it "should be able to return error when cc uri is invalid" do
