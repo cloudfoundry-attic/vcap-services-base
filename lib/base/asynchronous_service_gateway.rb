@@ -126,7 +126,7 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
     if (@service.keys & [:logo_url, :blurb, :provider_name]).empty?
       {}
     else
-      { "extra" => {
+      { "extra" => Yajl::Encoder.encode({
           "listing" => {
             "imageUrl" => @service[:logo_url],
             "blurb" => @service[:blurb]
@@ -134,7 +134,7 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
           "provider" => {
             "name" => @service[:provider_name]
           }
-        }
+        })
       }
     end
   end

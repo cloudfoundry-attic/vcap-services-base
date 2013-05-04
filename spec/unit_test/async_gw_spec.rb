@@ -22,8 +22,9 @@ describe AsyncGatewayTests do
     it 'constructs extra data from parts via the config file' do
       catalog_manager.stub!(:create_key).and_return("key")
       gw.instance_variable_set(:@service, {:version_aliases => {}, :provider => "provider", :label => "test-data-here-version",
-      :logo_url => "http://example.com/pic.png", :blurb => "One sweet service", :provider_name => "USGOV"})
-      gw.get_current_catalog["key"]["extra"].should == {"listing"=>{"imageUrl"=>"http://example.com/pic.png","blurb"=>"One sweet service"},"provider"=>{"name"=>"USGOV"}}
+                                           :logo_url => "http://example.com/pic.png", :blurb => "One sweet service", :provider_name => "USGOV"})
+      decoded_extra = Yajl::Parser.parse(gw.get_current_catalog["key"]["extra"])
+      decoded_extra.should == {"listing"=>{"imageUrl"=>"http://example.com/pic.png","blurb"=>"One sweet service"},"provider"=>{"name"=>"USGOV"}}
     end
 
     it 'wont send extra if not needed' do
