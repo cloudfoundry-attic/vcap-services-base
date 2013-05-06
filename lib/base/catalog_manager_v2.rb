@@ -611,8 +611,8 @@ module VCAP
 
         registered_offerings = @catalog_in_ccdb.keys
         catalog_offerings = @current_catalog.keys
-        logger.debug("CCNG Catalog Manager: Registered in ccng: #{registered_offerings.inspect},
-                      Current catalog: #{catalog_offerings.inspect}")
+        logger.debug("CCNG Catalog Manager: Registered in ccng: #{registered_offerings.inspect}")
+        logger.debug("CCNG Catalog Manager: Current catalog: #{catalog_offerings.inspect}")
 
         # POST updates to active and disabled services
         # Active offerings is intersection of catalog and ccdb offerings, we only need to update these
