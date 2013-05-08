@@ -14,9 +14,22 @@ describe AsyncGatewayTests do
 
     it "allows a dash in the label name" do
       catalog_manager.should_receive(:create_key).with("test-data-here", "version", "provider")
-
       gw.instance_variable_set(:@service, {:version_aliases => {}, :provider => "provider", :label => "test-data-here-version"})
       gw.get_current_catalog
+    end
+
+    it "publishes a configured unique_id when present" do
+      catalog_manager.stub!(:create_key).and_return("key")
+      gw.instance_variable_set(:@service, {:version_aliases => {}, :provider => "provider", :label => "test-data-here-version", :unique_id => "uniqueness"})
+      data = gw.get_current_catalog["key"]
+      data["unique_id"].should == "uniqueness"
+    end
+
+    it "only publishes the unique_id if there is one" do
+      catalog_manager.stub!(:create_key).and_return("key")
+      gw.instance_variable_set(:@service, {:version_aliases => {}, :provider => "provider", :label => "test-data-here-version"})
+      data = gw.get_current_catalog["key"]
+      data.should_not have_key "unique_id"
     end
 
     it 'constructs extra data from parts via the config file' do

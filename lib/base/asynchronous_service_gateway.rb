@@ -99,6 +99,7 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
 
     catalog_key = @catalog_manager.create_key(id, version, provider)
 
+    unique_id = @service[:unique_id] ? {"unique_id" => @service[:unique_id]} : {}
     catalog = {}
     catalog[catalog_key] = {
       "id" => id,
@@ -117,7 +118,7 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
       "default_plan" => @service[:default_plan],
       "supported_versions" => @service[:supported_versions],
       "version_aliases" => @service[:version_aliases],
-    }.merge(extra)
+    }.merge(extra).merge(unique_id)
 
     return catalog
   end
