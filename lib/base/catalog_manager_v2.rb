@@ -365,6 +365,9 @@ module VCAP
         logger.debug("CCNG Catalog Manager: #{update ? "Update" : "Advertise"} service offering #{offering.inspect} to cloud_controller: #{uri}")
 
         method = update ? "put" : "post"
+        if method == 'put'
+          offering.delete(:unique_id)
+        end
         cc_http_request(:uri => uri,
                         :method => method,
                         :head => @cc_req_hdrs,
