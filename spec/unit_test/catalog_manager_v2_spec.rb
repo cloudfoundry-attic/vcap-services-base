@@ -2,7 +2,7 @@ require 'helper/spec_helper'
 require 'base/catalog_manager_v2'
 
 describe VCAP::Services::CatalogManagerV2 do
-  let(:logger) { Logger.new('/dev/null') }
+  let(:logger) { Logger.new('/tmp/vcap_services_base.log') }
   let(:config) do
     {
       :cloud_controller_uri => 'api.vcap.me',
