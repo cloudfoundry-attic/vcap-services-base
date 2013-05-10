@@ -1,10 +1,25 @@
-# Copyright (c) 2009-2013 VMware, Inc.
-#
-require 'helper/catalog_manager_v2_spec_helper'
+require 'helper/spec_helper'
 require 'base/catalog_manager_v2'
 
 describe VCAP::Services::CatalogManagerV2 do
-  include VCAP::Services::CatalogManagerV2Helper
+  let(:logger) { Logger.new('/dev/null') }
+  let(:config) do
+    {
+      :cloud_controller_uri => 'api.vcap.me',
+      :service_auth_tokens => {
+        :test_core => 'token',
+      },
+      :token => 'token',
+      :gateway_name => 'test_gw',
+      :logger => logger,
+      :uaa_endpoint => 'http://uaa.vcap.me',
+      :uaa_client_id => 'vmc',
+      :uaa_client_auth_credentials => {
+        :username => 'test',
+        :password=> 'test',
+      },
+    }
+  end
 
   before(:each) do
     @unauth_request = mock("unauth_request")
@@ -17,7 +32,6 @@ describe VCAP::Services::CatalogManagerV2 do
   end
 
   it "should refresh client auth token and retry cc request" do
-    config = load_config
     @cm = described_class.new(config)
     @cm.should_receive(:create_http_request).and_return(@unauth_request)
     @cm.should_receive(:create_http_request).and_return(@normal_request)
@@ -33,7 +47,6 @@ describe VCAP::Services::CatalogManagerV2 do
   end
 
   it "refresh times should not exceed max attempts" do
-    config = load_config
     @cm = described_class.new(config)
     @cm.should_receive(:create_http_request).and_return(@unauth_request)
     @cm.should_receive(:create_http_request).and_return(@unauth_request)
@@ -48,7 +61,6 @@ describe VCAP::Services::CatalogManagerV2 do
   end
 
   it "should read multiple pages from cloud_controller" do
-    config = load_config
     @cm = described_class.new(config)
 
     @page_1 = mock("page_1")
@@ -81,7 +93,7 @@ describe VCAP::Services::CatalogManagerV2 do
   end
 
   describe "#process_plans" do
-    let(:catalog_manager) { described_class.new(load_config) }
+    let(:catalog_manager) { described_class.new(config) }
     let(:plan_name) { "plan1" }
     let(:plan_guid) { "abc" }
     let(:plan_details) {
@@ -134,7 +146,7 @@ describe VCAP::Services::CatalogManagerV2 do
   end
 
   describe "#create_http_request" do
-    let(:manager) { described_class.new(load_config) }
+    let(:manager) { described_class.new(config) }
 
     it "makes the appropriate request" do
       uri = 'http://example.com'
