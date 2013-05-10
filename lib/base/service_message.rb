@@ -66,6 +66,7 @@ module VCAP::Services::Internal
     required :service_id,     String
     required :configuration,  Hash
     required :credentials,    Hash
+    optional :dashboard_url,  String
   end
 
   class ServiceInstanceHandleV2 < ServiceMessage
@@ -77,6 +78,7 @@ module VCAP::Services::Internal
     optional :service_bindings_url, String
     optional :space_url,            String
     optional :service_plan_url,     String
+    optional :dashboard_url,        String
   end
 
   class ServiceBindingHandleV2 < ServiceMessage
