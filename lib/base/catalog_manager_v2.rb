@@ -4,6 +4,7 @@ require 'uri'
 require 'uaa'
 require 'services/api/const'
 require 'catalog_manager_base'
+require 'base/cloud_controller_collection_getter'
 
 module VCAP
   module Services
@@ -42,12 +43,13 @@ module VCAP
         @gateway_stats = {}
         @gateway_stats_lock = Mutex.new
         snapshot_and_reset_stats
+        @multiple_page_getter = CloudControllerCollectionGetter.new(method(:cc_http_request), @cc_req_hdrs, @logger)
       end
 
       def refresh_client_auth_token
         # Load the auth token to be sent out in Authorization header when making CCNG-v2 requests
         credentials = @opts[:uaa_client_auth_credentials]
-        client_id                   = @opts[:uaa_client_id]
+        client_id   = @opts[:uaa_client_id]
 
         if ENV["AUTHORIZATION_TOKEN"]
           uaa_client_auth_token = ENV["AUTHORIZATION_TOKEN"]
@@ -67,73 +69,26 @@ module VCAP
         }
       end
 
-      class RetriableCloudControllerHitter
-        attr_reader :max_attempts, :logger, :http_request_creator
-
-        def initialize(max_attempts, http_request_creator, logger)
-          @max_attempts = max_attempts
-          @logger       = logger
-          @http_request_creator = http_request_creator
-        end
-
-        def make_request(args, failed_callback, &block)
-          attempts=0
-          while true
-            attempts += 1
-            logger.debug("#{args[:method].upcase} - #{args[:uri]}")
-            http = http_request_creator.call(args)
-            if attempts < max_attempts &&
-              http.response_header.status == HTTP_UNAUTHENTICATED_CODE
-              failed_callback.call
-            else
-              block.call(http)
-              return  http
-            end
-          end
-        end
-      end
-
       # wrapper of create_http_request, refresh @cc_req_hdrs if cc returns 401
       def cc_http_request(args, &block)
-        retriable_hitter = RetriableCloudControllerHitter.new(args[:max_attempts]||2,
-                                                              self.method(:create_http_request),
-                                                              logger)
         args[:uri] = "#{@cld_ctrl_uri}#{args[:uri]}"
-        retriable_hitter.make_request(args, method(:refresh_client_auth_token), &block)
+        max_attempts = args[:max_attempts] || 2
+        attempts = 0
+        while true
+          attempts += 1
+          logger.debug("#{args[:method].upcase} - #{args[:uri]}")
+          http = create_http_request(args)
+          if attempts < max_attempts && http.response_header.status == HTTP_UNAUTHENTICATED_CODE
+            refresh_client_auth_token
+          else
+            block.call(http)
+            return  http
+          end
+        end
       end
 
       def create_key(label, version, provider)
         "#{label}_#{provider}"
-      end
-
-      def perform_multiple_page_get(seed_url, description)
-        url = seed_url
-
-        logger.info("Fetching #{description} from: #{seed_url}")
-
-        page_num = 1
-        while  !url.nil? do
-          cc_http_request(:uri => url,
-                          :method => "get",
-                          :head => @cc_req_hdrs,
-                          :need_raise => true) do |http|
-            result = nil
-            if (200..299) === http.response_header.status
-              result = JSON.parse(http.response)
-            else
-              raise "CCNG Catalog Manager: #{@gateway_name} - Multiple page fetch via: #{url} failed: (#{http.response_header.status}) - #{http.response}"
-            end
-
-            raise "CCNG Catalog Manager: Failed parsing http response: #{http.response}" if result == nil
-
-            result["resources"].each { |r| yield r if block_given? }
-
-            page_num += 1
-
-            url = result["next_url"]
-            logger.debug("CCNG Catalog Manager: Fetching #{description} pg. #{page_num} from: #{url}") unless url.nil?
-          end
-        end
       end
 
       ######### Stats Handling #########
@@ -249,46 +204,7 @@ module VCAP
       end
 
       def load_registered_services_from_cc
-        logger.debug("CCNG Catalog Manager: Getting services listing from cloud_controller")
-        registered_services = {}
-
-        perform_multiple_page_get(@service_list_uri, "Registered Offerings") { |s|
-          key = "#{s["entity"]["label"]}_#{s["entity"]["provider"]}"
-
-          if @service_auth_tokens.has_key?(key.to_sym)
-            entity = s["entity"]
-
-            plans = {}
-            logger.debug("CCNG Catalog Manager: Getting service plans for: #{entity["label"]}/#{entity["provider"]}")
-            perform_multiple_page_get(entity["service_plans_url"], "Service Plans") { |p|
-              plans[p["entity"]["name"]] = {
-                "guid"        => p["metadata"]["guid"],
-                "name"        => p["entity"]["name"],
-                "description" => p["entity"]["description"],
-                "free"        => p["entity"]["free"]
-              }
-            }
-
-            svc = {
-              "id"          => entity["label"],
-              "description" => entity["description"],
-              "provider"    => entity["provider"],
-              "version"     => entity["version"],
-              "url"         => entity["url"],
-              "info_url"    => entity["info_url"],
-              "plans"       => plans
-            }
-
-            registered_services[key] = {
-              "guid"    => s["metadata"]["guid"],
-              "service" => svc,
-            }
-
-            logger.debug("CCNG Catalog Manager: Found #{key} = #{registered_services[key].inspect}")
-          end
-        }
-
-        registered_services
+        @multiple_page_getter.load_registered_services(@service_list_uri, @service_auth_tokens)
       end
 
       def advertise_service_to_cc(offering, guid, plans_to_add, plans_to_update)
@@ -387,7 +303,6 @@ module VCAP
 
         return service_guid
       end
-
 
       def delete_offering(id, version, provider)
 
@@ -495,7 +410,7 @@ module VCAP
         # TODO: add a query parameter in ccng v2 to support a query from service name to instance handle;
         service_instance_uri = "#{@service_instances_uri}#{instance_handles_query}"
 
-        perform_multiple_page_get(service_instance_uri, "service instance handles") do |resources|
+        @multiple_page_getter.each(service_instance_uri, "service instance handles") do |resources|
           instance_info = resources['entity']
           instance_handles[instance_info['credentials']['name']] = instance_info
           @handle_guid[instance_info['credentials']['name']] = resources['metadata']['guid']
@@ -516,7 +431,7 @@ module VCAP
         binding_handles = {}
         binding_handles_uri = "#{@service_bindings_uri}#{binding_handles_query}"
 
-        perform_multiple_page_get(binding_handles_uri, "service binding handles") do |resources|
+        @multiple_page_getter.each(binding_handles_uri, "service binding handles") do |resources|
           binding_info = resources['entity']
           binding_handles[binding_info['gateway_name']] = binding_info
           @handle_guid[binding_info['gateway_name']] = resources['metadata']['guid']
