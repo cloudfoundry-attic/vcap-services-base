@@ -5,11 +5,12 @@ require 'uaa'
 require 'services/api/const'
 require 'catalog_manager_base'
 require 'base/cloud_controller_collection_getter'
+require 'base/http_handler'
 
 module VCAP
   module Services
     class CatalogManagerV2 < VCAP::Services::CatalogManagerBase
-      HTTP_UNAUTHENTICATED_CODE = 401
+
 
       attr_reader :logger
 
@@ -38,53 +39,11 @@ module VCAP
 
         @service_auth_tokens  = opts[:service_auth_tokens]
 
-        refresh_client_auth_token if !@test_mode # use for specs only
-
         @gateway_stats = {}
         @gateway_stats_lock = Mutex.new
         snapshot_and_reset_stats
-        @multiple_page_getter = CloudControllerCollectionGetter.new(method(:cc_http_request), @cc_req_hdrs, @logger)
-      end
-
-      def refresh_client_auth_token
-        # Load the auth token to be sent out in Authorization header when making CCNG-v2 requests
-        credentials = @opts[:uaa_client_auth_credentials]
-        client_id   = @opts[:uaa_client_id]
-
-        if ENV["AUTHORIZATION_TOKEN"]
-          uaa_client_auth_token = ENV["AUTHORIZATION_TOKEN"]
-        else
-          ti = CF::UAA::TokenIssuer.new(@opts[:uaa_endpoint], client_id)
-          token = ti.implicit_grant_with_creds(credentials).info
-          uaa_client_auth_token = "#{token["token_type"]} #{token["access_token"]}"
-          expire_time = token["expires_in"].to_i
-          logger.info("Successfully refresh auth token for:\
-                       #{credentials[:username]}, token expires in \
-                       #{expire_time} seconds.")
-        end
-
-        @cc_req_hdrs = {
-          'Content-Type' => 'application/json',
-          'Authorization' => uaa_client_auth_token
-        }
-      end
-
-      # wrapper of create_http_request, refresh @cc_req_hdrs if cc returns 401
-      def cc_http_request(args, &block)
-        args[:uri] = "#{@cld_ctrl_uri}#{args[:uri]}"
-        max_attempts = args[:max_attempts] || 2
-        attempts = 0
-        while true
-          attempts += 1
-          logger.debug("#{args[:method].upcase} - #{args[:uri]}")
-          http = create_http_request(args)
-          if attempts < max_attempts && http.response_header.status == HTTP_UNAUTHENTICATED_CODE
-            refresh_client_auth_token
-          else
-            block.call(http)
-            return  http
-          end
-        end
+        @http_handler = HTTPHandler.new(opts)
+        @multiple_page_getter = CloudControllerCollectionGetter.new(@http_handler.method(:cc_http_request), @http_handler.cc_req_hdrs, @logger)
       end
 
       def create_key(label, version, provider)
@@ -161,47 +120,7 @@ module VCAP
       end
 
 
-      def generate_cc_advertise_offering_request(svc, active = true)
-        req = {}
 
-        req[:unique_id]   = svc["unique_id"]
-        req[:label]       = svc["id"]
-        req[:version]     = svc["version"]
-        req[:active]      = active
-        req[:description] = svc["description"]
-        req[:provider]    = svc["provider"]
-
-        req[:acls]        = svc["acls"]
-        req[:url]         = svc["url"]
-        req[:timeout]     = svc["timeout"]
-        req[:extra]       = svc["extra"]
-
-        # NOTE: In CCNG, multiple versions is expected to be supported via multiple plans
-        # The gateway will have to maintain a mapping of plan-name to version so that
-        # the correct version will be provisioned
-        plans = {}
-        if svc["plans"].is_a?(Array)
-          svc["plans"].each { |p|
-            # If not specified, assume all plans are free
-            plans[p] = { "name" => p, "description" => "#{p} plan", "free" => true }
-          }
-        elsif svc["plans"].is_a?(Hash)
-          svc["plans"].each { |k, v|
-            plan_name = k.to_s
-            plans[plan_name] = {
-              "unique_id"   => v[:unique_id],
-              "name"        => plan_name,
-              "description" => v[:description],
-              "free"        => v[:free],
-              "extra"       => v[:extra],
-            }
-          }
-        else
-          raise "Plans must be either an array or hash(plan_name => description)"
-        end
-
-        [ req, plans ]
-      end
 
       def load_registered_services_from_cc
         @multiple_page_getter.load_registered_services(@service_list_uri, @service_auth_tokens)
@@ -284,9 +203,8 @@ module VCAP
         if method == 'put'
           offering.delete(:unique_id)
         end
-        cc_http_request(:uri => uri,
+        @http_handler.cc_http_request(:uri => uri,
                         :method => method,
-                        :head => @cc_req_hdrs,
                         :body => Yajl::Encoder.encode(offering)) do |http|
           if ! http.error
             if (200..299) === http.response_header.status
@@ -326,9 +244,8 @@ module VCAP
         uri = "#{@offering_uri}/#{offering_guid}"
         logger.info("CCNG Catalog Manager: Deleting service offering:#{id} (#{provider}) via #{uri}")
 
-        cc_http_request(:uri => uri,
-                        :method => "delete",
-                        :head => @cc_req_hdrs) do |http|
+        @http_handler.cc_http_request(:uri => uri,
+                        :method => "delete") do |http|
           if ! http.error
             if (200..299) === http.response_header.status
               logger.info("CCNG Catalog Manager: Successfully deleted offering: #{id} (#{provider})")
@@ -495,9 +412,8 @@ module VCAP
         logger.info("CCNG Catalog Manager: #{add_plan ? "Add new plan" : "Update plan (guid: #{plan_guid}) to"}: #{plan.inspect} via #{uri}")
 
         method = add_plan ? "post" : "put"
-        cc_http_request(:uri => uri,
+        @http_handler.cc_http_request(:uri => uri,
                         :method => method,
-                        :head => @cc_req_hdrs,
                         :body => Yajl::Encoder.encode(plan)) do |http|
           if ! http.error
             if (200..299) === http.response_header.status
@@ -537,7 +453,7 @@ module VCAP
         active_offerings = catalog_offerings & registered_offerings
         active_offerings.each do |label|
           svc = @current_catalog[label]
-          req, plans = generate_cc_advertise_offering_request(svc, active)
+          req, plans = @http_handler.generate_cc_advertise_offering_request(svc, active)
           guid = (@catalog_in_ccdb[label])["guid"]
 
           plans_to_add, plans_to_update = process_plans(plans, @catalog_in_ccdb[label]["service"]["plans"])
@@ -555,7 +471,7 @@ module VCAP
           guid = svc["guid"]
           service = svc["service"]
 
-          req, plans = generate_cc_advertise_offering_request(service, false)
+          req, plans = @http_handler.generate_cc_advertise_offering_request(service, false)
 
           logger.debug("CCNG Catalog Manager: Deactivating offering: #{req.inspect}")
           advertise_service_to_cc(req, guid, [], {}) # don't touch plans, just deactivate
@@ -565,7 +481,7 @@ module VCAP
         new_offerings = catalog_offerings - active_offerings
         new_offerings.each do |label|
           svc = @current_catalog[label]
-          req, plans = generate_cc_advertise_offering_request(svc, active)
+          req, plans = @http_handler.generate_cc_advertise_offering_request(svc, active)
           plans_to_add = plans.values
           logger.debug("CCNG Catalog Manager: plans_to_add = #{plans_to_add.inspect}")
 

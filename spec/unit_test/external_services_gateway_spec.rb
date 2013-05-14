@@ -1,4 +1,3 @@
-# Copyright (c) 2009-2011 VMware, Inc.
 require 'helper/spec_helper'
 require 'helper/nats_server_helper'
 require 'helper/external_services_gateway_spec_helper'
@@ -121,88 +120,6 @@ describe "ExternalServicesGateway" do
       }
 
       Do.at(6) { cc.stop; gw.stop; EM.stop }
-    end
-  end
-
-  it "v2: should expose varz and healthz and include disabled services count in varz stats" do
-    EM.run do
-      cc = nil
-      gw = nil
-      client = nil
-
-      Do.at(0) {
-        ext_svc_gw_helper = ExternalServicesGatewayHelper.new
-
-        ext_svc_gw_helper.set("cc_api_version", "v2")
-        ext_svc_gw_helper.set("test_mode", true)
-
-        cc = ext_svc_gw_helper.create_ccng
-        gw = ext_svc_gw_helper.create_ext_svc_gw
-        client = ext_svc_gw_helper.create_client
-      }
-
-      Do.at(2) { client.get_healthz }
-      Do.at(3) {
-        client.last_http_code.should == 200
-        client.last_response.should == "ok\n"
-      }
-
-      Do.at(4) { varz = client.get_varz }
-      Do.at(5) {
-        client.last_http_code.should == 200
-        varz = JSON.parse(client.last_response)
-        varz.keys.should include "stats"
-        varz["stats"]["disabled_services"].should == 0
-        varz["stats"]["active_offerings"].should == 1
-
-        varz.keys.should include "test"
-        varz["test"]["available_services"].should == 1
-      }
-
-      Do.at(6) { cc.stop; gw.stop; EM.stop }
-    end
-  end
-
- it "v2: should inactivate disabled offerings" do
-    EM.run do
-      cc = nil
-      gw = nil
-      client = nil
-
-      Do.at(0) {
-        ext_svc_gw_helper = ExternalServicesGatewayHelper.new
-
-        ext_svc_gw_helper.set("cc_api_version", "v2")
-        ext_svc_gw_helper.set("test_mode", true)
-
-        cc = ext_svc_gw_helper.create_ccng
-        gw = ext_svc_gw_helper.create_ext_svc_gw
-        client = ext_svc_gw_helper.create_client
-      }
-
-      Do.at(2) { client.set_config("enable_foo", "true") }
-      Do.at(3) { client.last_http_code.should == 200 }
-
-      Do.at(4) { varz = client.get_varz }
-      Do.at(5) {
-        client.last_http_code.should == 200
-        varz = JSON.parse(client.last_response)
-        varz["stats"]["disabled_services"].should == 0
-        varz["stats"]["active_offerings"].should == 2
-      }
-
-      Do.at(6) { client.set_config("enable_foo", "false") }
-      Do.at(7) { client.last_http_code.should == 200 }
-
-      Do.at(8) { varz = client.get_varz }
-      Do.at(9) {
-        client.last_http_code.should == 200
-        varz = JSON.parse(client.last_response)
-        varz["stats"]["disabled_services"].should == 1
-        varz["stats"]["active_offerings"].should == 1
-      }
-
-      Do.at(10) { cc.stop; gw.stop; EM.stop }
     end
   end
 

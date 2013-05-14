@@ -3,6 +3,8 @@ require 'base/catalog_manager_v2'
 
 describe VCAP::Services::CatalogManagerV2 do
   let(:logger) { Logger.new('/tmp/vcap_services_base.log') }
+  let(:http_handler) { mock('http_handler', cc_http_request: nil, cc_req_hdrs: {}) }
+
   let(:config) do
     {
       :cloud_controller_uri => 'api.vcap.me',
@@ -20,48 +22,18 @@ describe VCAP::Services::CatalogManagerV2 do
       },
     }
   end
+  let(:catalog_manager) { described_class.new(config) }
 
   before(:each) do
-    @unauth_request = mock("unauth_request")
-    @unauth_request.stub_chain("response_header.status") { 401 }
-
-    @normal_request = mock("normal_request")
-    @normal_request.stub_chain("response_header.status") { 200 }
-    @refresh_time = 0
-    described_class.any_instance.stub(:refresh_client_auth_token) {@refresh_time += 1}
+    HTTPHandler.stub(new: http_handler)
   end
 
-  it "should refresh client auth token and retry cc request" do
-    @cm = described_class.new(config)
-    @cm.should_receive(:create_http_request).and_return(@unauth_request)
-    @cm.should_receive(:create_http_request).and_return(@normal_request)
-    @run_once = false
-    @cm.cc_http_request(:uri => config[:cloud_controller_uri],
-                        :method => 'get') do |http|
-      @run_once = true
-      http.response_header.status.should == 200
-    end
-    @run_once.should == true
-    # once for startup, once for refresh due to 401 error
-    @refresh_time.should == 2
-  end
-
-  it "refresh times should not exceed max attempts" do
-    @cm = described_class.new(config)
-    @cm.should_receive(:create_http_request).and_return(@unauth_request)
-    @cm.should_receive(:create_http_request).and_return(@unauth_request)
-    @run_once = false
-    max_attempts = 2
-    @cm.cc_http_request(:uri => config[:cloud_controller_uri],
-                      :method => 'get', :max_attempts => max_attempts) do |http|
-      @run_once = true
-      http.response_header.status.should == 401
-    end
-    @run_once.should == true
+  it 'creates a http handler with correct params' do
+    HTTPHandler.should_receive(:new).with(config)
+    catalog_manager
   end
 
   describe "#process_plans" do
-    let(:catalog_manager) { described_class.new(config) }
     let(:plan_name) { "plan1" }
     let(:plan_guid) { "abc" }
     let(:plan_details) {
@@ -113,20 +85,35 @@ describe VCAP::Services::CatalogManagerV2 do
     end
   end
 
-  describe "#create_http_request" do
+  describe "#update_catalog" do
     let(:manager) { described_class.new(config) }
+    let(:catalog_loader) { ->{} }
+    let(:registered_services) { mock('registered service', load_registered_services: {}) }
 
-    it "makes the appropriate request" do
-      uri = 'http://example.com'
-      stub_request(:get, uri).to_return(body: "something, something, something... dark side")
+    before do
+      VCAP::Services::CloudControllerCollectionGetter.stub(:new => registered_services)
+    end
 
-      EM.run_block do
-        Fiber.new do
-          manager.create_http_request(method: 'get', uri: uri)
-        end.resume
-      end
+    it "loads the services from the gateway" do
+      catalog_loader.should_receive(:call)
+      manager.update_catalog(true, catalog_loader)
+    end
 
-      a_request(:get, uri).should have_been_made
+    it "get the registered services from CCNG" do
+      registered_services.should_receive(:load_registered_services).
+        with("/v2/services?inline-relations-depth=2", anything)
+      manager.update_catalog(true, catalog_loader)
+    end
+
+    it 'logs error if getting catalog fails' do
+      catalog_loader.stub(:call).and_raise('Failed')
+      logger.should_receive(:error).twice
+      manager.update_catalog(true, catalog_loader)
+    end
+
+    it "updates the stats" do
+      manager.update_catalog(true, catalog_loader)
+      manager.instance_variable_get(:@gateway_stats)[:refresh_catalog_requests].should == 1
     end
   end
 end
