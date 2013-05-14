@@ -2,7 +2,6 @@ require 'uaa'
 
 class HTTPHandler
   HTTP_UNAUTHENTICATED_CODE = 401
-
   attr_reader :logger
 
   def initialize(options)

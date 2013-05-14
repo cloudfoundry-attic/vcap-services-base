@@ -6,12 +6,11 @@ require 'services/api/const'
 require 'catalog_manager_base'
 require 'base/cloud_controller_collection_getter'
 require 'base/http_handler'
+require 'base/service_advertiser'
 
 module VCAP
   module Services
     class CatalogManagerV2 < VCAP::Services::CatalogManagerBase
-
-
       attr_reader :logger
 
       def initialize(opts)
@@ -29,8 +28,7 @@ module VCAP
         @gateway_name          = opts[:gateway_name]
         @cld_ctrl_uri          = opts[:cloud_controller_uri]
         @service_list_uri      = "/v2/services?inline-relations-depth=2"
-        @offering_uri          = "/v2/services"
-        @service_plans_uri     = "/v2/service_plans"
+
         @service_instances_uri = "/v2/service_instances"
         @service_bindings_uri  = "/v2/service_bindings"
         @handle_guid         = {}
@@ -119,147 +117,12 @@ module VCAP
         f.resume
       end
 
-
-
-
       def load_registered_services_from_cc
         @multiple_page_getter.load_registered_services(@service_list_uri, @service_auth_tokens)
       end
 
-      def advertise_service_to_cc(offering, guid, plans_to_add, plans_to_update)
-        service_guid = add_or_update_offering(offering, guid)
-        return false if service_guid.nil?
 
-        return true if !offering[:active] # If deactivating, don't update plans
 
-        logger.debug("CCNG Catalog Manager: Processing plans for: #{service_guid} -Add: #{plans_to_add.size} plans, Update: #{plans_to_update.size} plans")
-
-        # Add plans to add
-        plans_to_add.each { |plan|
-          plan["service_guid"] = service_guid
-          add_or_update_plan(plan)
-        }
-
-        # Update plans
-        plans_to_update.each { |plan_guid, plan|
-          add_or_update_plan(plan, plan_guid)
-        }
-        return true
-      end
-
-      def process_plans(plans_from_catalog, plans_already_in_cc)
-        plans_to_add = []
-        plans_to_update = {}
-
-        catalog_plans = plans_from_catalog.keys
-        registered_plans = plans_already_in_cc.keys
-
-        # Update active plans
-        # active plans = intersection of (catalog_plans & registered_plans)
-        active_plans = catalog_plans & registered_plans
-        active_plans.each { |plan_name|
-          plan_details = plans_from_catalog[plan_name]
-
-          # The changeable aspects are the description and free flag
-          if (plan_details["description"] != plans_already_in_cc[plan_name]["description"] ||
-              plan_details["free"] != plans_already_in_cc[plan_name]["free"] ||
-              plan_details["extra"] != plans_already_in_cc[plan_name]["extra"])
-            plan_guid = plans_already_in_cc[plan_name]["guid"]
-            plans_to_update[plan_guid] = {
-              "name"        => plan_name,
-              "description" => plan_details["description"],
-              "free"        => plan_details["free"],
-              "extra"        => plan_details["extra"],
-            }
-            logger.debug("CCNG Catalog Manager: Updating plan: #{plan_name} to: #{plans_to_update[plan_guid].inspect}")
-          else
-            logger.debug("CCNG Catalog Manager: No changes to plan: #{plan_name}")
-          end
-        }
-
-        # Add new plans -> catalog_plans - active_plans
-        new_plans = catalog_plans - active_plans
-        new_plans.each { |plan_name|
-          logger.debug("CCNG Catalog Manager: Adding new plan: #{plans_from_catalog[plan_name].inspect}")
-          plans_to_add << plans_from_catalog[plan_name]
-        }
-
-        # TODO: What to do with deactivated plans?
-        # Should handle this manually for now?
-        deactivated_plans = registered_plans - active_plans
-        logger.warn("CCNG Catalog Manager: Found #{deactivated_plans.size} deactivated plans: - #{deactivated_plans.inspect}") unless deactivated_plans.empty?
-
-        [ plans_to_add, plans_to_update ]
-      end
-
-      def add_or_update_offering(offering, guid)
-        update = !guid.nil?
-        uri = update ? "#{@offering_uri}/#{guid}" : @offering_uri
-        service_guid = nil
-
-        logger.debug("CCNG Catalog Manager: #{update ? "Update" : "Advertise"} service offering #{offering.inspect} to cloud_controller: #{uri}")
-
-        method = update ? "put" : "post"
-        if method == 'put'
-          offering.delete(:unique_id)
-        end
-        @http_handler.cc_http_request(:uri => uri,
-                        :method => method,
-                        :body => Yajl::Encoder.encode(offering)) do |http|
-          if ! http.error
-            if (200..299) === http.response_header.status
-              response = JSON.parse(http.response)
-              logger.info("CCNG Catalog Manager: Advertise offering response (code=#{http.response_header.status}): #{response.inspect}")
-              service_guid = response["metadata"]["guid"]
-            else
-              logger.error("CCNG Catalog Manager: Failed advertise offerings:#{offering.inspect}, status=#{http.response_header.status}")
-            end
-          else
-            logger.error("CCNG Catalog Manager: Failed advertise offerings:#{offering.inspect}: #{http.error}")
-          end
-        end
-
-        return service_guid
-      end
-
-      def delete_offering(id, version, provider)
-
-        # This is TERRIBLY inefficient but this function is not expected to be called
-        # very often, so fine for now.
-        # TODO: 2 possible approaches:
-        #  1. CCNG could support more query parameters, so simple things such as offering guid could be easily looked up
-        #  2. We maintain a local cache of this information for static information such as label-provider -> guid mapping
-
-        # find the service guid for the specified offering
-        offering_key = "#{id}_#{provider}"
-
-        registered_services = load_registered_services_from_cc
-        offering_guid = registered_services[offering_key]["guid"] if registered_services.has_key?(offering_key)
-
-        if !offering_guid
-          logger.error("CCNG Catalog Manager: Offering #{id} (#{provider}) is not registered")
-          return
-        end
-
-        uri = "#{@offering_uri}/#{offering_guid}"
-        logger.info("CCNG Catalog Manager: Deleting service offering:#{id} (#{provider}) via #{uri}")
-
-        @http_handler.cc_http_request(:uri => uri,
-                        :method => "delete") do |http|
-          if ! http.error
-            if (200..299) === http.response_header.status
-              logger.info("CCNG Catalog Manager: Successfully deleted offering: #{id} (#{provider})")
-              return true
-            else
-              logger.error("CCNG Catalog Manager: Failed to delete offering: #{id} (#{provider}), status=#{http.response_header.status}")
-            end
-          else
-            logger.error("CCNG Catalog Manager: Failed to delete offering: #{id} (#{provider}) due to: #{http.error}")
-          end
-        end
-
-        return false
-      end
 
       # fetch all handles for instances and bindings for caching on service gateway
       # this function allows user gateway to fetch all the instance and binding handles
@@ -406,30 +269,6 @@ module VCAP
       end
 
       private
-      def add_or_update_plan(plan, plan_guid = nil)
-        add_plan = plan_guid.nil?
-        uri = add_plan ? @service_plans_uri : "#{@service_plans_uri}/#{plan_guid}"
-        logger.info("CCNG Catalog Manager: #{add_plan ? "Add new plan" : "Update plan (guid: #{plan_guid}) to"}: #{plan.inspect} via #{uri}")
-
-        method = add_plan ? "post" : "put"
-        @http_handler.cc_http_request(:uri => uri,
-                        :method => method,
-                        :body => Yajl::Encoder.encode(plan)) do |http|
-          if ! http.error
-            if (200..299) === http.response_header.status
-              logger.info("CCNG Catalog Manager: Successfully #{add_plan ? "added" : "updated"} service plan: #{plan.inspect}")
-              return true
-            else
-              logger.error("CCNG Catalog Manager: Failed to #{add_plan ? "add" : "update"} plan: #{plan.inspect}, status=#{http.response_header.status}")
-            end
-          else
-            logger.error("CCNG Catalog Manager: Failed to #{add_plan ? "add" : "update"} plan: #{plan.inspect}: #{http.error}")
-          end
-        end
-
-        return false
-      end
-
       def advertise_services(active=true)
         logger.info("CCNG Catalog Manager: #{active ? "Activate" : "Deactivate"} services...")
 
@@ -438,66 +277,16 @@ module VCAP
           return
         end
 
-        # Set services missing from catalog offerings to inactive
-        # Process all services currently in catalog
-        # NOTE: Existing service offerings in ccdb will have a guid and require a PUT operation for update
-        # New service offerings will not have guid and require POST operation for create
-
-        registered_offerings = @catalog_in_ccdb.keys
-        catalog_offerings = @current_catalog.keys
-        logger.debug("CCNG Catalog Manager: Registered in ccng: #{registered_offerings.inspect}")
-        logger.debug("CCNG Catalog Manager: Current catalog: #{catalog_offerings.inspect}")
-
-        # POST updates to active and disabled services
-        # Active offerings is intersection of catalog and ccdb offerings, we only need to update these
-        active_offerings = catalog_offerings & registered_offerings
-        active_offerings.each do |label|
-          svc = @current_catalog[label]
-          req, plans = @http_handler.generate_cc_advertise_offering_request(svc, active)
-          guid = (@catalog_in_ccdb[label])["guid"]
-
-          plans_to_add, plans_to_update = process_plans(plans, @catalog_in_ccdb[label]["service"]["plans"])
-          logger.debug("CCNG Catalog Manager: plans_to_add = #{plans_to_add.inspect}")
-          logger.debug("CCNG Catalog Manager: plans_to_update = #{plans_to_add.inspect}")
-
-          logger.debug("CCNG Catalog Manager: Refresh offering: #{req.inspect}")
-          advertise_service_to_cc(req, guid, plans_to_add, plans_to_update)
-        end
-
-        # Inactive offerings is ccdb_offerings - active_offerings
-        inactive_offerings = registered_offerings - active_offerings
-        inactive_offerings.each do |label|
-          svc = @catalog_in_ccdb[label]
-          guid = svc["guid"]
-          service = svc["service"]
-
-          req, plans = @http_handler.generate_cc_advertise_offering_request(service, false)
-
-          logger.debug("CCNG Catalog Manager: Deactivating offering: #{req.inspect}")
-          advertise_service_to_cc(req, guid, [], {}) # don't touch plans, just deactivate
-        end
-
-        # PUT new offerings (yet to be registered) = catalog_offerings - active_offerings
-        new_offerings = catalog_offerings - active_offerings
-        new_offerings.each do |label|
-          svc = @current_catalog[label]
-          req, plans = @http_handler.generate_cc_advertise_offering_request(svc, active)
-          plans_to_add = plans.values
-          logger.debug("CCNG Catalog Manager: plans_to_add = #{plans_to_add.inspect}")
-
-
-          logger.debug("CCNG Catalog Manager: Add new offering: #{req.inspect}")
-          advertise_service_to_cc(req, nil, plans_to_add, {}) # nil guid => new service, so add all plans
-        end
-
-        active_count = active ? active_offerings.size + new_offerings.size : 0
-        disabled_count = inactive_offerings.size + (active ? 0 : active_offerings.size)
-
-        logger.info("CCNG Catalog Manager: Found #{active_offerings.size} active, #{disabled_count} disabled and #{new_offerings.size} new service offerings")
+        service_advertiser = ServiceAdvertiser.new(current_catalog: @current_catalog,
+                              catalog_in_ccdb: @catalog_in_ccdb,
+                              http_handler: @http_handler,
+                              logger: logger,
+                              active: active)
+        service_advertiser.advertise_services
 
         @gateway_stats_lock.synchronize do
-          @gateway_stats[:active_offerings] = active_count
-          @gateway_stats[:disabled_services] = disabled_count
+          @gateway_stats[:active_offerings] = service_advertiser.active_count
+          @gateway_stats[:disabled_services] = service_advertiser.disabled_count
         end
       end
     end
