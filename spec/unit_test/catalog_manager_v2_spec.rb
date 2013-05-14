@@ -39,7 +39,7 @@ describe VCAP::Services::CatalogManagerV2 do
     let(:registered_services) { mock('registered service', load_registered_services: {}) }
 
     before do
-      VCAP::Services::CloudControllerCollectionGetter.stub(:new => registered_services)
+      VCAP::Services::CloudControllerServices.stub(:new => registered_services)
     end
 
     it "loads the services from the gateway" do

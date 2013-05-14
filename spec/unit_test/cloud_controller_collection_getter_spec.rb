@@ -1,11 +1,11 @@
 require 'helper/spec_helper'
-require 'base/cloud_controller_collection_getter'
+require 'base/cloud_controller_services'
 
-describe VCAP::Services::CloudControllerCollectionGetter do
+describe VCAP::Services::CloudControllerServices do
   let(:client) { stub }
   let(:headers) { 'headers' }
 
-  subject(:getter) {
+  subject {
     described_class.new(client, headers, double("stub logger").as_null_object)
   }
 
@@ -71,17 +71,17 @@ describe VCAP::Services::CloudControllerCollectionGetter do
 
     it "only loads the service in the token registry" do
       auth_token_registry.stub(:has_key? => false)
-      result = getter.load_registered_services('v2/services', auth_token_registry)
+      result = subject.load_registered_services('v2/services', auth_token_registry)
       result.should be_empty
     end
 
     it "checks the service in the token registry" do
       auth_token_registry.should_receive(:has_key?).with(:mysql_aws)
-      result = getter.load_registered_services('v2/services', auth_token_registry)
+      subject.load_registered_services('v2/services', auth_token_registry)
     end
 
     it "returns a hash of services" do
-      result = getter.load_registered_services('v2/services', auth_token_registry)
+      result = subject.load_registered_services('v2/services', auth_token_registry)
       result.should be_a Hash
       result.keys.should == ["mysql_aws"]
       result["mysql_aws"].keys.should match_array(["guid", "service"])
@@ -96,7 +96,7 @@ describe VCAP::Services::CloudControllerCollectionGetter do
     end
 
     it "contains plans within each service" do
-      result = getter.load_registered_services('v2/services', auth_token_registry)
+      result = subject.load_registered_services('v2/services', auth_token_registry)
       plans = result["mysql_aws"]["service"]["plans"]
       plans.keys.should eq(["10mb"])
       plans["10mb"].should eq({
@@ -143,7 +143,7 @@ describe VCAP::Services::CloudControllerCollectionGetter do
       ).and_yield(page_2)
 
       response = []
-      getter.each("/page", "Test Entries") do |r|
+      subject.each("/page", "Test Entries") do |r|
         response << r
       end
       response.size.should == 4

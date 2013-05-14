@@ -1,6 +1,5 @@
-
 module VCAP::Services
-  class CloudControllerCollectionGetter
+  class CloudControllerServices
     def initialize(http_client, headers, logger)
       @http_client = http_client
       @headers     = headers

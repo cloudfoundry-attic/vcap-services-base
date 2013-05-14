@@ -4,7 +4,7 @@ require 'uri'
 require 'uaa'
 require 'services/api/const'
 require 'catalog_manager_base'
-require 'base/cloud_controller_collection_getter'
+require 'base/cloud_controller_services'
 require 'base/http_handler'
 require 'base/service_advertiser'
 
@@ -41,7 +41,10 @@ module VCAP
         @gateway_stats_lock = Mutex.new
         snapshot_and_reset_stats
         @http_handler = HTTPHandler.new(opts)
-        @multiple_page_getter = CloudControllerCollectionGetter.new(@http_handler.method(:cc_http_request), @http_handler.cc_req_hdrs, @logger)
+        @multiple_page_getter = CloudControllerServices.new(
+          @http_handler.method(:cc_http_request),
+          @http_handler.cc_req_hdrs,
+          @logger)
       end
 
       def create_key(label, version, provider)
@@ -121,12 +124,6 @@ module VCAP
         @multiple_page_getter.load_registered_services(@service_list_uri, @service_auth_tokens)
       end
 
-
-
-
-      # fetch all handles for instances and bindings for caching on service gateway
-      # this function allows user gateway to fetch all the instance and binding handles
-      # from cloud_controller_ng with a certain service label
       def fetch_handles_from_cc(service_label, after_fetch_callback)
         logger.info("CCNG Catalog Manager:(v2) Fetching all handles from cloud controller...")
         return unless after_fetch_callback
@@ -144,6 +141,15 @@ module VCAP
         @fetching_handles = false
       end
 
+      def update_handle_uri(handle)
+        if handle['gateway_name'] == handle['credentials']['name']
+          return "#{@service_instances_uri}/internal/#{handle['gateway_name']}"
+        else
+          return "#{@service_bindings_uri}/internal/#{handle['gateway_name']}"
+        end
+      end
+
+      private
       def fetch_all_instance_handles_from_cc
         logger.info("CCNG Catalog Manager:(v2) Fetching all service instance handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
         instance_handle_list = {}
@@ -160,21 +166,6 @@ module VCAP
         end
         logger.info("CCNG Catalog Manager:(v2) Successfully fetched all service instance handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
         instance_handle_list
-      end
-
-      def fetch_all_binding_handles_from_cc(instance_handles)
-        logger.info("CCNG Catalog Manager:(v2) Fetching all service binding handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
-        binding_handles_list = {}
-
-        # currently we will fetch each binding handle according to instance handle
-        # TODO: add a query parameter in ccng v2 to support query from service name to binding handle;
-        instance_handles.each do |instance_id, _|
-          binding_handles_query = "?q=service_instance_guid:#{@handle_guid[instance_id]}"
-          binding_handles = fetch_binding_handles_from_cc(binding_handles_query)
-          binding_handles_list.merge!(binding_handles) if binding_handles
-        end
-        logger.info("CCNG Catalog Manager:(v2) Successfully fetched all service binding handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
-        binding_handles_list
       end
 
       # fetch instance handles from cloud_controller_ng
@@ -200,6 +191,21 @@ module VCAP
         logger.error("CCNG Catalog Manager:(v2) Error decoding reply from gateway: #{e.backtrace}")
       end
 
+      def fetch_all_binding_handles_from_cc(instance_handles)
+        logger.info("CCNG Catalog Manager:(v2) Fetching all service binding handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
+        binding_handles_list = {}
+
+        # currently we will fetch each binding handle according to instance handle
+        # TODO: add a query parameter in ccng v2 to support query from service name to binding handle;
+        instance_handles.each do |instance_id, _|
+          binding_handles_query = "?q=service_instance_guid:#{@handle_guid[instance_id]}"
+          binding_handles = fetch_binding_handles_from_cc(binding_handles_query)
+          binding_handles_list.merge!(binding_handles) if binding_handles
+        end
+        logger.info("CCNG Catalog Manager:(v2) Successfully fetched all service binding handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
+        binding_handles_list
+      end
+
       # fetch binding handles from cloud_controller_ng
       # this function allows users to get a dedicated set of binding handles
       # from cloud_controller_ng using a customized query for /v2/service_binding api
@@ -221,54 +227,6 @@ module VCAP
         logger.error("CCNG Catalog Manager:(v2) Error decoding reply from gateway: #{e}")
       end
 
-      def update_handle_uri(handle)
-        if handle['gateway_name'] == handle['credentials']['name']
-          return "#{@service_instances_uri}/internal/#{handle['gateway_name']}"
-        else
-          return "#{@service_bindings_uri}/internal/#{handle['gateway_name']}"
-        end
-      end
-
-      def update_handle_in_cc(service_label, handle, on_success_callback, on_failure_callback)
-        logger.debug("CCNG Catalog Manager:(v1) Update service handle: #{handle.inspect}")
-        if not handle
-          on_failure_callback.call if on_failure_callback
-          return
-        end
-
-        uri = update_handle_uri(handle)
-
-        # replace the "configuration" field with "gateway_data", and remove "gateway_name" for the internal update
-        handle["gateway_data"] = handle.delete("configuration")
-        handle.delete("gateway_name")
-
-        # manipulate handle to be a handle that is acceptable to ccng
-        cc_handle = {
-          "token"        => @service_auth_tokens.values[0],
-          "credentials"  => handle["credentials"],
-          "gateway_data" => handle["gateway_data"],
-        }
-
-        cc_http_request(:uri => uri,
-                        :method => "put",
-                        :head => @cc_req_hdrs,
-                        :body => Yajl::Encoder.encode(cc_handle)) do |http|
-          if ! http.error
-            if http.response_header.status == 200
-              logger.info("CCNG Catalog Manager:(v1) Successful update handle #{handle["service_id"]}")
-              on_success_callback.call if on_success_callback
-            else
-              logger.error("CCNG Catalog Manager:(v1) Failed to update handle #{handle["service_id"]}: http status #{http.response_header.status}")
-              on_failure_callback.call if on_failure_callback
-            end
-          else
-            logger.error("CCNG Catalog Manager:(v1) Failed to update handle #{handle["service_id"]}: #{http.error}")
-            on_failure_callback.call if on_failure_callback
-          end
-        end
-      end
-
-      private
       def advertise_services(active=true)
         logger.info("CCNG Catalog Manager: #{active ? "Activate" : "Deactivate"} services...")
 
