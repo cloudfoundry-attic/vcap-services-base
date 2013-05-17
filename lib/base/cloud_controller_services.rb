@@ -1,49 +1,56 @@
+require 'base/service'
+require 'base/plan'
+
 module VCAP::Services
   class CloudControllerServices
     def initialize(http_client, headers, logger)
       @http_client = http_client
-      @headers     = headers
-      @logger      = logger
+      @headers = headers
+      @logger = logger
     end
+
     attr_reader :logger
 
     def load_registered_services(service_list_uri, auth_token_registry)
       logger.debug("Getting services listing from cloud_controller")
-      registered_services = {}
+      registered_services = []
 
       self.each(service_list_uri, "Registered Offerings") do |s|
-        key = "#{s["entity"]["label"]}_#{s["entity"]["provider"]}"
+        entity = s["entity"]
+        plans = []
+        key = "#{entity["label"]}_#{entity["provider"]}"
 
-        if auth_token_registry.has_key?(key.to_sym)
-          entity = s["entity"]
-
-          plans = {}
-          logger.debug("Getting service plans for: #{entity["label"]}/#{entity["provider"]}")
-          self.each(entity["service_plans_url"], "Service Plans") do |p|
-            plans[p["entity"]["name"]] = {
-              "guid"        => p["metadata"]["guid"],
-              "name"        => p["entity"]["name"],
-              "description" => p["entity"]["description"],
-              "free"        => p["entity"]["free"],
-            }
-          end
-
-          svc = {
-            "id"          => entity["label"],
-            "description" => entity["description"],
-            "provider"    => entity["provider"],
-            "version"     => entity["version"],
-            "url"         => entity["url"],
-            "info_url"    => entity["info_url"],
-            "plans"       => plans
-          }
-          registered_services[key] = {
-            "guid"    => s["metadata"]["guid"],
-            "service" => svc,
-          }
-
-          logger.debug("Found #{key} = #{registered_services[key].inspect}")
+        unless auth_token_registry.has_key?(key.to_sym)
+          logger.debug("Ignoring service #{entity["label"]} from provider #{entity["provider"]}, because it has no auth token registered")
+          next
         end
+
+
+        logger.debug("Getting service plans for: #{entity["label"]}/#{entity["provider"]}")
+        self.each(entity.fetch("service_plans_url"), "Service Plans") do |p|
+          plan_entity = p.fetch('entity')
+          plan_metadata = p.fetch('metadata')
+          plans << Plan.new(
+            :unique_id => plan_entity.fetch("unique_id"),
+            :guid => plan_metadata.fetch("guid"),
+            :name => plan_entity.fetch("name"),
+            :description => plan_entity.fetch("description"),
+            :free => plan_entity.fetch("free"),
+          )
+        end
+
+        registered_services << Service.new(
+          'guid' => s["metadata"]["guid"],
+          'label' => entity["label"],
+          'unique_id' => entity["unique_id"],
+          'description' => entity["description"],
+          'provider' => entity["provider"],
+          'version' => entity['version'],
+          'url' => entity["url"],
+          'info_url' => entity["info_url"],
+          'extra' => entity['extra'],
+          'plans' => plans
+        )
       end
 
       registered_services

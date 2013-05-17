@@ -93,7 +93,7 @@ class VCAP::Services::AsynchronousServiceGateway < VCAP::Services::BaseAsynchron
   end
 
   def get_current_catalog
-    id, _, version = @service[:label].rpartition('-')
+    id, version = VCAP::Services::Api::Util.parse_label(@service[:label])
     version = @service[:version_aliases][:current] if @service[:version_aliases][:current]
     provider = @service[:provider] || 'core'
 

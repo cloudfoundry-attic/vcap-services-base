@@ -55,46 +55,23 @@ class HTTPHandler
     @cc_req_hdrs || refresh_client_auth_token
   end
 
-  def generate_cc_advertise_offering_request(svc, active = true)
-    req = {}
-
-    req[:unique_id]   = svc["unique_id"]
-    req[:label]       = svc["id"]
-    req[:version]     = svc["version"]
-    req[:active]      = active
-    req[:description] = svc["description"]
-    req[:provider]    = svc["provider"]
-
-    req[:acls]        = svc["acls"]
-    req[:url]         = svc["url"]
-    req[:timeout]     = svc["timeout"]
-    req[:extra]       = svc["extra"]
+  def generate_cc_advertise_offering_request(service, active = true)
+    svc = service.to_hash
 
     # NOTE: In CCNG, multiple versions is expected to be supported via multiple plans
     # The gateway will have to maintain a mapping of plan-name to version so that
     # the correct version will be provisioned
     plans = {}
-    if svc["plans"].is_a?(Array)
-      svc["plans"].each { |p|
-        # If not specified, assume all plans are free
-        plans[p] = { "name" => p, "description" => "#{p} plan", "free" => true }
+    svc.delete('plans').each do |p|
+      plans[p[:name]] = {
+        "unique_id" => p[:unique_id],
+        "name" => p[:name],
+        "description" => p[:description],
+        "free" => p[:free]
       }
-    elsif svc["plans"].is_a?(Hash)
-      svc["plans"].each { |k, v|
-        plan_name = k.to_s
-        plans[plan_name] = {
-          "unique_id"   => v[:unique_id],
-          "name"        => plan_name,
-          "description" => v[:description],
-          "free"        => v[:free],
-          "extra"       => v[:extra],
-        }
-      }
-    else
-      raise "Plans must be either an array or hash(plan_name => description)"
     end
 
-    [ req, plans ]
+    [svc, plans]
   end
 
   private

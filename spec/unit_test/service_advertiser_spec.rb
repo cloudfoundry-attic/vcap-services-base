@@ -1,5 +1,6 @@
 require 'helper/spec_helper'
 require 'base/service_advertiser'
+require 'base/service'
 
 module VCAP::Services
   describe ServiceAdvertiser do
@@ -7,62 +8,38 @@ module VCAP::Services
       pending "needs a test"
     end
 
-    describe "#process_plans" do
-      let(:plan_name) { "plan1" }
-      let(:plan_guid) { "abc" }
-      let(:plan_details) {
-        {"guid" => plan_guid, "description" => "blah", "free" => true, "extra" => "stuff"}
-      }
-      subject {
-        described_class.new(current_catalog: nil,
-                                    catalog_in_ccdb: nil,
-                                    http_handler: stub,
-                                    logger: mock.as_null_object)
-      }
+    let(:logger) { double.as_null_object }
+    let(:http_handler) { double.as_null_object }
 
-      describe "plans_to_add (first return value)" do
-        context "when there is a new plan" do
-          it "advertises the new plan" do
-            new_plans = { plan_name => plan_details }
-            plans_to_add, _ = subject.process_plans(new_plans, {})
+    def build_service(guid, unique_id)
+      Service.new(
+        'guid' => guid,
+        'unique_id' => unique_id,
+        'provider' => nil,
+        'version' => nil,
+        'url' => nil,
+        'extra' => nil,
+        'plans' => []
+      )
+    end
 
-            plans_to_add.should have(1).entry
-            plans_to_add.first.should == plan_details
-          end
-        end
+    it 'sets the guids for services in the catalog that exist in CC' do
+      guid_1 = 'guid_1'
+      unique_id_1 = 'unique_id_1'
+      unique_id_2 = 'unique_id_2'
+      catalog = [ build_service(nil, unique_id_1), build_service(nil, unique_id_2) ]
+      registered_services = [ build_service(guid_1, unique_id_1) ]
+      advertiser = ServiceAdvertiser.new(
+        current_catalog: catalog,
+        catalog_in_ccdb: registered_services,
+        logger: logger,
+        http_handler: http_handler
+      )
+      service_1 = advertiser.catalog_services.detect {|s| s.unique_id == unique_id_1 }
+      service_1.guid.should == guid_1
 
-        context "when there are no new plans" do
-          it "does not advertise any new plans" do
-            plans = { plan_name => plan_details }
-
-            plans_to_add, _ = subject.process_plans(plans, plans)
-
-            plans_to_add.should be_empty
-          end
-        end
-      end
-
-      describe "plans_to_update (second return value)" do
-        context "when no plans change" do
-          it "should propose no changes to CC" do
-            plans = {plan_name => plan_details}
-
-            _, plans_to_update = subject.process_plans(plans, plans)
-            plans_to_update.should be_empty
-          end
-        end
-
-        context "when a plan's extra field has changed since it was last advertised" do
-          it "should update the plan" do
-            old_plans = { plan_name => plan_details.merge("extra" => "something") }
-            new_plans = { plan_name => plan_details.merge("extra" => "something else") }
-
-            _, plans_to_update = subject.process_plans( new_plans, old_plans )
-            plans_to_update.should have_key(plan_guid)
-            plans_to_update[plan_guid]['extra'].should == new_plans[plan_name]['extra']
-          end
-        end
-      end
+      service_2 = advertiser.catalog_services.detect {|s| s.unique_id == unique_id_2 }
+      service_2.guid.should be_nil
     end
   end
 end

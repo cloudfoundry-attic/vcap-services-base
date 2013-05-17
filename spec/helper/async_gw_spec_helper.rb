@@ -63,7 +63,7 @@ class AsyncGatewayTests
       end
       @service_timeout = timeout ? timeout + 1 : 10
       options = {
-        :service => {
+        :service => { :unique_id => 'unique_id',
                       :label => @label,
                       :name => 'service',
                       :version => '1.0',
