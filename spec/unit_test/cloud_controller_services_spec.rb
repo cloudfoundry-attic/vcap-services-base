@@ -5,16 +5,17 @@ describe VCAP::Services::CloudControllerServices do
   let(:client) { stub }
   let(:headers) { 'headers' }
 
-  subject {
+  let(:cc_services) {
     described_class.new(client, headers, double("stub logger").as_null_object)
   }
 
-  describe "#load_registered_services" do
+  describe "load_registered_services" do
     let(:service) do
       {
         "metadata" => {"guid" => "asdf"},
         "entity" => {
           "label" => 'mysql',
+          "unique_id" => 'u-id',
           "provider" => 'aws',
           "description" => 'description for mysql',
           "version" => 'version 1',
@@ -31,7 +32,8 @@ describe VCAP::Services::CloudControllerServices do
         "entity" => {
           "name" => '10mb',
           "description" => 'it is free',
-          'free' => true
+          'free' => true,
+          :unique_id => "unique_id"
         }
       }
     end
@@ -45,7 +47,7 @@ describe VCAP::Services::CloudControllerServices do
           "resources" => [plan]
         }.to_json
       )
-     plan_http
+      plan_http
     end
 
     let(:auth_token_registry) do
@@ -71,40 +73,36 @@ describe VCAP::Services::CloudControllerServices do
 
     it "only loads the service in the token registry" do
       auth_token_registry.stub(:has_key? => false)
-      result = subject.load_registered_services('v2/services', auth_token_registry)
+      result = cc_services.load_registered_services('v2/services', auth_token_registry)
       result.should be_empty
     end
 
     it "checks the service in the token registry" do
       auth_token_registry.should_receive(:has_key?).with(:mysql_aws)
-      subject.load_registered_services('v2/services', auth_token_registry)
+      cc_services.load_registered_services('v2/services', auth_token_registry)
     end
 
-    it "returns a hash of services" do
-      result = subject.load_registered_services('v2/services', auth_token_registry)
-      result.should be_a Hash
-      result.keys.should == ["mysql_aws"]
-      result["mysql_aws"].keys.should match_array(["guid", "service"])
-      result["mysql_aws"]["service"].should include({
-        'id' => 'mysql',
-        'description' => 'description for mysql',
-        'provider'  => 'aws',
-        'version' => 'version 1',
-        'url' => 'http://url.com',
-        'info_url' => 'http://info_url.com'
-      })
+    it "returns a collection of services" do
+      result = cc_services.load_registered_services('v2/services', auth_token_registry)
+      result.should be_a Array
+      service = result.first
+      service.guid.should_not be_nil
+      service.label.should == 'mysql'
+      service.description.should == 'description for mysql'
+      service.provider.should == 'aws'
+      service.version.should == 'version 1'
+      service.url.should == 'http://url.com'
+      service.info_url.should == 'http://info_url.com'
     end
 
     it "contains plans within each service" do
-      result = subject.load_registered_services('v2/services', auth_token_registry)
-      plans = result["mysql_aws"]["service"]["plans"]
-      plans.keys.should eq(["10mb"])
-      plans["10mb"].should eq({
-        'guid' => 'qwer',
-        'name' => '10mb',
-        'description' => 'it is free',
-        'free' => true,
-      })
+      result = cc_services.load_registered_services('v2/services', auth_token_registry)
+      plans = result.first.plans
+      plan = plans.first
+      plan.guid.should =='qwer'
+      plan.name.should =='10mb'
+      plan.description.should =='it is free'
+      plan.free.should == true
     end
   end
 
@@ -115,7 +113,7 @@ describe VCAP::Services::CloudControllerServices do
       page_1.stub("response") {
         {
           "total_results" => 2, "total_pages" => 2, "prev_url" => nil, "next_url" => "/page/2",
-          "resources" => [ "a", "b" ]
+          "resources" => ["a", "b"]
         }.to_json
       }
 
@@ -124,7 +122,7 @@ describe VCAP::Services::CloudControllerServices do
       page_2.stub("response") {
         {
           "total_results" => 2, "total_pages" => 2, "prev_url" => "/page/1", "next_url" => nil,
-          "resources" => [ "c", "d" ]
+          "resources" => ["c", "d"]
         }.to_json
       }
 
@@ -143,7 +141,7 @@ describe VCAP::Services::CloudControllerServices do
       ).and_yield(page_2)
 
       response = []
-      subject.each("/page", "Test Entries") do |r|
+      cc_services.each("/page", "Test Entries") do |r|
         response << r
       end
       response.size.should == 4

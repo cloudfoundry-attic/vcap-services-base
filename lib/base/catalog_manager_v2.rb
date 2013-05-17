@@ -85,7 +85,8 @@ module VCAP
           logger.info("CCNG Catalog Manager: Loading services from CC")
           failed = false
           begin
-            @catalog_in_ccdb = load_registered_services_from_cc
+            catalog_in_ccdb = load_registered_services_from_cc
+
           rescue => e
             failed = true
             logger.error("CCNG Catalog Manager: Failed to get currently advertized offerings from cc: #{e.inspect}")
@@ -98,7 +99,9 @@ module VCAP
           logger.info("CCNG Catalog Manager: Loading current catalog...")
           failed = false
           begin
-            @current_catalog = catalog_loader.call()
+            current_catalog = catalog_loader.call().values.collect do |service_hash|
+              Service.new(service_hash)
+            end
           rescue => e1
             failed = true
             logger.error("CCNG Catalog Manager: Failed to get latest service catalog: #{e1.inspect}")
@@ -109,7 +112,7 @@ module VCAP
 
           # Update
           logger.info("CCNG Catalog Manager: Updating Offerings...")
-          advertise_services(activate)
+          advertise_services(current_catalog, catalog_in_ccdb, activate)
 
           # Post-update processing
           if after_update_callback
@@ -156,9 +159,9 @@ module VCAP
 
         registered_services = load_registered_services_from_cc
 
-        registered_services.each_value do |registered_service|
-          registered_service['service']['plans'].each_value do |plan_details|
-            plan_guid = plan_details["guid"]
+        registered_services.each do |registered_service|
+          registered_service.plans.each do |plan_details|
+            plan_guid = plan_details.guid
             instance_handles_query = "?q=service_plan_guid:#{plan_guid}"
             instance_handles = fetch_instance_handles_from_cc(instance_handles_query)
             instance_handle_list.merge!(instance_handles) if instance_handles
@@ -227,19 +230,21 @@ module VCAP
         logger.error("CCNG Catalog Manager:(v2) Error decoding reply from gateway: #{e}")
       end
 
-      def advertise_services(active=true)
+      def advertise_services(current_catalog, catalog_in_ccdb, active=true)
         logger.info("CCNG Catalog Manager: #{active ? "Activate" : "Deactivate"} services...")
 
-        if !(@current_catalog && @catalog_in_ccdb)
+        if !(current_catalog && catalog_in_ccdb)
           logger.warn("CCNG Catalog Manager: Cannot advertise services since the offerings list from either the catalog or ccdb could not be retrieved")
           return
         end
 
-        service_advertiser = ServiceAdvertiser.new(current_catalog: @current_catalog,
-                              catalog_in_ccdb: @catalog_in_ccdb,
-                              http_handler: @http_handler,
-                              logger: logger,
-                              active: active)
+        service_advertiser = ServiceAdvertiser.new(
+          current_catalog: current_catalog,
+          catalog_in_ccdb: catalog_in_ccdb,
+          http_handler: @http_handler,
+          logger: logger,
+          active: active
+        )
         service_advertiser.advertise_services
 
         @gateway_stats_lock.synchronize do

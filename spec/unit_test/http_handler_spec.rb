@@ -38,8 +38,13 @@ describe HTTPHandler do
 
   end
 
-  describe "#cc_http_request" do
+  describe 'generate_cc_advertise_offering_request' do
+    it 'generates the correct request' do
+      pending 'Need test'
+    end
+  end
 
+  describe "#cc_http_request" do
     it "makes the appropriate request" do
       path = '/v2/services'
       stub_request(:post, "http://example.com/v2/services").to_return(body: "something, something, something... dark side")
