@@ -71,17 +71,6 @@ describe VCAP::Services::CloudControllerServices do
       client.stub(:call).with(hash_including(:uri => 'v2/services/asdf/service_plans')).and_yield(plan_http)
     end
 
-    it "only loads the service in the token registry" do
-      auth_token_registry.stub(:has_key? => false)
-      result = cc_services.load_registered_services('v2/services', auth_token_registry)
-      result.should be_empty
-    end
-
-    it "checks the service in the token registry" do
-      auth_token_registry.should_receive(:has_key?).with(:mysql_aws)
-      cc_services.load_registered_services('v2/services', auth_token_registry)
-    end
-
     it "returns a collection of services" do
       result = cc_services.load_registered_services('v2/services', auth_token_registry)
       result.should be_a Array

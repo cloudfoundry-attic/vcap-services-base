@@ -20,12 +20,6 @@ module VCAP::Services
         plans = []
         key = "#{entity["label"]}_#{entity["provider"]}"
 
-        unless auth_token_registry.has_key?(key.to_sym)
-          logger.debug("Ignoring service #{entity["label"]} from provider #{entity["provider"]}, because it has no auth token registered")
-          next
-        end
-
-
         logger.debug("Getting service plans for: #{entity["label"]}/#{entity["provider"]}")
         self.each(entity.fetch("service_plans_url"), "Service Plans") do |p|
           plan_entity = p.fetch('entity')

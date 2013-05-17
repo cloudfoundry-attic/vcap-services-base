@@ -210,7 +210,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   end
 
   def on_announce(msg, reply=nil)
-    @logger.debug("[#{service_description}] Received node announcement: #{msg}")
+    @logger.debug("[#{service_description}] Received node announcement: #{msg.inspect}")
     announce_message = Yajl::Parser.parse(msg)
     if announce_message["id"]
       id = announce_message["id"]
