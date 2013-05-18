@@ -35,8 +35,6 @@ module VCAP
 
         @logger               = opts[:logger]
 
-        @service_auth_tokens  = opts[:service_auth_tokens]
-
         @gateway_stats = {}
         @gateway_stats_lock = Mutex.new
         snapshot_and_reset_stats
@@ -126,7 +124,7 @@ module VCAP
       end
 
       def load_registered_services_from_cc
-        @multiple_page_getter.load_registered_services(@service_list_uri, @service_auth_tokens)
+        @multiple_page_getter.load_registered_services(@service_list_uri)
       end
 
       def fetch_handles_from_cc(service_label, after_fetch_callback)

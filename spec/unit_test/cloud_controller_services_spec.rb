@@ -50,10 +50,6 @@ describe VCAP::Services::CloudControllerServices do
       plan_http
     end
 
-    let(:auth_token_registry) do
-      stub('auth-tokens', :has_key? => true)
-    end
-
     let(:service_http) do
       service_http = mock("page_1")
       service_http.stub_chain(:response_header, :status).and_return(200)
@@ -72,7 +68,7 @@ describe VCAP::Services::CloudControllerServices do
     end
 
     it "returns a collection of services" do
-      result = cc_services.load_registered_services('v2/services', auth_token_registry)
+      result = cc_services.load_registered_services('v2/services')
       result.should be_a Array
       service = result.first
       service.guid.should_not be_nil
@@ -85,7 +81,7 @@ describe VCAP::Services::CloudControllerServices do
     end
 
     it "contains plans within each service" do
-      result = cc_services.load_registered_services('v2/services', auth_token_registry)
+      result = cc_services.load_registered_services('v2/services')
       plans = result.first.plans
       plan = plans.first
       plan.guid.should =='qwer'

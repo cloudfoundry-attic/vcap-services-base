@@ -11,14 +11,13 @@ module VCAP::Services
 
     attr_reader :logger
 
-    def load_registered_services(service_list_uri, auth_token_registry)
+    def load_registered_services(service_list_uri)
       logger.debug("Getting services listing from cloud_controller")
       registered_services = []
 
       self.each(service_list_uri, "Registered Offerings") do |s|
         entity = s["entity"]
         plans = []
-        key = "#{entity["label"]}_#{entity["provider"]}"
 
         logger.debug("Getting service plans for: #{entity["label"]}/#{entity["provider"]}")
         self.each(entity.fetch("service_plans_url"), "Service Plans") do |p|

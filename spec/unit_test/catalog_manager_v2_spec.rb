@@ -49,7 +49,7 @@ describe VCAP::Services::CatalogManagerV2 do
 
     it "get the registered services from CCNG" do
       registered_services.should_receive(:load_registered_services).
-        with("/v2/services?inline-relations-depth=2", anything)
+        with("/v2/services?inline-relations-depth=2")
       manager.update_catalog(true, catalog_loader)
     end
 
