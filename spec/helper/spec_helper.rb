@@ -271,7 +271,10 @@ end
 
 RSpec.configure do |c|
   c.include SpecHelpers
-  WebMock.allow_net_connect!
+
+  c.before(:each) do
+    WebMock.disable_net_connect!(:allow_localhost => true)
+  end
 end
 
 RSpec::Matchers.define :json_match do |matcher|

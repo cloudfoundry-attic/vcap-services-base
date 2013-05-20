@@ -1,16 +1,14 @@
 require 'rake'
 require 'bundler'
+Bundler.require(:default, :test)
 
+require 'rspec/core/rake_task'
+require 'ci/reporter/rake/rspec'
+
+RSpec::Core::RakeTask.new do |t| # define 'spec' task
+  t.pattern = "spec/unit_test/*_spec.rb"
+end
 task "default" => "spec"
-
-desc "Run specs"
-task "spec" => ["test:spec"]
-
-desc "Run specs using SimpleCov"
-task "spec:rcov" => ["test:spec:rcov"]
-
-desc "Run ci using SimpleCov"
-task "spec:ci" => ["test:spec:ci"]
 
 namespace "bundler" do
   gem_helper = Bundler::GemHelper.new(Dir.pwd)
@@ -44,25 +42,3 @@ namespace "bundler" do
   end
 end
 
-namespace "test" do
-  def run_or_fail(cmd)
-    raise "Failed to run '#{cmd}'" unless system(cmd)
-  end
-
-  def run_spec
-    Dir.chdir("spec")
-    yield
-  end
-
-  task "spec" do |t|
-    run_spec { run_or_fail "rake spec" }
-  end
-
-  task "spec:rcov" do |t|
-    run_spec { run_or_fail "rake simcov" }
-  end
-
-  task "spec:ci" do |t|
-    run_spec { run_or_fail "rake spec:ci" }
-  end
-end
