@@ -1,11 +1,11 @@
 require 'helper/spec_helper'
-require 'base/service_catalog'
+require 'base/gateway_service_catalog'
 
 
 module VCAP::Services
-  describe ServiceCatalog do
+  describe GatewayServiceCatalog do
     describe '#to_hash' do
-      let(:service_catalog) { ServiceCatalog.new([service]) }
+      let(:service_catalog) { GatewayServiceCatalog.new([service]) }
       let(:service) { {version_aliases: {}, provider: "provider", label: "test-data-here-version", plans: {}} }
 
       it "allows a dash in the label name" do

@@ -1,5 +1,5 @@
 module VCAP::Services
-  class ServiceCatalog
+  class GatewayServiceCatalog
     attr_reader :service
     
     def initialize(services)

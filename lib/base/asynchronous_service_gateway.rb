@@ -1,6 +1,6 @@
 # Copyright (c) 2009-2011 VMware, Inc.
 require 'base_async_gateway'
-require 'service_catalog'
+require 'gateway_service_catalog'
 
 $:.unshift(File.dirname(__FILE__))
 
@@ -95,7 +95,7 @@ module VCAP::Services
     end
 
     def get_current_catalog
-      ServiceCatalog.new([@service]).to_hash
+      GatewayServiceCatalog.new([@service]).to_hash
     end
 
     def check_orphan(handles, callback, errback)
