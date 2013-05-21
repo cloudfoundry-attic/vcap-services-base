@@ -205,6 +205,25 @@ module Do
   end
 end
 
+def stop_event_machine_when(&predicate)
+  stop_event_loop(
+    with: EM.method(:stop),
+    when_true: predicate
+  )
+end
+
+def stop_event_loop(opts)
+  stop_proc = opts.fetch(:with)
+  predicate = opts.fetch(:when_true)
+  timeout_in_seconds = opts.fetch(:timeout, 30)
+  poll_for_shutdown_with_timeout(stop_proc, Time.now.to_i + timeout_in_seconds, predicate)
+end
+
+def poll_for_shutdown_with_timeout(stop_proc, timeout_at, predicate)
+  stop_proc.call if predicate.call or Time.now.to_i > timeout_at
+  EM.next_tick { poll_for_shutdown_with_timeout(stop_proc, timeout_at, predicate) }
+end
+
 def generate_ins_list(count)
   list = []
   count.times do |i|

@@ -104,8 +104,20 @@ describe NodeTests do
       Do.sec(1) { provisioner = NodeTests.create_provisioner }
       # Start 5 concurrent provision requests, each of which takes 5 seconds to finish
       # Non-concurrent provision handler won't finish in 10 seconds
-      Do.sec(2) { 5.times { provisioner.send_provision_request } }
-      Do.sec(20) { EM.stop }
+      Do.sec(2) {
+        5.times do
+          provisioner.send_provision_request
+        end
+        stop_event_loop(
+          with: EM.method(:stop),
+          timeout: 20,
+          when_true: -> {
+            node.provision_invoked &&
+            node.provision_times == 5 &&
+            provisioner.got_provision_response
+          },
+        )
+      }
     end
     node.provision_invoked.should be_true
     node.provision_times.should == 5

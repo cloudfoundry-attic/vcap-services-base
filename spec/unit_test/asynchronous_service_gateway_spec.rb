@@ -6,9 +6,19 @@ describe AsyncGatewayTests do
     cc = nil
     gateway = nil
     EM.run do
-      Do.at(0) { cc = AsyncGatewayTests.create_cloudcontroller; cc.start }
-      Do.at(1) { gateway = AsyncGatewayTests.create_check_orphan_gateway(true, 5, 3); gateway.start }
-      Do.at(20) { cc.stop; gateway.stop; EM.stop }
+      Do.at(0) {
+        cc = AsyncGatewayTests.create_cloudcontroller
+        cc.start
+      }
+      Do.at(1) {
+        gateway = AsyncGatewayTests.create_check_orphan_gateway(true, 5, 3)
+        gateway.start
+
+        stop_event_loop(
+          with: -> { cc.stop; gateway.stop; EM.stop },
+          when_true: -> { gateway.double_check_orphan_invoked }
+        )
+      }
     end
     gateway.check_orphan_invoked.should be_true
     gateway.double_check_orphan_invoked.should be_true
@@ -211,8 +221,15 @@ describe AsyncGatewayTests do
     EM.run do
       Do.at(0) { cc = AsyncGatewayTests.create_cloudcontroller; cc.start }
       Do.at(1) { gateway = AsyncGatewayTests.create_timeout_gateway(true, 35); gateway.start }
-      Do.at(2) { gateway.send_provision_request }
-      Do.at(72) { cc.stop; gateway.stop; EM.stop }
+      Do.at(2) {
+        gateway.send_provision_request
+        stop_everything =
+        stop_event_loop(
+          timeout: 60,
+          with: -> { cc.stop; gateway.stop; EM.stop },
+          when_true: -> { gateway.provision_http_code == 200 }
+        )
+      }
     end
     gateway.provision_http_code.should == 200
   end

@@ -6,11 +6,6 @@ require 'eventmachine'
 describe NodeTests do
   include VCAP::Services::Internal
 
-  def stop_event_machine_when(timeout_at=(Time.now.to_i + 30), &predicate)
-    EM.stop if predicate.call or Time.now.to_i > timeout_at
-    EM.next_tick { stop_event_machine_when(&predicate) }
-  end
-
   it "should call varz" do
     node = nil
     provisioner = nil

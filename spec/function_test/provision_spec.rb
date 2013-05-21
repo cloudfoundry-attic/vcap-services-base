@@ -514,8 +514,13 @@ describe ProvisionerTests do
         end
         Do.at(1) { gateway = ProvisionerTests.create_gateway(provisioner, 1024 * 128, 1024 * 16) }
         Do.at(2) { node = ProvisionerTests.create_node(1) }
-        Do.at(4) { gateway.send_purge_orphan_request }
-        Do.at(60) { EM.stop }
+        Do.at(4) {
+          gateway.send_purge_orphan_request
+          stop_event_machine_when do
+            node.purge_ins_list.count == 1024 * 128 &&
+              node.purge_bind_list.count == 1024 * 16
+          end
+        }
       end
       node.got_purge_orphan_request.should be_true
       gateway.got_purge_orphan_response.should be_true
