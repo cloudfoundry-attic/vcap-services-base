@@ -3,6 +3,7 @@ require 'eventmachine'
 
 describe AsyncGatewayTests do
   it "should be able to return error when cc uri is invalid" do
+    WebMock.allow_net_connect!
     cc = nil
     gateway = nil
     EM.run do
