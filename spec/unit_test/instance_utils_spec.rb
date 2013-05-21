@@ -1,7 +1,7 @@
 # Copyright (c) 2009-2012 VMware, Inc.
 require "helper/spec_helper"
 
-describe "Service instance utilities test" do
+describe "Service instance utilities test", :requires_warden do
   describe '.warden_connect' do
     it 'uses the warden_socket_path to connect to Warden' do
       path = '/tmp/warden.sock'

@@ -1,7 +1,7 @@
 # Copyright (c) 2009-2012 VMware, Inc.
 require "helper/spec_helper"
 
-describe "Warden Service test" do
+describe "Warden Service test", :requires_warden do
   before :all do
     DataMapper.initialize_lock_file('/tmp/test_lock_file')
     FileUtils.mkdir_p(DEF_OPTIONS[:base_dir])
