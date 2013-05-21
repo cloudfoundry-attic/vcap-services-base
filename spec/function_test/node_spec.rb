@@ -1,5 +1,6 @@
 # Copyright (c) 2009-2011 VMware, Inc.
 require 'helper/spec_helper'
+require 'helper/nats_server_helper'
 require 'eventmachine'
 
 describe NodeTests do

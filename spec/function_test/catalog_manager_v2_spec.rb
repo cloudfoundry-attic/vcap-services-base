@@ -24,7 +24,7 @@ module VCAP::Services
       unique_plan_id = 'unique_plan_id'
       catalog = {
         'service_key1' => {
-          'id' => 'id-1',
+          'label' => 'id-1',
           'version' => '1.0',
           'description' => 'description',
           'provider' => 'provider',
@@ -79,7 +79,7 @@ module VCAP::Services
       new_plan_description = 'new plan description'
 
       service = {
-        'id' => service_label,
+        'label' => service_label,
         'provider' => service_provider,
         'version' => '1.0',
         'description' => new_description,
@@ -173,7 +173,7 @@ module VCAP::Services
       new_extra = '{"abc": 123}'
 
       service = {
-        'id' => service_label,
+        'label' => service_label,
         'provider' => service_provider,
         'version' => '1.0',
         'description' => 'description',
