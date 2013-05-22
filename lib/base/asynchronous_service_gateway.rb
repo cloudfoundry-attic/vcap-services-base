@@ -95,7 +95,7 @@ module VCAP::Services
     end
 
     def get_current_catalog
-      GatewayServiceCatalog.new([@service]).to_hash
+      GatewayServiceCatalog.new([@service])
     end
 
     def check_orphan(handles, callback, errback)

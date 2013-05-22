@@ -97,11 +97,12 @@ module VCAP
           logger.info("CCNG Catalog Manager: Loading current catalog...")
           failed = false
           begin
-            current_catalog = catalog_loader.call().values.collect do |service_hash|
-              label, _ = VCAP::Services::Api::Util.parse_label(service_hash.fetch('label'))
-              service_hash['label'] = label
-              Service.new(service_hash)
-            end
+            current_catalog = catalog_loader.call()
+            #.values.collect do |service_hash|
+              # label, _ = VCAP::Services::Api::Util.parse_label(service_hash.fetch('label'))
+              # service_hash['label'] = label
+              # Service.new(service_hash)
+            # end
           rescue => e1
             failed = true
             logger.error("CCNG Catalog Manager: Failed to get latest service catalog: #{e1.inspect}")

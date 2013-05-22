@@ -1,68 +1,66 @@
+require 'service'
+
 module VCAP::Services
   class GatewayServiceCatalog
-    attr_reader :service
-    
-    def initialize(services)
-      raise ArgumentError.new('a service list is required') unless services and services.is_a?(Array)
-      @service = services.fetch(0)
+    attr_reader :services
+
+    def initialize(catalog_attrs)
+      raise ArgumentError.new('a service list is required') unless catalog_attrs and catalog_attrs.is_a?(Array)
+      @services = catalog_attrs.map { |attrs| build_service(attrs) }
     end
 
-    def to_hash
-      id, version = VCAP::Services::Api::Util.parse_label(service[:label])
-      version = service[:version_aliases][:current] if service[:version_aliases][:current]
-      provider = service[:provider] || 'core'
+    private
 
-      catalog_key = "#{id}_#{provider}"
+    def build_service(attrs)
+      id, version = VCAP::Services::Api::Util.parse_label(attrs[:label])
+      version = attrs[:version_aliases][:current] if attrs[:version_aliases][:current]
+      provider = attrs[:provider] || 'core'
 
-      unique_id = service[:unique_id] ? {"unique_id" => service[:unique_id]} : {}
-      catalog = {}
-
-      plans = service.fetch(:plans)
+      plans = attrs.fetch(:plans)
       unless plans.is_a?(Array)
         plans.each do |name, plan|
           plan[:name] = name
         end
       end
 
-      catalog[catalog_key] = {
-        "id" => id,
-        "version" => version,
-        "label" => service[:label],
-        "url" => service[:url],
-        "plans" => plans,
-        "cf_plan_id" => service[:cf_plan_id],
-        "tags" => service[:tags],
-        "active" => true,
-        "description" => service[:description],
-        "plan_options" => service[:plan_options],
-        "acls" => service[:acls],
-        "timeout" => service[:timeout],
-        "provider" => provider,
-        "default_plan" => service[:default_plan],
-        "supported_versions" => service[:supported_versions],
-        "version_aliases" => service[:version_aliases],
-      }.merge(extra).merge(unique_id)
+      unique_id = attrs[:unique_id]
+      raise ArgumentError.new(":unique_id is required") unless unique_id
 
-      return catalog
+      attrs = {
+        "unique_id" => unique_id,
+        "version" => version,
+        "label" => id,
+        "url" => attrs[:url],
+        "plans" => plans,
+        "cf_plan_id" => attrs[:cf_plan_id],
+        "tags" => attrs[:tags],
+        "active" => true,
+        "description" => attrs[:description],
+        "plan_options" => attrs[:plan_options],
+        "acls" => attrs[:acls],
+        "timeout" => attrs[:timeout],
+        "provider" => provider,
+        "default_plan" => attrs[:default_plan],
+        "supported_versions" => attrs[:supported_versions],
+        "version_aliases" => attrs[:version_aliases],
+        "extra" => extra(attrs)
+      }
+
+      Service.new(attrs)
     end
 
-    private
+    def extra(attrs)
+      return unless attrs.key?(:logo_url) or attrs.key?(:blurb) or attrs.key?(:provider_name)
 
-    def extra
-      if (service.keys & [:logo_url, :blurb, :provider_name]).empty?
-        {}
-      else
-        {"extra" => Yajl::Encoder.encode(
-          "listing" => {
-            "imageUrl" => service[:logo_url],
-            "blurb" => service[:blurb]
-          },
-          "provider" => {
-            "name" => service[:provider_name]
-          }
-        )
+      Yajl::Encoder.encode(
+        "listing" => {
+          "imageUrl" => attrs[:logo_url],
+          "blurb" => attrs[:blurb]
+        },
+        "provider" => {
+          "name" => attrs[:provider_name]
         }
-      end
+      )
     end
   end
 end

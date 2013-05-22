@@ -3,7 +3,7 @@ module VCAP::Services
     attr_reader :logger, :active, :catalog_services, :registered_services
 
     def initialize(options)
-      @catalog_services = options.fetch(:current_catalog)
+      @catalog_services = options.fetch(:current_catalog).services
       @registered_services = options.fetch(:catalog_in_ccdb)
       @http_handler = options.fetch(:http_handler)
       @logger = options.fetch(:logger)
@@ -14,7 +14,7 @@ module VCAP::Services
     end
 
     def update_guid
-      @catalog_services.each do |service|
+      catalog_services.each do |service|
         registered_service = registered_services.find { |rs| service.eql?(rs) }
         service.guid = registered_service.guid if registered_service
       end

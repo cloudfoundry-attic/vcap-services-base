@@ -22,27 +22,47 @@ module VCAP::Services
     it 'advertises with unique_id' do
       unique_service_id = 'unique_service_id'
       unique_plan_id = 'unique_plan_id'
-      catalog = {
-        'service_key1' => {
-          'label' => 'id-1',
-          'version' => '1.0',
-          'description' => 'description',
-          'provider' => 'provider',
-          'acls' => 'acls',
-          'url' => 'url',
-          'timeout' => 'timeout',
-          'extra' => 'extra',
-          'unique_id' => unique_service_id,
-          'plans' => {
+      catalog = GatewayServiceCatalog.new([
+        {
+          label: 'id-1.0',
+          url: 'url',
+          description: 'description',
+          acls: 'acls',
+          timeout: 'timeout',
+          # extra: 'extra', # we can't get this, change expectations as needed
+          unique_id: unique_service_id,
+          provider: 'provider',
+          plans: {
             'free' => {
               description: 'description',
               free: true,
               extra: nil,
               unique_id: unique_plan_id,
-            }
-          }
+            },
+          },
         }
-      }
+      ])
+      # catalog = {
+        # 'service_key1' => {
+          # 'label' => 'id-1',
+          # 'version' => '1.0',
+          # 'description' => 'description',
+          # 'provider' => 'provider',
+          # 'acls' => 'acls',
+          # 'url' => 'url',
+          # 'timeout' => 'timeout',
+          # 'extra' => 'extra',
+          # 'unique_id' => unique_service_id,
+          # 'plans' => {
+            # 'free' => {
+              # description: 'description',
+              # free: true,
+              # extra: nil,
+              # unique_id: unique_plan_id,
+            # }
+          # }
+        # }
+      # }
       stub_request(:get, "http://api.vcap.me/v2/services?inline-relations-depth=2").
         to_return(:status => 200, :body => Yajl::Encoder.encode('resources' => []))
 

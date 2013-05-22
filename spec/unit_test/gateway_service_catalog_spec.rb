@@ -4,50 +4,120 @@ require 'base/gateway_service_catalog'
 
 module VCAP::Services
   describe GatewayServiceCatalog do
-    describe '#to_hash' do
-      let(:service_catalog) { GatewayServiceCatalog.new([service]) }
-      let(:service) { {version_aliases: {}, provider: "provider", label: "test-data-here-version", plans: {}} }
+    let(:service_catalog) { GatewayServiceCatalog.new([service_attrs]) }
 
-      it "allows a dash in the label name" do
-        expect do
-          service_catalog.to_hash
-        end.not_to raise_error
+    let(:service_attrs) {
+      {
+        version_aliases: version_aliases,
+        provider: provider,
+        label: "test-data-here-9.12.43",
+        unique_id: unique_id,
+        plans: {
+          'name_of_plan_1' => {unique_id: 'unique-id-1'},
+          'name_of_plan_2' => {unique_id: 'unique-id-2'}
+        }
+      }.merge(extra_components)
+    }
+    let(:version_aliases) { {} }
+    let(:unique_id) { 'unique_id' }
+    let(:provider) { 'provider' }
+    let(:extra_components) { {} }
+
+    describe "#initialize" do
+      let(:unique_id) { nil }
+
+      it 'requires :unique_id' do
+        expect {
+          GatewayServiceCatalog.new([service_attrs])
+        }.to raise_error(ArgumentError)
+      end
+    end
+
+    describe "#services" do
+      let(:service) { service_catalog.services.first }
+
+      it 'returns a list of services' do
+        service_catalog.services.should have(1).entry
+        service_catalog.services.first.should be_a(Service)
       end
 
-      it "publishes a configured unique_id when present" do
-        service.merge!(:unique_id => "uniqueness")
-        data = service_catalog.to_hash.fetch("test-data-here_provider")
-        data.fetch("unique_id").should == "uniqueness"
+      it 'removes the version from the label' do
+        service.label.should == 'test-data-here'
       end
 
-      it "only publishes the unique_id if there is one" do
-        data = service_catalog.to_hash.fetch("test-data-here_provider")
-        data.should_not have_key "unique_id"
-      end
-
-      it 'constructs extra data from parts via the config file' do
-        service.merge!(:logo_url => "http://example.com/pic.png", :blurb => "One sweet service", :provider_name => "USGOV")
-        data = service_catalog.to_hash.fetch("test-data-here_provider").fetch("extra")
-        decoded_extra = Yajl::Parser.parse(data)
-        decoded_extra.should == {"listing" => {"imageUrl" => "http://example.com/pic.png", "blurb" => "One sweet service"}, "provider" => {"name" => "USGOV"}}
-      end
-
-      it 'wont send extra if not needed' do
-        data = service_catalog.to_hash.fetch("test-data-here_provider")
-        data.should_not have_key("extra")
+      it 'sets Service#unique_id' do
+        service.unique_id.should == unique_id
       end
 
       it 'sets the name for the plans' do
-        service.merge!(
-          plans: {
-            'name_of_plan_1' => {free: true},
-            'name_of_plan_2' => {free: false}
+        plans = service.plans
+        plans[0].name.should == "name_of_plan_1"
+        plans[1].name.should == "name_of_plan_2"
+      end
+
+      describe 'service provider' do
+        context 'when no provider is given' do
+          let(:provider) { nil }
+
+          it 'defaults to "core"' do
+            service.provider.should == 'core'
+          end
+        end
+
+        context 'when a provider is given' do
+          let(:provider) { 'myprovider' }
+
+          it 'uses that provider' do
+            service.provider.should == provider
+          end
+        end
+      end
+
+      describe 'extra' do
+        context 'when extra data field parts are provided' do
+          let(:extra_components) {
+            {
+              :logo_url => "http://example.com/pic.png",
+              :blurb => "One sweet service",
+              :provider_name => "USGOV"
+            }
           }
-        )
-        data = service_catalog.to_hash.fetch("test-data-here_provider")
-        plans = data.fetch("plans")
-        plans.fetch("name_of_plan_1").fetch(:name).should == "name_of_plan_1"
-        plans.fetch("name_of_plan_2").fetch(:name).should == "name_of_plan_2"
+
+          it 'constructs extra data from parts via the config file' do
+            decoded_extra = Yajl::Parser.parse(service.extra)
+            decoded_extra.should == {
+              "listing" => {
+                "imageUrl" => "http://example.com/pic.png",
+                "blurb" => "One sweet service"
+              },
+              "provider" => {"name" => "USGOV"}
+            }
+          end
+        end
+
+        context 'when no extra data field parts are provided' do
+          let(:extra_components) { {} }
+
+          it 'sets the extra field to nil' do
+            service.extra.should be_nil
+          end
+        end
+      end
+
+      context 'when no version_aliases is provided' do
+        let(:version_aliases) { {} }
+
+        it 'sets Service#version from the label' do
+          service.version.should == '9.12.43'
+        end
+      end
+
+      context 'when a current version_alias is given' do
+        let(:version_aliases) { {current: '5.2'} }
+
+        it 'sets uses that version' do
+          service.version.should == '5.2'
+        end
       end
     end
   end

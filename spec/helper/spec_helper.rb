@@ -245,6 +245,10 @@ def generate_bind_list(count)
   list
 end
 
+def null_object
+  double('null object').as_null_object
+end
+
 module SpecHelpers
   def with_env(changes, &blk)
     old_env = ENV.to_hash

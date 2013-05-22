@@ -27,7 +27,9 @@ module VCAP::Services
       guid_1 = 'guid_1'
       unique_id_1 = 'unique_id_1'
       unique_id_2 = 'unique_id_2'
-      catalog = [ build_service(nil, unique_id_1), build_service(nil, unique_id_2) ]
+      catalog = double('gateway service catalog',
+                       services: [ build_service(nil, unique_id_1), build_service(nil, unique_id_2) ]
+                      )
       registered_services = [ build_service(guid_1, unique_id_1) ]
       advertiser = ServiceAdvertiser.new(
         current_catalog: catalog,
