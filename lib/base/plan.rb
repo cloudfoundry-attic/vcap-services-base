@@ -1,6 +1,6 @@
 module VCAP::Services
   class Plan
-    attr_reader :name, :guid, :description, :free, :unique_id
+    attr_reader :name, :guid, :description, :free, :unique_id, :extra
     attr_writer :guid
 
     def initialize(options)
@@ -9,6 +9,7 @@ module VCAP::Services
       @name = options[:name]
       @description = options[:description]
       @free = options[:free]
+      @extra = options[:extra]
     end
 
     def eql?(other)
@@ -24,7 +25,8 @@ module VCAP::Services
         :unique_id => @unique_id,
         :name => @name,
         :description => @description,
-        :free => @free
+        :free => @free,
+        :extra => @extra,
       }
     end
 

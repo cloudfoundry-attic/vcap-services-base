@@ -38,6 +38,11 @@ module VCAP::Services
       it 'omits guid' do
         plan.to_hash.should_not have_key(:guid)
       end
+
+      it 'has extra if provided' do
+        plan = Plan.new(:unique_id => 'id', extra: 'extra info')
+        plan.to_hash.fetch(:extra).should == 'extra information'
+      end
     end
 
     describe "plans_array_to_hash" do
