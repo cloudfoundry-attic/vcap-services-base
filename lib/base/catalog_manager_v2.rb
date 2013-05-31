@@ -99,8 +99,7 @@ module VCAP
           begin
             current_catalog = catalog_loader.call().values.collect do |service_hash|
               label, _ = VCAP::Services::Api::Util.parse_label(service_hash.fetch('label'))
-              service_hash['label'] = label
-              Service.new(service_hash)
+              Service.new(service_hash.merge('label' => label))
             end
           rescue => e1
             failed = true
