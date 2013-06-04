@@ -43,6 +43,8 @@ class AsyncGatewayTests
     attr_reader   :snapshots_http_code
     attr_accessor :last_snapshot
 
+    attr_reader :unique_id, :label
+
     def initialize(nice, timeout=nil, check_interval=-1, double_check_interval=3, cc_invalid=false)
       @token = '0xdeadbeef'
       @cc_head = {
@@ -52,6 +54,7 @@ class AsyncGatewayTests
       logger = Logger.new(STDOUT)
       logger.level = Logger::ERROR
       @label = "service-1.0"
+      @unique_id = 'unique_id'
       if timeout
         # Nice timeout provisioner will finish the job in timeout,
         # while un-nice timeout provisioner won't.
@@ -63,8 +66,8 @@ class AsyncGatewayTests
       end
       @service_timeout = timeout ? timeout + 1 : 10
       options = {
-        :service => { :unique_id => 'unique_id',
-                      :label => @label,
+        :service => { :unique_id => unique_id,
+                      :label => label,
                       :name => 'service',
                       :version => '1.0',
                       :description => 'sample desc',
@@ -129,13 +132,13 @@ class AsyncGatewayTests
       @sp.double_check_orphan_invoked
     end
 
-    def send_provision_request
+    def send_provision_request(msg_opts={})
       msg = VCAP::Services::Api::GatewayProvisionRequest.new(
-        :label => @label,
-        :name  => 'service',
-        :email => "foobar@abc.com",
-        :plan  => "free",
-        :version => "1.0"
+        {
+          :unique_id => unique_id,
+          :name  => 'service',
+          :email => "foobar@abc.com",
+        }.merge(msg_opts)
       ).encode
       http = EM::HttpRequest.new("http://localhost:#{GW_PORT}/gateway/v1/configurations", :inactivity_timeout => @service_timeout).post(gen_req(msg))
       http.callback {
@@ -165,7 +168,7 @@ class AsyncGatewayTests
       service_id ||= @last_service_id
       msg = VCAP::Services::Api::GatewayBindRequest.new(
         :service_id => service_id,
-        :label => @label,
+        :label => label,
         :email => "foobar@abc.com",
         :binding_options => {}
       ).encode

@@ -368,4 +368,18 @@ describe AsyncGatewayTests do
       gateway.snapshots_http_code.should == 500
     end
   end
+
+  it "should error when provisioning an unknown plan" do
+    cc = nil
+    gateway = nil
+    EM.run do
+      Do.at(0) { cc = AsyncGatewayTests.create_cloudcontroller; cc.start }
+      Do.at(1) { gateway = AsyncGatewayTests.create_nice_gateway; gateway.start }
+      Do.at(2) {
+        gateway.send_provision_request(unique_id: 'not-a-real-unique-id')
+      }
+      Do.at(3) { cc.stop; gateway.stop; EM.stop }
+    end
+    gateway.provision_http_code.should == 400
+  end
 end

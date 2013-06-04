@@ -134,13 +134,10 @@ module VCAP::Services
     #
     post '/gateway/v1/configurations' do
       req = VCAP::Services::Api::GatewayProvisionRequest.decode(request_body)
-      @logger.debug("Provision request for label=#{req.label}, plan=#{req.plan}, version=#{req.version}")
+      @logger.debug("Provision request for unique_id=#{req.unique_id}")
 
-      name, version = VCAP::Services::Api::Util.parse_label(req.label)
-      version = req.version
-
-      unless (name == @service[:name])
-        error_msg = ServiceError.new(ServiceError::UNKNOWN_LABEL).to_hash
+      unless (req.unique_id == @service.fetch(:unique_id))
+        error_msg = ServiceError.new(ServiceError::UNKNOWN_PLAN_UNIQUE_ID).to_hash
         abort_request(error_msg)
       end
 
