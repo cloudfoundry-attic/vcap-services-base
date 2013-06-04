@@ -12,7 +12,7 @@ module VCAP::Services
   class AsynchronousServiceGateway < BaseAsynchronousServiceGateway
 
     REQ_OPTS = %w(service token provisioner cloud_controller_uri).map { |o| o.to_sym }
-    attr_reader :event_machine
+    attr_reader :event_machine, :logger, :service
 
     def initialize(opts)
       super(opts)
@@ -34,7 +34,7 @@ module VCAP::Services
       @double_check_orphan_interval = opts[:double_check_orphan_interval] || 300
       @handle_fetched = opts[:handle_fetched] || false
       @fetching_handles = false
-      @version_aliases = @service[:version_aliases] || {}
+      @version_aliases = service[:version_aliases] || {}
 
       opts[:gateway_name] ||= "Service Gateway"
 
@@ -74,7 +74,7 @@ module VCAP::Services
         if current_version
           @provisioner.update_version_info(current_version)
         else
-          @logger.info("No current version alias is supplied, skip update version in CCDB.")
+          logger.info("No current version alias is supplied, skip update version in CCDB.")
         end
       end
 
@@ -84,8 +84,8 @@ module VCAP::Services
       if @check_orphan_interval > 0
         handler_check_orphan = Proc.new do |resp|
           check_orphan(resp.handles,
-                       lambda { @logger.info("Check orphan is requested") },
-                       lambda { |errmsg| @logger.error("Error on requesting to check orphan #{errmsg}") })
+                       lambda { logger.info("Check orphan is requested") },
+                       lambda { |errmsg| logger.error("Error on requesting to check orphan #{errmsg}") })
         end
         event_machine.add_periodic_timer(@check_orphan_interval) { fetch_handles(&handler_check_orphan) }
       end
@@ -95,7 +95,7 @@ module VCAP::Services
     end
 
     def get_current_catalog
-      GatewayServiceCatalog.new([@service]).to_hash
+      GatewayServiceCatalog.new([service]).to_hash
     end
 
     def check_orphan(handles, callback, errback)
@@ -113,17 +113,17 @@ module VCAP::Services
     def validate_incoming_request
       unless request.media_type == Rack::Mime.mime_type('.json')
         error_msg = ServiceError.new(ServiceError::INVALID_CONTENT).to_hash
-        @logger.error("Validation failure: #{error_msg.inspect}, request media type: #{request.media_type} is not json")
+        logger.error("Validation failure: #{error_msg.inspect}, request media type: #{request.media_type} is not json")
         abort_request(error_msg)
       end
       unless auth_token && (auth_token == @token)
         error_msg = ServiceError.new(ServiceError::NOT_AUTHORIZED).to_hash
-        @logger.error("Validation failure: #{error_msg.inspect}, expected token: #{@token}, specified token: #{auth_token}")
+        logger.error("Validation failure: #{error_msg.inspect}, expected token: #{@token}, specified token: #{auth_token}")
         abort_request(error_msg)
       end
       unless @handle_fetched
         error_msg = ServiceError.new(ServiceError::SERVICE_UNAVAILABLE).to_hash
-        @logger.error("Validation failure: #{error_msg.inspect}, handles not fetched")
+        logger.error("Validation failure: #{error_msg.inspect}, handles not fetched")
         abort_request(error_msg)
       end
     end
@@ -154,7 +154,7 @@ module VCAP::Services
     # Unprovisions a previously provisioned instance of the service
     #
     delete '/gateway/v1/configurations/:service_id' do
-      @logger.debug("Unprovision request for service_id=#{params['service_id']}")
+      logger.debug("Unprovision request for service_id=#{params['service_id']}")
 
       @provisioner.unprovision_service(params['service_id']) do |msg|
         if msg['success']
@@ -169,10 +169,10 @@ module VCAP::Services
     # Binds a previously provisioned instance of the service to an application
     #
     post '/gateway/v1/configurations/:service_id/handles' do
-      @logger.info("Binding request for service=#{params['service_id']}")
+      logger.info("Binding request for service=#{params['service_id']}")
 
       req = VCAP::Services::Api::GatewayBindRequest.decode(request_body)
-      @logger.debug("Binding options: #{req.binding_options.inspect}")
+      logger.debug("Binding options: #{req.binding_options.inspect}")
 
       @provisioner.bind_instance(req.service_id, req.binding_options) do |msg|
         if msg['success']
@@ -187,7 +187,7 @@ module VCAP::Services
     # Unbinds a previously bound instance of the service
     #
     delete '/gateway/v1/configurations/:service_id/handles/:handle_id' do
-      @logger.info("Unbind request for service_id={params['service_id']} handle_id=#{params['handle_id']}")
+      logger.info("Unbind request for service_id={params['service_id']} handle_id=#{params['handle_id']}")
 
       req = VCAP::Services::Api::GatewayUnbindRequest.decode(request_body)
 
@@ -233,7 +233,7 @@ module VCAP::Services
     get "/gateway/v1/configurations/:service_id/snapshots/:snapshot_id" do
       service_id = params["service_id"]
       snapshot_id = params["snapshot_id"]
-      @logger.info("Get snapshot_id=#{snapshot_id} request for service_id=#{service_id}")
+      logger.info("Get snapshot_id=#{snapshot_id} request for service_id=#{service_id}")
       @provisioner.get_snapshot(service_id, snapshot_id) do |msg|
         if msg['success']
           async_reply(VCAP::Services::Api::Snapshot.new(msg['response']).encode)
@@ -249,7 +249,7 @@ module VCAP::Services
       req = VCAP::Services::Api::UpdateSnapshotNameRequest.decode(request_body)
       service_id = params["service_id"]
       snapshot_id = params["snapshot_id"]
-      @logger.info("Update name of snapshot=#{snapshot_id} for service_id=#{service_id} to '#{req.name}'")
+      logger.info("Update name of snapshot=#{snapshot_id} for service_id=#{service_id} to '#{req.name}'")
       @provisioner.update_snapshot_name(service_id, snapshot_id, req.name) do |msg|
         if msg['success']
           async_reply
@@ -263,7 +263,7 @@ module VCAP::Services
     # Enumerate snapshot
     get "/gateway/v1/configurations/:service_id/snapshots" do
       service_id = params["service_id"]
-      @logger.info("Enumerate snapshots request for service_id=#{service_id}")
+      logger.info("Enumerate snapshots request for service_id=#{service_id}")
       @provisioner.enumerate_snapshots(service_id) do |msg|
         if msg['success']
           async_reply(VCAP::Services::Api::SnapshotList.new(msg['response']).encode)
@@ -276,7 +276,7 @@ module VCAP::Services
 
     get "/gateway/v2/configurations/:service_id/snapshots" do
       service_id = params["service_id"]
-      @logger.info("Enumerate snapshots request for service_id=#{service_id}")
+      logger.info("Enumerate snapshots request for service_id=#{service_id}")
       @provisioner.enumerate_snapshots_v2(params["service_id"]) do |msg|
         if msg['success']
           async_reply(VCAP::Services::Api::SnapshotListV2.new(:snapshots => msg['response']).encode)
@@ -291,7 +291,7 @@ module VCAP::Services
     put "/gateway/v1/configurations/:service_id/snapshots/:snapshot_id" do
       service_id = params["service_id"]
       snapshot_id = params["snapshot_id"]
-      @logger.info("Rollback service_id=#{service_id} to snapshot_id=#{snapshot_id}")
+      logger.info("Rollback service_id=#{service_id} to snapshot_id=#{snapshot_id}")
       @provisioner.rollback_snapshot(service_id, snapshot_id) do |msg|
         if msg['success']
           async_reply(VCAP::Services::Api::Job.new(msg['response']).encode)
@@ -306,7 +306,7 @@ module VCAP::Services
     delete "/gateway/v1/configurations/:service_id/snapshots/:snapshot_id" do
       service_id = params["service_id"]
       snapshot_id = params["snapshot_id"]
-      @logger.info("Delete service_id=#{service_id} to snapshot_id=#{snapshot_id}")
+      logger.info("Delete service_id=#{service_id} to snapshot_id=#{snapshot_id}")
       @provisioner.delete_snapshot(service_id, snapshot_id) do |msg|
         if msg['success']
           async_reply(VCAP::Services::Api::Job.new(msg['response']).encode)
@@ -321,7 +321,7 @@ module VCAP::Services
     post "/gateway/v1/configurations/:service_id/serialized/url/snapshots/:snapshot_id" do
       service_id = params["service_id"]
       snapshot_id = params["snapshot_id"]
-      @logger.info("Create serialized url for snapshot=#{snapshot_id} of service_id=#{service_id} ")
+      logger.info("Create serialized url for snapshot=#{snapshot_id} of service_id=#{service_id} ")
       @provisioner.create_serialized_url(service_id, snapshot_id) do |msg|
         if msg['success']
           async_reply(VCAP::Services::Api::Job.new(msg['response']).encode)
@@ -336,7 +336,7 @@ module VCAP::Services
     get "/gateway/v1/configurations/:service_id/serialized/url/snapshots/:snapshot_id" do
       service_id = params["service_id"]
       snapshot_id = params["snapshot_id"]
-      @logger.info("Get serialized url for snapshot=#{snapshot_id} of service_id=#{service_id} ")
+      logger.info("Get serialized url for snapshot=#{snapshot_id} of service_id=#{service_id} ")
       @provisioner.get_serialized_url(service_id, snapshot_id) do |msg|
         if msg['success']
           async_reply(VCAP::Services::Api::SerializedURL.new(msg['response']).encode)
@@ -351,7 +351,7 @@ module VCAP::Services
     put "/gateway/v1/configurations/:service_id/serialized/url" do
       req = VCAP::Services::Api::SerializedURL.decode(request_body)
       service_id = params["service_id"]
-      @logger.info("Import serialized data from url:#{req.url} for service_id=#{service_id}")
+      logger.info("Import serialized data from url:#{req.url} for service_id=#{service_id}")
       @provisioner.import_from_url(service_id, req.url) do |msg|
         if msg['success']
           async_reply(VCAP::Services::Api::Job.new(msg['response']).encode)
@@ -366,7 +366,7 @@ module VCAP::Services
     get "/gateway/v1/configurations/:service_id/jobs/:job_id" do
       service_id = params["service_id"]
       job_id = params["job_id"]
-      @logger.info("Get job=#{job_id} for service_id=#{service_id}")
+      logger.info("Get job=#{job_id} for service_id=#{service_id}")
       @provisioner.job_details(service_id, job_id) do |msg|
         if msg['success']
           async_reply(VCAP::Services::Api::Job.new(msg['response']).encode)
@@ -380,7 +380,7 @@ module VCAP::Services
     # Restore an instance of the service
     #
     post '/service/internal/v1/restore' do
-      @logger.info("Restore service")
+      logger.info("Restore service")
 
       req = Yajl::Parser.parse(request_body)
       # TODO add json format check
@@ -397,7 +397,7 @@ module VCAP::Services
 
     # Recovery an instance if node is crashed.
     post '/service/internal/v1/recover' do
-      @logger.info("Recover service request.")
+      logger.info("Recover service request.")
       request = Yajl::Parser.parse(request_body)
       instance_id = request['instance_id']
       backup_path = request['backup_path']
@@ -414,7 +414,7 @@ module VCAP::Services
     end
 
     post '/service/internal/v1/check_orphan' do
-      @logger.info("Request to check orphan")
+      logger.info("Request to check orphan")
       fetch_handles do |resp|
         check_orphan(resp.handles,
                      lambda { async_reply },
@@ -424,7 +424,7 @@ module VCAP::Services
     end
 
     delete '/service/internal/v1/purge_orphan' do
-      @logger.info("Purge orphan request")
+      logger.info("Purge orphan request")
       req = Yajl::Parser.parse(request_body)
       orphan_ins_hash = req["orphan_instances"]
       orphan_binding_hash = req["orphan_bindings"]
@@ -440,7 +440,7 @@ module VCAP::Services
 
     # Service migration API
     post "/service/internal/v1/migration/:node_id/:instance_id/:action" do
-      @logger.info("Migration: #{params["action"]} instance #{params["instance_id"]} in #{params["node_id"]}")
+      logger.info("Migration: #{params["action"]} instance #{params["instance_id"]} in #{params["node_id"]}")
       @provisioner.migrate_instance(params["node_id"], params["instance_id"], params["action"]) do |msg|
         if msg["success"]
           async_reply(msg["response"].to_json)
@@ -452,7 +452,7 @@ module VCAP::Services
     end
 
     get "/service/internal/v1/migration/:node_id/instances" do
-      @logger.info("Migration: get instance id list of node #{params["node_id"]}")
+      logger.info("Migration: get instance id list of node #{params["node_id"]}")
       @provisioner.get_instance_id_list(params["node_id"]) do |msg|
         if msg["success"]
           async_reply(msg["response"].to_json)
@@ -473,7 +473,7 @@ module VCAP::Services
       # Fetches canonical state (handles) from the Cloud Controller
       def fetch_handles(&cb)
         f = Fiber.new do
-          @catalog_manager.fetch_handles_from_cc(@service[:label], cb)
+          @catalog_manager.fetch_handles_from_cc(service[:label], cb)
         end
         f.resume
       end
@@ -482,7 +482,7 @@ module VCAP::Services
       def update_service_handle(handle, &cb)
         f = Fiber.new do
           @catalog_manager.update_handle_in_cc(
-            @service[:label],
+            service[:label],
             handle,
             lambda {
               # Update local array in provisioner
