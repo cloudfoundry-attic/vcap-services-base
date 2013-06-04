@@ -136,7 +136,9 @@ module VCAP::Services
       req = VCAP::Services::Api::GatewayProvisionRequest.decode(request_body)
       @logger.debug("Provision request for unique_id=#{req.unique_id}")
 
-      unless (req.unique_id == @service.fetch(:unique_id))
+      plan_unique_ids = service.fetch(:plans).values.map {|p| p.fetch(:unique_id) }
+
+      unless plan_unique_ids.include?(req.unique_id)
         error_msg = ServiceError.new(ServiceError::UNKNOWN_PLAN_UNIQUE_ID).to_hash
         abort_request(error_msg)
       end

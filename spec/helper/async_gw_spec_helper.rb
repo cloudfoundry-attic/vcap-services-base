@@ -43,7 +43,7 @@ class AsyncGatewayTests
     attr_reader   :snapshots_http_code
     attr_accessor :last_snapshot
 
-    attr_reader :unique_id, :label
+    attr_reader :service_unique_id, :plan_unique_id, :label
 
     def initialize(nice, timeout=nil, check_interval=-1, double_check_interval=3, cc_invalid=false)
       @token = '0xdeadbeef'
@@ -54,7 +54,8 @@ class AsyncGatewayTests
       logger = Logger.new(STDOUT)
       logger.level = Logger::ERROR
       @label = "service-1.0"
-      @unique_id = 'unique_id'
+      @service_unique_id = 'service_unique_id'
+      @plan_unique_id = 'plan_unique_id'
       if timeout
         # Nice timeout provisioner will finish the job in timeout,
         # while un-nice timeout provisioner won't.
@@ -66,12 +67,17 @@ class AsyncGatewayTests
       end
       @service_timeout = timeout ? timeout + 1 : 10
       options = {
-        :service => { :unique_id => unique_id,
+        :service => { :unique_id => service_unique_id,
                       :label => label,
                       :name => 'service',
                       :version => '1.0',
                       :description => 'sample desc',
-                      :plans => ['free'],
+                      :plans => {
+                        'free' => {
+                          :unique_id => plan_unique_id,
+                          :free => true,
+                        }
+                      },
                       :tags => ['nosql'],
                       :supported_versions => ["1.0"],
                       :version_aliases => {},
@@ -135,7 +141,7 @@ class AsyncGatewayTests
     def send_provision_request(msg_opts={})
       msg = VCAP::Services::Api::GatewayProvisionRequest.new(
         {
-          :unique_id => unique_id,
+          :unique_id => plan_unique_id,
           :name  => 'service',
           :email => "foobar@abc.com",
         }.merge(msg_opts)
