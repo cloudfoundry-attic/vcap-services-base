@@ -69,7 +69,7 @@ describe VCAP::Services::Base::AsyncJob::Package do
     end
   end
 
-  it "should raise error if package file is corrupted" do
+  it "should raise error if package file is corrupted", :requires_warden do
     package = VCAP::Services::Base::AsyncJob::Package.load(assets_path("test.zip"))
     package.manifest.should_not be_empty
 
