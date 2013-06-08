@@ -6,6 +6,7 @@ $:.unshift File.join(File.dirname(__FILE__), '..', '..', 'lib')
 require 'rubygems'
 require 'rspec'
 require 'logger'
+require "rack/test"
 
 require "base_spec_helper"
 require "node_spec_helper"

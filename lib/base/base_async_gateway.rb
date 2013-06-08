@@ -11,6 +11,7 @@ require 'thread'
 require 'json_message'
 require 'services/api'
 require 'services/api/const'
+require 'cf/exception_notifier'
 
 $:.unshift(File.dirname(__FILE__))
 require 'service_error'
@@ -36,6 +37,7 @@ class VCAP::Services::BaseAsynchronousServiceGateway < Sinatra::Base
     super
 
     @logger = opts[:logger]
+    Cf::ExceptionNotifier.setup(opts[:exception_notifier])
 
     setup(opts)
   end
@@ -51,6 +53,10 @@ class VCAP::Services::BaseAsynchronousServiceGateway < Sinatra::Base
   error [JsonMessage::ValidationError, JsonMessage::ParseError] do
     error_msg = ServiceError.new(ServiceError::MALFORMATTED_REQ).to_hash
     abort_request(error_msg)
+  end
+
+  error do |e|
+    Cf::ExceptionNotifier.notify(e)
   end
 
   # setup the environment
