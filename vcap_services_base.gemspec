@@ -18,7 +18,7 @@ Gem::Specification.new do |s|
   s.add_dependency "do_sqlite3"
   s.add_dependency "eventmachine", "~> 1.0"
   s.add_dependency "eventmachine_httpserver", "~> 0.2.1"
-  s.add_dependency "json", "~> 1.4"
+  s.add_dependency "json"
   s.add_dependency "uuidtools", "~> 2.1"
   s.add_dependency "uuid"
   s.add_dependency "ruby-hmac", "~> 0.4.0"
