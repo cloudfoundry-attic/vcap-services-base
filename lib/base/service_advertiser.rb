@@ -13,13 +13,6 @@ module VCAP::Services
       update_guid
     end
 
-    def update_guid
-      @catalog_services.each do |service|
-        registered_service = registered_services.find { |rs| service.eql?(rs) }
-        service.guid = registered_service.guid if registered_service
-      end
-    end
-
     def advertise_services
       logger.debug("CCNG Catalog Manager: Registered in ccng: #{registered_services.inspect}")
       logger.debug("CCNG Catalog Manager: Current catalog: #{catalog_services.inspect}")
@@ -75,6 +68,13 @@ module VCAP::Services
     end
 
     private
+    def update_guid
+      @catalog_services.each do |service|
+        registered_service = registered_services.find { |rs| service.eql?(rs) }
+        service.guid = registered_service.guid if registered_service
+      end
+    end
+
     def add_or_update_offering(offering, guid)
       update = !guid.nil?
       uri = update ? "#{@offering_uri}/#{guid}" : @offering_uri
