@@ -11,7 +11,7 @@ Gem::Specification.new do |s|
   s.files        = Dir.glob("lib/**/*")
   s.require_path = [ "lib" ]
   s.author       = "CloudFoundry Services Team"
-  s.email        = "cf-services@rbcon.com"
+  s.email        = "cfpi-services@googlegroups.com"
 
   s.add_dependency "nats", ">= 0.4.22.beta.8", "< 0.4.28"
   s.add_dependency "data_mapper", "~> 1.2"
