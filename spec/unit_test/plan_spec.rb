@@ -34,8 +34,14 @@ module VCAP::Services
           'name' => nil,
           'description' => nil,
           'free' => nil,
-          'extra' => nil
+          'extra' => nil,
+          'public' => true,
         }
+      end
+
+      it 'includes public=false if set' do
+        private_plan = Plan.new(unique_id: "abc1234", public: false)
+        private_plan.to_hash['public'].should == false
       end
 
       it 'omits guid' do
@@ -51,8 +57,8 @@ module VCAP::Services
     describe "plans_array_to_hash" do
       it 'serializes an array of plan object' do
         Plan.plans_array_to_hash([plan_a, plan_c]).should =~ [
-          {'unique_id' => "a", 'name' => nil, 'description' => nil, 'free' => nil, 'extra' => nil},
-          {'unique_id' => "c", 'name' => nil, 'description' => nil, 'free' => nil, 'extra' => nil}
+          {'unique_id' => "a", 'name' => nil, 'description' => nil, 'free' => nil, 'extra' => nil, 'public' => true},
+          {'unique_id' => "c", 'name' => nil, 'description' => nil, 'free' => nil, 'extra' => nil, 'public' => true}
         ]
       end
     end

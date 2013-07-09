@@ -10,6 +10,7 @@ module VCAP::Services
       @description = options[:description]
       @free = options[:free]
       @extra = options[:extra]
+      @public = options.fetch(:public, true)
     end
 
     def eql?(other)
@@ -27,6 +28,7 @@ module VCAP::Services
         'description' => @description,
         'free' => @free,
         'extra' => @extra,
+        'public' => @public,
       }
     end
 
