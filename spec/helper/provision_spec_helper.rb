@@ -402,10 +402,10 @@ class ProvisionerTests
           response = ProvisionResponse.new
           response.success = true
           response.credentials = {
-              'name' => UUIDTools::UUID.random_create.to_s,
+              'name' => SecureRandom.uuid,
               'node_id' => node_id,
-              'username' => UUIDTools::UUID.random_create.to_s,
-              'password' => UUIDTools::UUID.random_create.to_s,
+              'username' => SecureRandom.uuid,
+              'password' => SecureRandom.uuid,
             }
           @nats.publish(reply, response.encode)
         }
@@ -423,8 +423,8 @@ class ProvisionerTests
           response.credentials = {
               'name' => request.name,
               'node_id' => node_id,
-              'username' => UUIDTools::UUID.random_create.to_s,
-              'password' => UUIDTools::UUID.random_create.to_s,
+              'username' => SecureRandom.uuid,
+              'password' => SecureRandom.uuid,
             }
           @nats.publish(reply, response.encode)
         }

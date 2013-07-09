@@ -49,7 +49,7 @@ describe "Warden Service test", :requires_warden do
     verify = {}
 
     Wardenservice.all.each do |ins|
-      id = UUIDTools::UUID.random_create.to_s
+      id = SecureRandom.uuid
       ins.failed_times = id
       verify[ins.name] = id
     end

@@ -2,7 +2,6 @@
 require "resque-status"
 require "fileutils"
 require "vcap/logging"
-require "uuid"
 
 require_relative "../service_error"
 require_relative "./package.rb"

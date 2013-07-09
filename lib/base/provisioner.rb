@@ -3,7 +3,6 @@
 
 require "set"
 require "data_mapper"
-require "uuidtools"
 
 $LOAD_PATH.unshift File.dirname(__FILE__)
 require 'base/base'
@@ -14,6 +13,7 @@ require 'base/job/serialization'
 require 'base/snapshot_v2/snapshot_client'
 require 'barrier'
 require 'service_message'
+require 'securerandom'
 
 class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
   include VCAP::Services::Internal
@@ -469,7 +469,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
         request.credentials = bind_handle["credentials"]
         service_id = bind_handle["service_id"]
       else
-        service_id = UUIDTools::UUID.random_create.to_s
+        service_id = SecureRandom.uuid
       end
       subscription = nil
       timer = EM.add_timer(@node_timeout) {

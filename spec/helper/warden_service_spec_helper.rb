@@ -31,7 +31,7 @@ class Wardenservice < VCAP::Services::Base::Warden::Service
 
     def create(version="1.0")
       instance = new
-      instance.name = UUIDTools::UUID.random_create.to_s
+      instance.name = SecureRandom.uuid
       instance.version = version
       instance.port = instance.class.service_port
       instance.prepare_filesystem(instance.class.max_disk)

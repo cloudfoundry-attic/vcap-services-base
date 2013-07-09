@@ -4,8 +4,6 @@ require "fileutils"
 require "tmpdir"
 require "curb"
 require "vcap/logging"
-# explictly import uuid to resolve namespace conflict between uuid and uuidtools gems.
-require "uuid"
 
 $LOAD_PATH.unshift File.dirname(__FILE__)
 require "snapshot"
