@@ -7,7 +7,7 @@ module VCAP::Services
       @registered_services = options.fetch(:catalog_in_ccdb)
       @http_handler = options.fetch(:http_handler)
       @logger = options.fetch(:logger)
-      @active = options[:active] || true
+      @active = options.fetch(:active, true)
       @offering_uri = "/v2/services"
       @service_plans_uri = "/v2/service_plans"
       update_guid
@@ -40,19 +40,16 @@ module VCAP::Services
         advertise_service_to_cc(service, nil, service_plan_change_set.plans_to_add, {}) # nil guid => new service, so add all plans
       end
 
-      @active_count = active ? active_services.size + new_services.size : 0
-      @disabled_count = inactive_services.size + (active ? 0 : active_services.size)
-
       logger.info("CCNG Catalog Manager: Found #{active_services.size} active, #{disabled_count} disabled and #{new_services.size} new service offerings")
 
     end
 
     def active_count
-      @active_count || active ? active_services.size + new_services.size : 0
+      active ? @catalog_services.size : 0
     end
 
     def disabled_count
-      @disabled_count || inactive_services.size + (active ? 0 : active_services.size)
+      active ? inactive_services.size : registered_services.size
     end
 
     def inactive_services
