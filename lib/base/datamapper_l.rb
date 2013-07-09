@@ -1,6 +1,6 @@
 require "fileutils"
 require "monitor"
-require "datamapper"
+require "data_mapper"
 
 # Export Monitor's count
 class Monitor
