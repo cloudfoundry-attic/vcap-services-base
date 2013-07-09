@@ -22,11 +22,11 @@ module VCAP::Services
 
     def to_hash
       {
-        :unique_id => @unique_id,
-        :name => @name,
-        :description => @description,
-        :free => @free,
-        :extra => @extra,
+        'unique_id' => @unique_id,
+        'name' => @name,
+        'description' => @description,
+        'free' => @free,
+        'extra' => @extra,
       }
     end
 

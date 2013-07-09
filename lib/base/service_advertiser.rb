@@ -134,7 +134,7 @@ module VCAP::Services
       method = add_plan ? "post" : "put"
       plan_as_hash = plan.to_hash
       plan_as_hash["service_guid"] = service_guid
-      plan_as_hash.delete(:unique_id) if method == "put"
+      plan_as_hash.delete('unique_id') if method == "put"
       @http_handler.cc_http_request(:uri => uri,
                                     :method => method,
                                     :body => Yajl::Encoder.encode(plan_as_hash)) do |http|

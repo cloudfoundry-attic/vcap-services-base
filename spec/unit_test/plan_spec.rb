@@ -29,10 +29,13 @@ module VCAP::Services
     describe "to_hash" do
       let(:plan) { Plan.new(:unique_id => "unique_id") }
       it 'returns its attributes as a hash' do
-        plan.to_hash.fetch(:unique_id).should == "unique_id"
-        plan.to_hash.fetch(:name).should == nil
-        plan.to_hash.fetch(:description).should == nil
-        plan.to_hash.fetch(:free).should == nil
+        plan.to_hash.should == {
+          'unique_id' => 'unique_id',
+          'name' => nil,
+          'description' => nil,
+          'free' => nil,
+          'extra' => nil
+        }
       end
 
       it 'omits guid' do
@@ -41,15 +44,15 @@ module VCAP::Services
 
       it 'has extra if provided' do
         plan = Plan.new(:unique_id => 'id', extra: 'extra information')
-        plan.to_hash.fetch(:extra).should == 'extra information'
+        plan.to_hash.fetch('extra').should == 'extra information'
       end
     end
 
     describe "plans_array_to_hash" do
       it 'serializes an array of plan object' do
         Plan.plans_array_to_hash([plan_a, plan_c]).should =~ [
-          {:unique_id => "a", :name => nil, :description => nil, :free => nil, extra: nil},
-          {:unique_id => "c", :name => nil, :description => nil, :free => nil, extra: nil}
+          {'unique_id' => "a", 'name' => nil, 'description' => nil, 'free' => nil, 'extra' => nil},
+          {'unique_id' => "c", 'name' => nil, 'description' => nil, 'free' => nil, 'extra' => nil}
         ]
       end
     end
