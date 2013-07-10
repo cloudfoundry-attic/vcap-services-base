@@ -90,55 +90,60 @@ module VCAP::Services
           end
         end
 
-        it "updates plans that are already in cloud controller" do
-          active_service_in_cc_db = build_service(
-            'guid' => "someguid90dsf9j",
-            'unique_id' => "12345ABC",
-            'plans' => {
-              'what' => {
-                unique_id: 'plan_external_id',
-                guid: 'plan_guid',
+        context 'for plans that are in CC' do
+          let(:active_service_in_cc_db) do
+            build_service(
+              'guid' => "someguid90dsf9j",
+              'unique_id' => "12345ABC",
+              'plans' => {
+                'what' => {
+                  unique_id: 'plan_external_id',
+                  guid: 'plan_guid',
+                }
               }
-            }
-          )
-
-          active_service_in_catalog = build_service(
-            'guid' => nil,
-            'unique_id' => "12345ABC",
-            'plans' => {
-              'what' => {
-                unique_id: 'plan_external_id'
-              }
-            }
-          )
-
-          service_advertiser = ServiceAdvertiser.new(
-            catalog_in_ccdb: [active_service_in_cc_db],
-            current_catalog: [active_service_in_catalog],
-            logger: double.as_null_object,
-            http_handler: mock_http_handler
-          )
-
-          plan = active_service_in_catalog.plans.fetch(0)
-          expected_plan_payload = plan.to_hash.tap do |h|
-            h.delete('unique_id')
-            h['service_guid'] = 'someguid90dsf9j'
-          end
-
-          mock_http_handler.stub(:cc_http_request).ordered.
-            with(hash_including(uri: "/v2/services/someguid90dsf9j")).
-            and_yield(FakeCCHttp.new(error: nil, status: 201, response: {"metadata" => {"guid" => "someguid90dsf9j"}}.to_json))
-
-          mock_http_handler.should_receive(:cc_http_request).ordered.with(
-            hash_including(
-              uri: "/v2/service_plans/plan_guid",
-              method: "put",
             )
-          ) do |opts|
-            Yajl::Parser.parse(opts[:body]).should == expected_plan_payload
           end
 
-          service_advertiser.advertise_services
+          it "updates the plans, not including public and unique_id fields" do
+            active_service_in_catalog = build_service(
+              'guid' => nil,
+              'unique_id' => "12345ABC",
+              'plans' => {
+                'what' => {
+                  unique_id: 'plan_external_id'
+                }
+              }
+            )
+
+            service_advertiser = ServiceAdvertiser.new(
+              catalog_in_ccdb: [active_service_in_cc_db],
+              current_catalog: [active_service_in_catalog],
+              logger: double.as_null_object,
+              http_handler: mock_http_handler
+            )
+
+            plan = active_service_in_catalog.plans.fetch(0)
+            expected_plan_payload = plan.to_hash.tap do |h|
+              h.delete('unique_id')
+              h.delete('public')
+              h['service_guid'] = 'someguid90dsf9j'
+            end
+
+            mock_http_handler.stub(:cc_http_request).ordered.
+              with(hash_including(uri: "/v2/services/someguid90dsf9j")).
+              and_yield(FakeCCHttp.new(error: nil, status: 201, response: {"metadata" => {"guid" => "someguid90dsf9j"}}.to_json))
+
+            mock_http_handler.should_receive(:cc_http_request).ordered.with(
+              hash_including(
+                uri: "/v2/service_plans/plan_guid",
+                method: "put",
+              )
+            ) do |opts|
+              Yajl::Parser.parse(opts[:body]).should == expected_plan_payload
+            end
+
+            service_advertiser.advertise_services
+          end
         end
 
         it "adds plans that are not in cloud controller" do
