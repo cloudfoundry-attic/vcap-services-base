@@ -5,7 +5,7 @@ module VCAP::Services
   class Service
     attr_reader :description, :provider, :version, :url, :info_url, :plans,
                 :unique_id, :label, :active, :tags, :plan_options, :acls, :timeout,
-                :default_plan, :supported_versions, :version_aliases, :extra
+                :default_plan, :supported_versions, :version_aliases, :extra, :bindable
     attr_accessor :guid
 
 
@@ -23,7 +23,7 @@ module VCAP::Services
       @version_aliases = attrs['version_aliases']
       @extra = attrs.fetch('extra')
       @info_url = attrs['info_url']
-
+      @bindable = attrs.fetch('bindable', true)
       @guid = attrs['guid']
       @description = attrs['description']
       @provider = attrs.fetch('provider')
@@ -74,7 +74,8 @@ module VCAP::Services
         "active" => active,
         "acls" => acls,
         "timeout" => timeout,
-        "extra" => extra
+        "extra" => extra,
+        "bindable" => bindable
       }
     end
   end

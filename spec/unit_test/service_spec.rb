@@ -17,6 +17,12 @@ module VCAP::Services
     let(:service_b) { described_class.new(options.merge('unique_id' => 'a')) }
     let(:service_c) { described_class.new(options.merge('unique_id' => 'c')) }
 
+    describe ".new" do
+      it "defaults bindable to true" do
+        Service.new(options.merge('unique_id' => "abc123")).bindable.should == true
+      end
+    end
+
     describe "guid=" do
       it 'sets it' do
         service_a.guid = "55-bb"
@@ -94,7 +100,7 @@ module VCAP::Services
     end
 
     describe "to_hash" do
-      let(:service) { Service.new(options.merge('plans' => [], 'unique_id' => "unique_id")) }
+      let(:service) { Service.new(options.merge('plans' => [], 'unique_id' => "unique_id", "bindable" => true)) }
       it 'returns its attributes as a hash' do
         service.to_hash.fetch("description").should == "whatever"
         service.to_hash.fetch("provider").should == "core"
@@ -107,6 +113,7 @@ module VCAP::Services
         service.to_hash.fetch("acls").should == nil
         service.to_hash.fetch("timeout").should == nil
         service.to_hash.fetch("extra").should == {}
+        service.to_hash.fetch("bindable").should == true
       end
 
       it 'omits guid' do
