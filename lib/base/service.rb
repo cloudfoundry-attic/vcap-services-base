@@ -3,7 +3,7 @@ require "base/service_plan_change_set"
 
 module VCAP::Services
   class Service
-    attr_reader :description, :provider, :version, :url, :info_url, :plans,
+    attr_reader :description, :provider, :version, :url, :info_url, :plans, :tags,
                 :unique_id, :label, :active, :tags, :plan_options, :acls, :timeout,
                 :default_plan, :supported_versions, :version_aliases, :extra, :bindable
     attr_accessor :guid
@@ -30,6 +30,7 @@ module VCAP::Services
       @version = attrs.fetch('version')
       @url = attrs.fetch('url')
       @plans = Plan.plan_hash_as_plan_array(attrs.fetch('plans'))
+      @tags = attrs['tags']
     end
 
     def eql?(other)
@@ -75,7 +76,8 @@ module VCAP::Services
         "acls" => acls,
         "timeout" => timeout,
         "extra" => extra,
-        "bindable" => bindable
+        "bindable" => bindable,
+        "tags" => tags
       }
     end
   end
