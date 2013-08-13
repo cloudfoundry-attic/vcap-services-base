@@ -42,6 +42,8 @@ class VCAP::Services::BaseAsynchronousServiceGateway < Sinatra::Base
 
   # Validate the incoming request
   before do
+    Steno.config.context.data["request_guid"] = env['HTTP_X_VCAP_REQUEST_ID']
+
     validate_incoming_request
 
     content_type :json
