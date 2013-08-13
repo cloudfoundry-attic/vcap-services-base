@@ -1,7 +1,6 @@
 # Copyright (c) 2009-2011 VMware, Inc.
 require "resque-status"
 require "fileutils"
-require "vcap/logging"
 
 require_relative "../service_error"
 require_relative "./package.rb"

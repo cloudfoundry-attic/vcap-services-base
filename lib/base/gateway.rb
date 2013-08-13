@@ -6,10 +6,10 @@ require 'optparse'
 require 'net/http'
 require 'thin'
 require 'yaml'
+require 'steno'
 
 $LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..', '..', '..')
 require 'vcap/common'
-require 'vcap/logging'
 
 $LOAD_PATH.unshift File.dirname(__FILE__)
 require 'asynchronous_service_gateway'
@@ -52,9 +52,10 @@ class VCAP::Services::Base::Gateway
   end
 
   def setup_vcap_logging
-    VCAP::Logging.setup_from_config(@config[:logging])
+    logging_config = Steno::Config.from_hash(@config[:logging])
+    Steno.init(logging_config)
     # Use the current running binary name for logger identity name, since service gateway only has one instance now.
-    logger = VCAP::Logging.logger(File.basename($0))
+    logger = Steno.logger(File.basename($0))
     @config[:logger] = logger
   end
 

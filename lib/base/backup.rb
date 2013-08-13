@@ -5,9 +5,9 @@ require 'timeout'
 require 'fileutils'
 require 'yaml'
 require 'pathname'
+require 'steno'
 
 $LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..', '..', '..')
-require 'vcap/logging'
 require 'vcap/common'
 
 $:.unshift File.dirname(__FILE__)
@@ -71,9 +71,10 @@ class VCAP::Services::Base::Backup
 
       # Setup logger
       echo @config["logging"]
-      VCAP::Logging.setup_from_config(@config["logging"])
+      logging_config = Steno::Config.from_hash(@config["logging"])
+      Steno.init(logging_config)
       # Use running binary name for logger identity name.
-      @logger = VCAP::Logging.logger(File.basename(script_file))
+      @logger = Steno.logger(File.basename(script_file))
 
       # Make pidfile
       if @config["pid"]

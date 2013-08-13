@@ -3,10 +3,10 @@ require 'rubygems'
 require 'bundler/setup'
 require 'optparse'
 require 'yaml'
+require 'steno'
 
 $LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..', '..', '..')
 require 'vcap/common'
-require 'vcap/logging'
 
 $LOAD_PATH.unshift File.dirname(__FILE__)
 require 'abstract'
@@ -100,9 +100,10 @@ class VCAP::Services::Base::NodeBin
       options[:service_status_timeout] = parse_property(warden_config, "service_status_timeout", Integer, :optional => true, :default => 3)
     end
 
-    VCAP::Logging.setup_from_config(config["logging"])
+    logging_config = Steno::Config.from_hash(config["logging"])
+    Steno.init(logging_config)
     # Use the node id for logger identity name.
-    options[:logger] = VCAP::Logging.logger(options[:node_id])
+    options[:logger] = Steno.logger(options[:node_id])
     @logger = options[:logger]
 
     options = additional_config(options, config)

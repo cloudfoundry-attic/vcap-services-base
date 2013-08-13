@@ -3,7 +3,6 @@ require "resque-status"
 require "fileutils"
 require "tmpdir"
 require "curb"
-require "vcap/logging"
 
 $LOAD_PATH.unshift File.dirname(__FILE__)
 require "snapshot"

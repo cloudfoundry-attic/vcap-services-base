@@ -1,14 +1,11 @@
 require "resque-status"
 require "fileutils"
-require "vcap/logging"
 
 require_relative "../service_error"
 require_relative "snapshot_client"
 
 
-
 module VCAP::Services::Base::SnapshotV2
-
   class MySqlSnapshotJob
     def self.queue_lookup_key
       'mysql'

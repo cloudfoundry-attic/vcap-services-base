@@ -4,9 +4,9 @@ require 'bundler/setup'
 require 'optparse'
 require 'yaml'
 require 'resque'
+require 'steno'
 
 require "vcap/common"
-require "vcap/logging"
 
 $LOAD_PATH.unshift File.dirname(__FILE__)
 require "abstract"
@@ -48,10 +48,11 @@ module VCAP::Services::Base
       missing_opts = required_opts.select {|o| !config.has_key? o}
       raise ArgumentError, "Missing options: #{missing_opts.join(', ')}" unless missing_opts.empty?
 
-      VCAP::Logging.setup_from_config(config["logging"])
+      logging_config = Steno::Config.from_hash(config["logging"])
+      Steno.init(logging_config)
 
       redis_config = config["resque"]
-      logger = VCAP::Logging.logger(config["node_id"])
+      logger = Steno.logger(config["node_id"])
       redis_config = %w(host port password).inject({}){|res, o| res[o.to_sym] = config["resque"][o]; res}
       AsyncJob::Config.redis_config = redis_config
       AsyncJob::Config.logger = logger
