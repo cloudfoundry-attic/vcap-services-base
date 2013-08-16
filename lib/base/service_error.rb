@@ -83,7 +83,11 @@ module VCAP
               'status' => @http_status,
               'msg' => {
                 'code' => @error_code,
-                'description' => @error_msg
+                'description' => @error_msg,
+                'error' => {
+                  'backtrace' => backtrace,
+                  'types' => self.class.ancestors.map(&:name) - Object.ancestors.map(&:name)
+                }
               }
             }
           end
