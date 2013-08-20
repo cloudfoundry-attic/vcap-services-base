@@ -16,7 +16,7 @@ describe VCAP::Services::BaseAsynchronousServiceGateway do
   def app
     Class.new(VCAP::Services::BaseAsynchronousServiceGateway) do
       get '/' do
-        200
+        Steno.config.context.data["request_guid"]
       end
     end.new({})
   end
@@ -24,6 +24,7 @@ describe VCAP::Services::BaseAsynchronousServiceGateway do
   it "includes the CloudController request ID in the Steno context" do
     Steno.init(Steno::Config.new(context: Steno::Context::ThreadLocal.new))
     get '/', {}, {'HTTP_X_VCAP_REQUEST_ID' => 'deadbeef'}
-    Steno.config.context.data.fetch("request_guid").should == 'deadbeef'
+    last_response.body.should == 'deadbeef'
+    Steno.config.context.data.should_not have_key("request_guid")
   end
 end

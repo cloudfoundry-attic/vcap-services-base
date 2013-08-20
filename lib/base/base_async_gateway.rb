@@ -49,6 +49,10 @@ class VCAP::Services::BaseAsynchronousServiceGateway < Sinatra::Base
     content_type :json
   end
 
+  after do
+    Steno.config.context.data.delete("request_guid")
+  end
+
   # Handle errors that result from malformed requests
   error [JsonMessage::ValidationError, JsonMessage::ParseError] do
     error_msg = ServiceError.new(ServiceError::MALFORMATTED_REQ).to_hash
