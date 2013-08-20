@@ -53,7 +53,7 @@ class VCAP::Services::Base::Gateway
 
   def setup_vcap_logging
     steno_config = Steno::Config.to_config_hash(@config[:logging])
-    steno_config[:context] = Steno::Context::ThreadLocal.new
+    steno_config[:context] = Steno::Context::FiberLocal.new
     Steno.init(Steno::Config.new(steno_config))
     # Use the current running binary name for logger identity name, since service gateway only has one instance now.
     logger = Steno.logger(File.basename($0))
