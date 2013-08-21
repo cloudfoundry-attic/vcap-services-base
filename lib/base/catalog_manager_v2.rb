@@ -19,7 +19,7 @@ module VCAP
         @opts = opts
         @test_mode = opts[:test_mode] || false
 
-        required_opts = %w(cloud_controller_uri service_auth_tokens token gateway_name logger).map { |o| o.to_sym }
+        required_opts = %w(cloud_controller_uri token gateway_name logger).map { |o| o.to_sym }
         required_opts.concat( %w(uaa_endpoint uaa_client_id uaa_client_auth_credentials).map { |o| o.to_sym } ) if !@test_mode
 
         missing_opts = required_opts.select {|o| !opts.has_key? o}
