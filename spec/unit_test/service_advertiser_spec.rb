@@ -225,6 +225,7 @@ module VCAP::Services
           service_in_catalog = build_service(
             'guid' => nil,
             'unique_id' => "12345ABC",
+            'documentation_url' => 'docs.strongbodb.example.com',
             'plans' => {
             }
           )

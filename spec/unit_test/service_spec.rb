@@ -106,12 +106,14 @@ module VCAP::Services
             'plans' => [],
             'unique_id' => "unique_id",
             "bindable" => true,
-            "tags" => ["relational"]
+            "tags" => ["relational"],
+            'documentation_url' => 'docs.yoursql.example.com'
           )
         )
       end
       it 'returns its attributes as a hash' do
         service.to_hash.fetch("description").should == "whatever"
+        service.to_hash.fetch('documentation_url').should == 'docs.yoursql.example.com'
         service.to_hash.fetch("provider").should == "core"
         service.to_hash.fetch("version").should == "1.0"
         service.to_hash.fetch("url").should == 'http://gateway.example.com'

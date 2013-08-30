@@ -3,7 +3,7 @@ require "base/service_plan_change_set"
 
 module VCAP::Services
   class Service
-    attr_reader :description, :provider, :version, :url, :info_url, :plans, :tags,
+    attr_reader :description, :provider, :version, :url, :info_url, :documentation_url, :plans, :tags,
                 :unique_id, :label, :active, :tags, :plan_options, :acls, :timeout,
                 :default_plan, :supported_versions, :version_aliases, :extra, :bindable
     attr_accessor :guid
@@ -23,6 +23,7 @@ module VCAP::Services
       @version_aliases = attrs['version_aliases']
       @extra = attrs.fetch('extra')
       @info_url = attrs['info_url']
+      @documentation_url = attrs['documentation_url']
       @bindable = attrs.fetch('bindable', true)
       @guid = attrs['guid']
       @description = attrs['description']
@@ -69,6 +70,7 @@ module VCAP::Services
         "provider" => provider,
         "version" => version,
         "url" => url,
+        "documentation_url" => documentation_url,
         "plans" => Plan.plans_array_to_hash(plans),
         "unique_id" => unique_id,
         "label" => label,
