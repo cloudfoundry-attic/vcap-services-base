@@ -78,7 +78,6 @@ module VCAP::Services::Internal
     optional :service_bindings_url, String
     optional :space_url,            String
     optional :service_plan_url,     String
-    optional :type,                 String
     optional :dashboard_url,        String
   end
 
