@@ -8,7 +8,7 @@ class ServiceMessage < JsonMessage
 
   def set_field(field, value)
     field = field.to_sym
-    raise ValidationError.new({field => "Unknown field #{field}"}) unless self.class.fields.has_key?(field)
+    return unless self.class.fields.has_key?(field)
     f = self.class.fields[field]
     # delete an optional field
     if value.nil? and f.required == false
