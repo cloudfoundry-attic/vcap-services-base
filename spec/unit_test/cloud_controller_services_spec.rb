@@ -2,7 +2,7 @@ require 'helper/spec_helper'
 require 'base/cloud_controller_services'
 
 describe VCAP::Services::CloudControllerServices do
-  let(:client) { stub }
+  let(:client) { double }
   let(:headers) { 'headers' }
 
   let(:cc_services) {
@@ -20,6 +20,7 @@ describe VCAP::Services::CloudControllerServices do
           "description" => 'description for mysql',
           "version" => 'version 1',
           "url" => 'http://url.com',
+          "bindable" => false,
           'info_url' => 'http://info_url.com',
           'service_plans_url' => 'v2/services/asdf/service_plans'
         },
@@ -39,7 +40,7 @@ describe VCAP::Services::CloudControllerServices do
     end
 
     let(:plan_http) do
-      plan_http = mock("page_1")
+      plan_http = double("page_1")
       plan_http.stub_chain(:response_header, :status).and_return(200)
       plan_http.stub(
         "response" => {
@@ -51,7 +52,7 @@ describe VCAP::Services::CloudControllerServices do
     end
 
     let(:service_http) do
-      service_http = mock("page_1")
+      service_http = double("page_1")
       service_http.stub_chain(:response_header, :status).and_return(200)
       service_http.stub(
         "response" => {
@@ -78,6 +79,7 @@ describe VCAP::Services::CloudControllerServices do
       service.version.should == 'version 1'
       service.url.should == 'http://url.com'
       service.info_url.should == 'http://info_url.com'
+      service.bindable.should == false
     end
 
     it "contains plans within each service" do
@@ -93,7 +95,7 @@ describe VCAP::Services::CloudControllerServices do
 
   describe "#each" do
     it "should read multiple pages from cloud_controller" do
-      page_1 = mock("page_1")
+      page_1 = double("page_1")
       page_1.stub_chain(:response_header, :status).and_return(200)
       page_1.stub("response") {
         {
@@ -102,7 +104,7 @@ describe VCAP::Services::CloudControllerServices do
         }.to_json
       }
 
-      page_2 = mock("page_2")
+      page_2 = double("page_2")
       page_2.stub_chain(:response_header, :status).and_return(200)
       page_2.stub("response") {
         {

@@ -192,34 +192,6 @@ module VCAP::Services
         end
       end
 
-      context "for inactive services (services that are in cloud controller, but no longer in catalog)" do
-        xit 'deactivates them in cloud controller and returns true' do
-          service_in_cloud_controller =  build_service(
-            'guid' => "someguid90dsf9j",
-            'unique_id' => "12345ABC",
-            'plans' => {}
-          )
-
-          advertiser = ServiceAdvertiser.new(
-            current_catalog: [],
-            catalog_in_ccdb: [service_in_cloud_controller],
-            logger: double.as_null_object,
-            http_handler: mock_http_handler,
-          )
-          mock_http_handler.stub(:cc_http_request).ordered.
-            with(hash_including(uri: "/v2/services/someguid90dsf9j")).
-            and_yield(FakeCCHttp.new(error: nil, status: 201, response: {"metadata" => {"guid" => "someguid90dsf9j"}}.to_json))
-
-          mock_http_handler.should_receive(:cc_http_request).with do |options|
-            options[:uri].should == '/v2/services/someguid90dsf9j'
-            options[:method].should == 'put'
-            Yajl::Parser.parse(options[:body]).should include("active" => false)
-          end
-
-          advertiser.advertise_services
-        end
-      end
-
       context "for new services that are not yet in cloud controller" do
         it "adds the service" do
           service_in_catalog = build_service(

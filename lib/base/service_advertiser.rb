@@ -27,11 +27,6 @@ module VCAP::Services
                                 service_change_set.plans_to_update)
       end
 
-      inactive_services.each do |service|
-        logger.debug("CCNG Catalog Manager: Deactivating offering: #{service.inspect}")
-        advertise_service_to_cc(service, service.guid, [], {}) # don't touch plans, just deactivate
-      end
-
       new_services.each do |service|
         service_plan_change_set = service.create_change_set(nil)
         logger.debug("CCNG Catalog Manager: plans_to_add = #{service_plan_change_set.plans_to_add.inspect}")
@@ -52,16 +47,16 @@ module VCAP::Services
       active ? inactive_services.size : registered_services.size
     end
 
+    def active_services
+      catalog_services & registered_services
+    end
+
     def inactive_services
       registered_services - active_services
     end
 
     def new_services
       catalog_services - active_services
-    end
-
-    def active_services
-      catalog_services & registered_services
     end
 
     private

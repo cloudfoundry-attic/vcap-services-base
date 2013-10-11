@@ -42,7 +42,8 @@ module VCAP::Services
           'url' => entity["url"],
           'info_url' => entity["info_url"],
           'extra' => entity['extra'],
-          'plans' => plans
+          'plans' => plans,
+          'bindable' => entity['bindable']
         )
       end
 
