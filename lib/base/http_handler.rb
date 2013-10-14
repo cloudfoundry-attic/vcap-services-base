@@ -13,6 +13,7 @@ class HTTPHandler
   def cc_http_request(args, &block)
     args[:uri] = "#{@cld_ctrl_uri}#{args[:uri]}"
     args[:head] = cc_req_hdrs
+
     max_attempts = args[:max_attempts] || 2
     attempts = 0
     while true
@@ -20,7 +21,7 @@ class HTTPHandler
       logger.debug("#{args[:method].upcase} - #{args[:uri]}")
       http = make_http_request(args)
       if attempts < max_attempts && http.response_header.status == HTTP_UNAUTHENTICATED_CODE
-        refresh_client_auth_token
+        args[:head] = refresh_client_auth_token
       else
         block.call(http)
         return http
