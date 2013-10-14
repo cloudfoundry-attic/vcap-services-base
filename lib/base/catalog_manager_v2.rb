@@ -151,6 +151,46 @@ module VCAP
         end
       end
 
+      def update_handle_in_cc(service_label, handle, on_success_callback, on_failure_callback)
+        logger.debug("CCNG Catalog Manager:(v1) Update service handle: #{handle.inspect}")
+        if not handle
+          on_failure_callback.call if on_failure_callback
+          return
+        end
+
+        uri = update_handle_uri(handle)
+
+        # replace the "configuration" field with "gateway_data", and remove "gateway_name" for the internal update
+        handle["gateway_data"] = handle.delete("configuration")
+        handle.delete("gateway_name")
+
+        # manipulate handle to be a handle that is acceptable to ccng
+        cc_handle = {
+          "token"        => @service_auth_tokens.values[0],
+          "credentials"  => handle["credentials"],
+          "gateway_data" => handle["gateway_data"],
+        }
+
+        cc_http_request(:uri => uri,
+                        :method => "put",
+                        :head => @cc_req_hdrs,
+                        :body => Yajl::Encoder.encode(cc_handle)) do |http|
+          if ! http.error
+            if http.response_header.status == 200
+              logger.info("CCNG Catalog Manager:(v1) Successful update handle #{handle["service_id"]}")
+              on_success_callback.call if on_success_callback
+            else
+              logger.error("CCNG Catalog Manager:(v1) Failed to update handle #{handle["service_id"]}: http status
+              on_failure_callback.call if on_failure_callback
+            end
+          else
+            logger.error("CCNG Catalog Manager:(v1) Failed to update handle #{handle["service_id"]}: #{http.error}"
+              on_failure_callback.call if on_failure_callback
+            end
+          end
+        end
+      end
+      
       private
       def fetch_all_instance_handles_from_cc
         logger.info("CCNG Catalog Manager:(v2) Fetching all service instance handles from cloud controller: #{@cld_ctrl_uri}#{@service_instance_uri}")
