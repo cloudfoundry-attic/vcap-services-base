@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
   s.author       = "CloudFoundry Services Team"
   s.email        = "cfpi-services@googlegroups.com"
 
-  s.add_dependency "nats", ">= 0.4.22.beta.8", "< 0.4.28"
+  s.add_dependency 'nats', '>= 0.5.0.beta.12', '< 0.6'
   s.add_dependency "data_mapper", "~> 1.2"
   s.add_dependency "do_sqlite3"
   s.add_dependency "eventmachine", "~> 1.0"
