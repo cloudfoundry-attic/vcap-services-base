@@ -263,6 +263,33 @@ describe NodeTests do
     end
   end
 
+  it "should return success when receiving a 404 on unprovision" do
+    node = nil
+    mock_nats = nil
+    response = nil
+    EM.run do
+      mock_nats = mock("test_mock_nats")
+      node = NodeTests.create_404_on_deprovision_node
+      # assign mock nats to node
+      node.nats = mock_nats
+
+      mock_nats.should_receive(:publish).with(any_args()).and_return { |*args|
+        response = VCAP::Services::Internal::SimpleResponse.decode(args[1])
+      }
+
+      req = VCAP::Services::Internal::UnprovisionRequest.new
+      req.name = "TestNode"
+      req.bindings = [{}]
+      node.on_unprovision(req.encode, nil)
+
+      node.unprovision_invoked.should be_true
+      response.success.should be_true
+      response.error.should be_nil
+
+      EM.stop
+    end
+  end
+
   it "should increase capacity after successful unprovision" do
     node = nil
     mock_nats = nil

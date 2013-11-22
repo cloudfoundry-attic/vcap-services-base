@@ -10,6 +10,10 @@ class NodeTests
     NodeErrorTester.new(BaseTests::Options.default({:node_id => NodeTester::ID}))
   end
 
+  def self.create_404_on_deprovision_node
+    Node404onUnprovision.new(BaseTests::Options.default({:node_id => NodeTester::ID}))
+  end
+
   def self.create_error_provisioner
     MockErrorProvisioner.new
   end
@@ -340,6 +344,13 @@ class NodeTests
     def check_orphan(handles)
       @check_orphan_invoked = true
       raise ServiceError.new(ServiceError::SERVICE_UNAVAILABLE)
+    end
+  end
+
+  class Node404onUnprovision < NodeTester
+    def unprovision(name, bindings)
+      @unprovision_invoked = true
+      raise ServiceError.new(ServiceError::NOT_FOUND, "The amazing disappearing service")
     end
   end
 

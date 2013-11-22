@@ -115,7 +115,11 @@ class VCAP::Services::Base::Node < VCAP::Services::Base::Base
     end
   rescue => e
     @logger.warn("Exception at on_unprovision #{e}")
-    publish(reply, encode_failure(response, e))
+    if e.http_status == ServiceError::HTTP_NOT_FOUND
+      publish(reply, encode_success(response))
+    else
+      publish(reply, encode_failure(response, e))
+    end
   end
 
   def on_bind(msg, reply)
