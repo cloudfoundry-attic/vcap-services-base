@@ -130,8 +130,6 @@ module VCAP
         logger.info("CCNG Catalog Manager:(v2) Fetching all handles from cloud controller...")
         return unless after_fetch_callback
 
-        @fetching_handles = true
-
         instance_handles = fetch_all_instance_handles_from_cc
         binding_handles = fetch_all_binding_handles_from_cc(instance_handles)
         logger.info("CCNG Catalog Manager:(v2) Successfully fetched all handles from cloud controller...")
@@ -139,8 +137,6 @@ module VCAP
         handles = [instance_handles, binding_handles]
         handles = VCAP::Services::Api::ListHandlesResponse.decode(Yajl::Encoder.encode({:handles => handles}))
         after_fetch_callback.call(handles) if after_fetch_callback
-      ensure
-        @fetching_handles = false
       end
 
       def update_handle_uri(handle)
