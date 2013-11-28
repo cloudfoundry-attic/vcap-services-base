@@ -31,9 +31,24 @@ module VCAP::Services
     end
 
     describe 'equality' do
-      it 'uses the unique ids to compare' do
+      it 'services with the same unique ids should be equal' do
         service_a.eql?(service_b).should be_true
         service_c.eql?(service_b).should be_false
+      end
+
+      let(:service_main) { Service.new(options.merge('unique_id' => 'reference', 'label' => 'same', 'provider' => 'core', 'version' => 1)) }
+
+      let(:service_same_tuple) { Service.new(options.merge('unique_id' => 'w', 'label' => 'same', 'provider' => 'core', 'version' => 1)) }
+      let(:service_diff_label) { Service.new(options.merge('unique_id' => 'x', 'label' => 'different', 'provider' => 'core', 'version' => 1)) }
+      let(:service_diff_provider) { Service.new(options.merge('unique_id' => 'y', 'label' => 'same', 'provider' => 'core2', 'version' => 1)) }
+      let(:service_diff_version) { Service.new(options.merge('unique_id' => 'z', 'label' => 'same', 'provider' => 'core', 'version' => 2)) }
+
+
+      it 'services with matching label, provider, and version should be equal' do
+        service_main.eql?(service_same_tuple).should be_true
+        service_main.eql?(service_diff_label).should be_false
+        service_main.eql?(service_diff_provider).should be_false
+        service_main.eql?(service_diff_version).should be_false
       end
     end
 

@@ -8,7 +8,6 @@ module VCAP::Services
                 :default_plan, :supported_versions, :version_aliases, :extra, :bindable
     attr_accessor :guid
 
-
     def initialize(attrs)
       @unique_id = attrs.fetch('unique_id')
       @label = attrs['label']
@@ -35,7 +34,7 @@ module VCAP::Services
     end
 
     def eql?(other)
-      return self.unique_id == other.unique_id
+      unique_ids_match(self, other) || label_provider_version_match(self, other)
     end
 
     def hash
@@ -81,6 +80,18 @@ module VCAP::Services
         "bindable" => bindable,
         "tags" => tags
       }
+    end
+
+    private
+
+    def unique_ids_match(first, second)
+      first.unique_id == second.unique_id
+    end
+
+    def label_provider_version_match(first, second)
+      [first.label, first.provider, first.version].each { |x| return false if x.nil? }
+
+      (first.label == second.label && first.provider == second.provider && first.version == second.version)
     end
   end
 end

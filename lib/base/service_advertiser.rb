@@ -18,7 +18,7 @@ module VCAP::Services
       logger.debug("CCNG Catalog Manager: Current catalog: #{catalog_services.inspect}")
 
       active_services.each do |active_service|
-        service_in_ccdb = registered_services.find { |registered_service| active_service.unique_id == registered_service.unique_id }
+        service_in_ccdb = registered_services.find { |registered_service| active_service.eql?(registered_service) }
         service_change_set = active_service.create_change_set(service_in_ccdb)
         logger.debug("CCNG Catalog Manager:  service_change_set = #{service_change_set.inspect}")
         advertise_service_to_cc(active_service,
