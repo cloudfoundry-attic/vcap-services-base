@@ -41,21 +41,12 @@ module VCAP::Services
       plan_collection.select {|other_plan| self.same?(other_plan) }.length > 0
     end
 
-
     def not_in?(plan_collection)
       !in?(plan_collection)
     end
 
     def same?(other)
       return (self.unique_id == other.unique_id) || (self.name == other.name)
-    end
-
-    def eql?(other)
-      return (self.unique_id == other.unique_id) || (self.name == other.name)
-    end
-
-    def hash
-      unique_id.hash
     end
 
     def to_hash
