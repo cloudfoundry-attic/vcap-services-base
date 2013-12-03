@@ -108,33 +108,41 @@ module VCAP::Services
       logger.debug("CCNG Catalog Manager: Processing plans for: #{service_guid} -Add: #{plans_to_add.size} plans, Update: #{plans_to_update.size} plans")
 
       plans_to_add.each { |plan|
-        add_or_update_plan(plan, service_guid)
+        add_plan(plan, service_guid)
       }
 
       plans_to_update.each { |plan|
-        add_or_update_plan(plan, service_guid)
+        update_plan(plan, service_guid)
       }
       return true
     end
 
-    def add_or_update_plan(plan, service_guid)
-      plan_guid = plan.guid
-      add_plan = plan_guid.nil?
-      uri = add_plan ? @service_plans_uri : "#{@service_plans_uri}/#{plan_guid}"
-      logger.info("CCNG Catalog Manager: #{add_plan ? "Add new plan" : "Update plan (guid: #{plan_guid}) to"}: #{plan.inspect} via #{uri}")
+    def add_plan(plan, service_guid)
+      uri          = @service_plans_uri
+      method       = 'post'
+      plan_as_hash = plan.get_add_hash(service_guid)
 
-      method = add_plan ? "post" : "put"
-      plan_as_hash = plan.to_hash
-      plan_as_hash["service_guid"] = service_guid
+      logger.info("CCNG Catalog Manager: Add new plan #{plan.inspect} via #{uri}")
 
-      if method == "put"
-        plan_as_hash.delete('unique_id')
-        plan_as_hash.delete('public')
-      end
+      make_plan_request(uri, method, plan_as_hash, plan)
+    end
 
-      @http_handler.cc_http_request(:uri => uri,
+    def update_plan(plan, service_guid)
+      uri          = "#{@service_plans_uri}/#{plan.guid}"
+      method       = 'put'
+      plan_as_hash = plan.get_update_hash(service_guid)
+
+      logger.info("CCNG Catalog Manager: Update plan (guid: #{plan.guid}) to #{plan.inspect} via #{uri}")
+
+      make_plan_request(uri, method, plan_as_hash, plan)
+    end
+
+    def make_plan_request(uri, method, plan_as_hash, plan)
+      add_plan = method == 'post'
+
+      @http_handler.cc_http_request(:uri    => uri,
                                     :method => method,
-                                    :body => Yajl::Encoder.encode(plan_as_hash)) do |http|
+                                    :body   => Yajl::Encoder.encode(plan_as_hash)) do |http|
         if !http.error
           if (200..299) === http.response_header.status
             logger.info("CCNG Catalog Manager: Successfully #{add_plan ? "added" : "updated"} service plan: #{plan.inspect}")
@@ -146,7 +154,6 @@ module VCAP::Services
           logger.error("CCNG Catalog Manager: Failed to #{add_plan ? "add" : "update"} plan: #{plan.inspect}: #{http.error}")
         end
       end
-
       return false
     end
   end

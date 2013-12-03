@@ -60,6 +60,20 @@ module VCAP::Services
       }
     end
 
+    def get_update_hash(service_guid)
+      plan_as_hash = self.to_hash
+      plan_as_hash['service_guid'] = service_guid
+      plan_as_hash.delete('unique_id')
+      plan_as_hash.delete('public')
+      return plan_as_hash
+    end
+
+    def get_add_hash(service_guid)
+      plan_as_hash = self.to_hash
+      plan_as_hash['service_guid'] = service_guid
+      return plan_as_hash
+    end
+
     def self.plan_hash_as_plan_array(plans)
       plan_array = []
       return plan_array unless plans

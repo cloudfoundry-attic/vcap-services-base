@@ -42,18 +42,19 @@ module VCAP::Services
     end
 
     def create_change_set(service_in_ccdb)
-      myplans = self.plans
       if service_in_ccdb
         guid = service_in_ccdb.guid
-        ccdbplans = service_in_ccdb.plans
-        plans_to_add = Plan.collection_subtraction(myplans, ccdbplans)
-        plans_to_update = Plan.collection_intersection(plans, service_in_ccdb.plans)
+
+        plans_to_add    = Plan.collection_subtraction(self.plans, service_in_ccdb.plans)
+        plans_to_update = Plan.collection_intersection(self.plans, service_in_ccdb.plans)
+
+        # set guid of plans from catalog that had a match in ccdb
         plans_to_update.each do |plan_to_update|
           plan_to_update.guid = service_in_ccdb.plans.find { |plan| plan.same? plan_to_update }.guid
         end
       else
         guid = nil
-        plans_to_add = myplans
+        plans_to_add = self.plans
         plans_to_update = []
       end
 
