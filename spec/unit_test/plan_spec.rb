@@ -8,44 +8,6 @@ module VCAP::Services
     let(:plan_same_unique_id) {Plan.new(:unique_id => 'reference', :name => 'diff_name') }
     let(:plan_diff_both) {Plan.new(:unique_id => 'unmatched', :name => 'unmatched') }
 
-    describe '#same?' do
-      it 'is the same when unique_id matches' do
-        plan_reference.same?(plan_same_unique_id).should be_true
-      end
-
-      it 'is the same when name matches' do
-        plan_reference.same?(plan_same_name).should be_true
-      end
-
-      it 'is not the same when neither unique_id nor name matches' do
-        plan_reference.same?(plan_diff_both).should be_false
-      end
-    end
-
-    describe '.collection_substraction' do
-      it 'subtracts plans that have the same unique_id' do
-        result = Plan.collection_subtraction([plan_reference, plan_diff_both], [plan_same_unique_id])
-        result.should == [plan_diff_both]
-      end
-
-      it 'subtracts plans that have different unique_id but same name' do
-        result = Plan.collection_subtraction([plan_reference, plan_diff_both], [plan_same_name])
-        result.should == [plan_diff_both]
-      end
-    end
-
-    describe '.collection_intersection' do
-      it 'intersects plans that have the same unique_id' do
-        result = Plan.collection_intersection([plan_reference, plan_diff_both], [plan_same_unique_id])
-        result.should == [plan_reference]
-      end
-
-      it 'intersects plans that have different unique_id but same name' do
-        result = Plan.collection_intersection([plan_reference, plan_diff_both], [plan_same_name])
-        result.should == [plan_reference]
-      end
-    end
-
     describe "to_hash" do
       let(:plan) { Plan.new(:unique_id => "unique_id") }
       it 'returns its attributes as a hash' do
@@ -80,6 +42,54 @@ module VCAP::Services
           {'unique_id' => 'reference', 'name' => 'myplan', 'description' => nil, 'free' => nil, 'extra' => nil, 'public' => true},
           {'unique_id' => 'unmatched', 'name' => 'unmatched', 'description' => nil, 'free' => nil, 'extra' => nil, 'public' => true}
         ]
+      end
+    end
+
+    describe '#get_update_hash' do
+      let(:plan) { Plan.new(:unique_id => "unique_id", :public => true) }
+      let(:service_guid) { 'a_service_guid' }
+
+      it 'returns its attributes as a hash' do
+        plan.get_update_hash(service_guid).should == {
+          'name'         => nil,
+          'description'  => nil,
+          'free'         => nil,
+          'extra'        => nil,
+          'service_guid' => 'a_service_guid'
+        }
+      end
+
+      it 'omits unique_id' do
+        plan.get_update_hash(service_guid).should_not have_key('unique_id')
+      end
+
+      it 'omits public' do
+        plan.get_update_hash(service_guid).should_not have_key('public')
+      end
+
+      it 'sets service_guid' do
+        plan.get_update_hash(service_guid)['service_guid'].should == 'a_service_guid'
+      end
+    end
+
+    describe '#get_add_hash' do
+      let(:plan) { Plan.new(:unique_id => "unique_id", :public => true) }
+      let(:service_guid) { 'a_service_guid' }
+
+      it 'returns its attributes as a hash' do
+        plan.get_add_hash(service_guid).should == {
+          'unique_id'    => 'unique_id',
+          'name'         => nil,
+          'description'  => nil,
+          'free'         => nil,
+          'extra'        => nil,
+          'public'       => true,
+          'service_guid' => 'a_service_guid'
+        }
+      end
+
+      it 'sets service_guid' do
+        plan.get_add_hash(service_guid)['service_guid'].should == 'a_service_guid'
       end
     end
   end
