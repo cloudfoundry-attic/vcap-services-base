@@ -174,7 +174,7 @@ module VCAP::Services
       logger.info("Binding request for service=#{params['service_id']}")
 
       req = VCAP::Services::Api::GatewayBindRequest.decode(request_body)
-      logger.debug("Binding options: #{req.binding_options.inspect}")
+      logger.debug("Binding request: #{req.extract}")
 
       @provisioner.bind_instance(req.service_id, req.binding_options) do |msg|
         if msg['success']
