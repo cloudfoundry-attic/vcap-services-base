@@ -76,6 +76,10 @@ class AsyncGatewayTests
                         'free' => {
                           :unique_id => plan_unique_id,
                           :free => true,
+                        },
+                        'expensive' => {
+                          :unique_id => plan_unique_id + 'extra_expensive_stuff',
+                          :free => false,
                         }
                       },
                       :tags => ['nosql'],

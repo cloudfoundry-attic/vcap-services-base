@@ -88,6 +88,18 @@ describe AsyncGatewayTests do
     gateway.provision_http_code.should == 200
   end
 
+  it "should be able to provision when unique_id does not match but name does" do
+    cc = nil
+    gateway = nil
+    EM.run do
+      Do.at(0) { cc = AsyncGatewayTests.create_cloudcontroller; cc.start }
+      Do.at(1) { gateway = AsyncGatewayTests.create_nice_gateway; gateway.start }
+      Do.at(2) { gateway.send_provision_request({ unique_id: 'different_unique_id', plan: 'expensive' }) }
+      Do.at(3) { cc.stop; gateway.stop; EM.stop }
+    end
+    gateway.provision_http_code.should == 200
+  end
+
   it "should be able to unprovision" do
     cc = nil
     gateway = nil

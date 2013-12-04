@@ -42,7 +42,7 @@ module VCAP::Services
 
         self.plans.each do |catalog_plan|
           ccdb_plan = service_in_ccdb.plans.find { |ccp| catalog_plan.unique_id == ccp.unique_id }
-          ccdb_plan = service_in_ccdb.plans.find { |ccp| catalog_plan.name == ccp.name } unless ccdb_plan
+          ccdb_plan = service_in_ccdb.plans.find { |ccp| catalog_plan.name.to_s == ccp.name.to_s } unless ccdb_plan
 
           if ccdb_plan
             catalog_plan.guid = ccdb_plan.guid
