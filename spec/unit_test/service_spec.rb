@@ -30,40 +30,6 @@ module VCAP::Services
       end
     end
 
-    describe 'equality' do
-      it 'services with the same unique ids should be equal' do
-        service_a.eql?(service_b).should be_true
-        service_c.eql?(service_b).should be_false
-      end
-
-      let(:service_main) { Service.new(options.merge('unique_id' => 'reference', 'label' => 'same', 'provider' => 'core', 'version' => 1)) }
-
-      let(:service_same_tuple) { Service.new(options.merge('unique_id' => 'w', 'label' => 'same', 'provider' => 'core', 'version' => 1)) }
-      let(:service_diff_label) { Service.new(options.merge('unique_id' => 'x', 'label' => 'different', 'provider' => 'core', 'version' => 1)) }
-      let(:service_diff_provider) { Service.new(options.merge('unique_id' => 'y', 'label' => 'same', 'provider' => 'core2', 'version' => 1)) }
-      let(:service_diff_version) { Service.new(options.merge('unique_id' => 'z', 'label' => 'same', 'provider' => 'core', 'version' => 2)) }
-
-
-      it 'services with matching label, provider, and version should be equal' do
-        service_main.eql?(service_same_tuple).should be_true
-        service_main.eql?(service_diff_label).should be_false
-        service_main.eql?(service_diff_provider).should be_false
-        service_main.eql?(service_diff_version).should be_false
-      end
-    end
-
-    describe 'comparing service arrays' do
-      it 'knows how to join' do
-        result = [service_a, service_c] - [service_b]
-        result.should == [service_c]
-      end
-
-      it 'knows how to intersect' do
-        result = [service_a, service_c] & [service_b]
-        result.should == [service_a]
-      end
-    end
-
     describe "#create_change_set" do
       subject(:service) { Service.new(options.merge('plans' => [], 'unique_id' => "unique_id")) }
       let(:plan_to_add_1) { Plan.new(:unique_id => "unique_id_p1", :name =>"p1") }
@@ -166,6 +132,36 @@ module VCAP::Services
       it 'omits guid' do
         service.to_hash.should_not have_key('guid')
       end
+    end
+
+    describe '#same_tuple?' do
+      let(:service_reference) { Service.new(options.merge('label' => 'same', 'provider' => 'core', 'version' => 1, 'unique_id' => 'a')) }
+      let(:service_same_tuple) { Service.new(options.merge('label' => 'same', 'provider' => 'core', 'version' => 1, 'unique_id' => 'a')) }
+      let(:service_diff_label) { Service.new(options.merge('label' => 'different', 'provider' => 'core', 'version' => 1, 'unique_id' => 'a')) }
+      let(:service_diff_provider) { Service.new(options.merge('label' => 'same', 'provider' => 'core2', 'version' => 1, 'unique_id' => 'a')) }
+      let(:service_diff_version) { Service.new(options.merge('label' => 'same', 'provider' => 'core', 'version' => 2, 'unique_id' => 'a')) }
+      let(:service_nil) { Service.new(options.merge('label' => nil, 'provider' => 'core', 'version' => 1, 'unique_id' => 'a')) }
+
+      it 'is true when label, provider, and version are equal' do
+        service_reference.same_tuple?(service_same_tuple).should be_true
+      end
+
+      it 'is false if any label, provider, or version is nil' do
+        service_nil.same_tuple?(service_reference).should be_false
+      end
+
+      it 'is false when label is not equal' do
+        service_reference.same_tuple?(service_diff_label).should be_false
+      end
+
+      it 'is false when provider is not equal' do
+        service_reference.same_tuple?(service_diff_provider).should be_false
+      end
+
+      it 'is false when version is not equal' do
+        service_reference.same_tuple?(service_diff_version).should be_false
+      end
+
     end
   end
 end

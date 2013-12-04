@@ -33,14 +33,6 @@ module VCAP::Services
       @tags = attrs['tags']
     end
 
-    def eql?(other)
-      unique_ids_match(self, other) || label_provider_version_match(self, other)
-    end
-
-    def hash
-      unique_id.hash
-    end
-
     def create_change_set(service_in_ccdb)
       if service_in_ccdb
         guid = service_in_ccdb.guid
@@ -83,16 +75,12 @@ module VCAP::Services
       }
     end
 
-    private
+    def same_tuple?(other)
+      [self.label, self.provider, self.version].each { |x| return false if x.nil? }
 
-    def unique_ids_match(first, second)
-      first.unique_id == second.unique_id
-    end
-
-    def label_provider_version_match(first, second)
-      [first.label, first.provider, first.version].each { |x| return false if x.nil? }
-
-      (first.label == second.label && first.provider == second.provider && first.version == second.version)
+      (self.label == other.label &&
+        self.provider == other.provider &&
+        self.version == other.version)
     end
   end
 end

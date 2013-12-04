@@ -10,7 +10,8 @@ module VCAP::Services
       @active = options.fetch(:active, true)
       @offering_uri = "/v2/services"
       @service_plans_uri = "/v2/service_plans"
-      update_guid
+
+      build_service_lists_and_prepare_guids
     end
 
     def advertise_services
@@ -18,7 +19,10 @@ module VCAP::Services
       logger.debug("CCNG Catalog Manager: Current catalog: #{catalog_services.inspect}")
 
       active_services.each do |active_service|
-        service_in_ccdb = registered_services.find { |registered_service| active_service.eql?(registered_service) }
+        service_in_ccdb = registered_services.find do |registered_service|
+          active_service.guid == registered_service.guid
+        end
+
         service_change_set = active_service.create_change_set(service_in_ccdb)
         logger.debug("CCNG Catalog Manager:  service_change_set = #{service_change_set.inspect}")
         advertise_service_to_cc(active_service,
@@ -48,22 +52,42 @@ module VCAP::Services
     end
 
     def active_services
-      catalog_services & registered_services
+      @active_services
     end
 
     def inactive_services
-      registered_services - active_services
+      @inactive_services
     end
 
     def new_services
-      catalog_services - active_services
+      @new_services
     end
 
     private
-    def update_guid
+
+    def build_service_lists_and_prepare_guids
+      @inactive_services = registered_services.dup
+      @active_services   = []
+      @new_services      = []
+
       @catalog_services.each do |service|
-        registered_service = registered_services.find { |rs| service.eql?(rs) }
-        service.guid = registered_service.guid if registered_service
+        registered_service = registered_services.find { |rs| service.unique_id == rs.unique_id }
+
+        unless registered_service
+          registered_service = registered_services.find { |rs| service.same_tuple?(rs) }
+
+          if registered_service && service.unique_id
+            logger.warn("CCNG Catalog Manager: Service with unique id #{service.unique_id} in broker catalog matched service with unique id #{registered_service.unique_id} from cloud controller using label-version-provider tuple.")
+          end
+        end
+
+        if registered_service
+          service.guid = registered_service.guid
+          @active_services << service
+          @inactive_services.delete(registered_service)
+        else
+          @new_services << service
+        end
       end
     end
 

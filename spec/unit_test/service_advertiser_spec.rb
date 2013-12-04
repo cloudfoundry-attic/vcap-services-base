@@ -248,11 +248,15 @@ module VCAP::Services
     end
 
     describe "#active_count" do
+      let(:ccdb_service) { build_service({'guid' => 'service guid', 'unique_id' => 'ccdb_id'}) }
+      let(:catalog_service_1) { build_service({'unique_id' => 'cs1'}) }
+      let(:catalog_service_2) { build_service({'unique_id' => 'cs2'}) }
+
       context "when the advertiser is active" do
         it "returns the number of services in the catalog" do
           service_advertiser = ServiceAdvertiser.new(
-            current_catalog: [double('catalog service1'), double('catalog service2')],
-            catalog_in_ccdb: [double('ccdb service')],
+            current_catalog: [catalog_service_1, catalog_service_2],
+            catalog_in_ccdb: [ccdb_service],
             http_handler: double.as_null_object,
             logger: double.as_null_object,
             active: true,
@@ -265,8 +269,8 @@ module VCAP::Services
       context "when the advertiser is inactive" do
         it "returns 0" do
           service_advertiser = ServiceAdvertiser.new(
-            current_catalog: [double('catalog service1'), double('catalog service2')],
-            catalog_in_ccdb: [double('ccdb service')],
+            current_catalog: [catalog_service_1, catalog_service_2],
+            catalog_in_ccdb: [ccdb_service],
             http_handler: double.as_null_object,
             logger: double.as_null_object,
             active: false,
@@ -278,13 +282,17 @@ module VCAP::Services
     end
 
     describe "#disabled_count" do
-      let(:service_in_cc_and_catalog) { double('service in both', :guid => 'service guid', "guid=" => nil) }
+      let(:service_in_cc_and_catalog) { build_service({'guid' => 'service guid', 'unique_id' => 'in_both_id'}) }
+      let(:catalog_service_1) { build_service({'unique_id' => 'cs1'}) }
+      let(:catalog_service_2) { build_service({'unique_id' => 'cs2'}) }
+      let(:inactive_service_1) { build_service({'unique_id' => 'is1'}) }
+      let(:inactive_service_2) { build_service({'unique_id' => 'is2'}) }
 
       context "when the advertiser is active" do
         it "returns the number of services that are in cc that are not in the catalog" do
           service_advertiser = ServiceAdvertiser.new(
-            current_catalog: [double('catalog service1'), double('catalog service2'), service_in_cc_and_catalog],
-            catalog_in_ccdb: [double('inactive ccdb service'), service_in_cc_and_catalog],
+            current_catalog: [catalog_service_1, catalog_service_2, service_in_cc_and_catalog],
+            catalog_in_ccdb: [inactive_service_1, service_in_cc_and_catalog],
             http_handler: double.as_null_object,
             logger: double.as_null_object,
             active: true,
@@ -297,8 +305,8 @@ module VCAP::Services
       context "when the advertiser is inactive" do
         it "returns the number of services in cloud controller" do
           service_advertiser = ServiceAdvertiser.new(
-            current_catalog: [double('catalog service1'), service_in_cc_and_catalog],
-            catalog_in_ccdb: [double('inactive ccdb service1'), double('inactive ccdb service2'), service_in_cc_and_catalog],
+            current_catalog: [catalog_service_1, service_in_cc_and_catalog],
+            catalog_in_ccdb: [inactive_service_1, inactive_service_2, service_in_cc_and_catalog],
             http_handler: service_in_cc_and_catalog.as_null_object,
             logger: service_in_cc_and_catalog.as_null_object,
             active: false,
@@ -306,6 +314,24 @@ module VCAP::Services
 
           service_advertiser.disabled_count.should == 3
         end
+      end
+    end
+
+    context "when service unique_id from ccdb differs from the catalog" do
+      let(:ccdb_service) { build_service({'guid' => 'service guid', 'unique_id' => 'ccdb_id', 'label' => 'label_a', 'version' => '0.1', 'provider' => 'provider_a'}) }
+      let(:catalog_service_1) { build_service({'unique_id' => 'cs1', 'label' => 'label_a', 'version' => '0.1', 'provider' => 'provider_a'}) }
+      let(:catalog_service_2) { build_service({'unique_id' => 'cs2', 'label' => 'label_b', 'version' => '0.1', 'provider' => 'provider_b'}) }
+
+      it "matches services based on the label-version-provider tuple and does not resolve new services" do
+        service_advertiser = ServiceAdvertiser.new(
+          current_catalog: [catalog_service_1, catalog_service_2],
+          catalog_in_ccdb: [ccdb_service],
+          http_handler:    double.as_null_object,
+          logger:          double.as_null_object,
+          active:          true,
+        )
+
+        expect(service_advertiser.new_services.count).to eq(1)
       end
     end
   end
