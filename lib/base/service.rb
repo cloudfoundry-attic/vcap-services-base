@@ -46,8 +46,8 @@ module VCAP::Services
       if service_in_ccdb
         guid = service_in_ccdb.guid
         ccdbplans = service_in_ccdb.plans
-        plans_to_add = myplans - ccdbplans
-        plans_to_update = self.plans & service_in_ccdb.plans
+        plans_to_add = Plan.collection_subtraction(myplans, ccdbplans)
+        plans_to_update = Plan.collection_intersection(plans, service_in_ccdb.plans)
         plans_to_update.each do |plan_to_update|
           plan_to_update.guid = service_in_ccdb.plans.find { |plan| plan.eql? plan_to_update }.guid
         end

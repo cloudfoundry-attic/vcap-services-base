@@ -66,12 +66,12 @@ module VCAP::Services
 
     describe "#create_change_set" do
       subject(:service) { Service.new(options.merge('plans' => [], 'unique_id' => "unique_id")) }
-      let(:plan_to_add_1) { Plan.new(:unique_id => "unique_id_p1") }
-      let(:plan_to_add_2) { Plan.new(:unique_id => "unique_id_p2") }
-      let(:plan_to_change_1) { Plan.new(:unique_id => "unique_id_c1", :guid => "55-33") }
-      let(:plan_to_change_2) { Plan.new(:unique_id => "unique_id_c2", :guid => "55-44") }
+      let(:plan_to_add_1) { Plan.new(:unique_id => "unique_id_p1", :name =>"p1") }
+      let(:plan_to_add_2) { Plan.new(:unique_id => "unique_id_p2", :name => "p2") }
+      let(:plan_to_change_1) { Plan.new(:unique_id => "unique_id_c1", :name => "c1", :guid => "55-33") }
+      let(:plan_to_change_2) { Plan.new(:unique_id => "unique_id_c2", :name => "c2", :guid => "55-44") }
       let(:plans_in_ccdb) { [plan_to_change_1, plan_to_change_2] }
-      let(:service_in_ccdb) { mock('service in ccdb',
+      let(:service_in_ccdb) { double('service in ccdb',
                                    plans: plans_in_ccdb,
                                    guid: 'special') }
 
@@ -111,6 +111,26 @@ module VCAP::Services
 
         change_set.plans_to_update.should == [plan_to_change_1, plan_to_change_2]
         change_set.plans_to_update.collect(&:guid).should =~ ['55-33', '55-44']
+      end
+
+      context 'with plan names that match but plan unique_ids that do not' do
+        let(:plan_to_change_1) { Plan.new(:unique_id => "unique_id_c1", :guid => "55-33", :name => 'name_c1') }
+        let(:plan_to_change_2) { Plan.new(:unique_id => "unique_id_c2", :guid => "55-44", :name => 'name_c2') }
+        let(:plans_in_ccdb) do
+          [
+            Plan.new(:unique_id => "does_not_match_c1", :guid => "55-33", :name => 'name_c1'),
+            Plan.new(:unique_id => "does_not_match_c2", :guid => "55-44", :name => 'name_c2')
+          ]
+        end
+
+        it 'adds plans that are in the catalog to the plans_to_update list with guids' do
+          service = Service.new(options.merge('plans' => [plan_to_change_1, plan_to_change_2],
+                                              'unique_id' => "unique_id"))
+          change_set = service.create_change_set(service_in_ccdb)
+
+          change_set.plans_to_update.should == [plan_to_change_1, plan_to_change_2]
+          change_set.plans_to_update.collect(&:guid).should =~ ['55-33', '55-44']
+        end
       end
     end
 
