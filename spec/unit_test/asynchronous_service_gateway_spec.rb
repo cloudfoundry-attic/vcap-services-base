@@ -388,7 +388,7 @@ describe AsyncGatewayTests do
       Do.at(0) { cc = AsyncGatewayTests.create_cloudcontroller; cc.start }
       Do.at(1) { gateway = AsyncGatewayTests.create_nice_gateway; gateway.start }
       Do.at(2) {
-        gateway.send_provision_request(unique_id: 'not-a-real-unique-id')
+        gateway.send_provision_request({unique_id: 'not-a-real-unique-id', plan: 'unknown-plan'})
       }
       Do.at(3) { cc.stop; gateway.stop; EM.stop }
     end
