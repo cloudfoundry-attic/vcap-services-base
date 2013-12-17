@@ -2,7 +2,7 @@
 
 **All code pertaining to our 'v1' broker API, including vcap-services-base, has been deprecated but will be supported until Cloud Controller API v3 is released.**
 
-** Please use the v2 broker API when building a service broker: http://docs.cloudfoundry.com/docs/running/architecture/services/writing-service.html**
+**Please use the v2 broker API when building a service broker: http://docs.cloudfoundry.com/docs/running/architecture/services/writing-service.html**
 
 ## File a Bug
 
