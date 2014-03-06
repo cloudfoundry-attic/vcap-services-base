@@ -1,3 +1,6 @@
+require 'vcap/common'
+require 'vcap/component'
+
 require 'base/gateway'
 require 'base/node_bin'
 require 'base/node'
