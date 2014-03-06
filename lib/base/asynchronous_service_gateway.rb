@@ -34,7 +34,7 @@ module VCAP::Services
       @double_check_orphan_interval = opts[:double_check_orphan_interval] || 300
       @handle_fetched = opts[:handle_fetched] || false
       @fetching_handles = false
-      @version_aliases = service[:version_aliases] || {}
+      @version_aliases = (service[:version_aliases] ||= {})
 
       opts[:gateway_name] ||= "Service Gateway"
 
