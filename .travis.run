@@ -2,6 +2,7 @@ set -e -x -u
 ./start_warden.sh
 
 sudo aptitude install -y libsqlite3-dev
+gem install bundler -v 1.6.0.rc
 bundle install
 
 failure=0
