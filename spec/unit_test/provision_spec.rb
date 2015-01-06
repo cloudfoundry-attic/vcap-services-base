@@ -11,8 +11,8 @@ describe ProvisionerTests do
   %W(v1 v2).each do |version|
     describe "#create_snapshot" do
       it "create a job with service id, node id, and metadata" do
-        klass = mock("subclass")
-        mock_nats = mock("test_mock_nats")
+        klass = double("subclass")
+        mock_nats = double("test_mock_nats")
         klass.should_receive(:create).with(
           :service_id => 'service_id',
           :node_id => '1',
@@ -38,7 +38,7 @@ describe ProvisionerTests do
       mock_nats = nil
       # start provisioner only, send fake node announce message
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -62,7 +62,7 @@ describe ProvisionerTests do
       mock_nats = nil
       # start provisioner only, send fake node announce message
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -106,7 +106,7 @@ describe ProvisionerTests do
       node3 = nil
       # start provisioner only, send fake node announce message
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -161,7 +161,7 @@ describe ProvisionerTests do
       mock_nats = nil
       mock_nodes = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -180,7 +180,7 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
+        expect(mock_nats).to receive(:request) do |&cb|
             response = VCAP::Services::Internal::ProvisionResponse.new
             response.success = true
             response.credentials = {
@@ -189,12 +189,12 @@ describe ProvisionerTests do
             }
             cb.call(response.encode)
             "5"
-        }
-        mock_nats.should_receive(:unsubscribe).with(any_args())
+        end
+        mock_nats.should_receive(:unsubscribe).with(any_args)
 
         gateway.send_provision_request
 
-        gateway.got_provision_response.should be_true
+        expect(gateway.got_provision_response).to eq(true)
 
         EM.stop
       end
@@ -205,7 +205,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -224,19 +224,19 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
+        expect(mock_nats).to receive(:request) do |&cb|
             response = VCAP::Services::Internal::ProvisionResponse.new
             response.success = false
             response.error = ServiceError.new(ServiceError::INTERNAL_ERROR).\
                                           to_hash
             cb.call(response.encode)
             "5"
-        }
+        end
         mock_nats.should_receive(:unsubscribe).with(any_args())
 
         gateway.send_provision_request
 
-        gateway.provision_response.should be_false
+        expect(gateway.provision_response).to eq(false)
         gateway.error_msg['status'].should == 500
         gateway.error_msg['msg']['code'].should == 30500
 
@@ -250,7 +250,7 @@ describe ProvisionerTests do
       mock_nats = nil
       nats_request = ""
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -278,14 +278,14 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
+        expect(mock_nats).to receive(:request).with(any_args) do |*args, &cb|
             nats_request = args[0]
             "5"
-        }
+        end
 
         gateway.send_provision_request
 
-        nats_request.should == "Test.provision.node-1"
+        expect(nats_request).to eq "Test.provision.node-1"
 
         EM.stop
       end
@@ -296,7 +296,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -315,7 +315,7 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
+        expect(mock_nats).to receive(:request) do |&cb|
             response = VCAP::Services::Internal::ProvisionResponse.new
             response.success = true
             response.credentials = {
@@ -324,13 +324,13 @@ describe ProvisionerTests do
             }
             cb.call(response.encode)
             "5"
-        }
+        end
         mock_nats.should_receive(:unsubscribe).with(any_args())
 
         gateway.send_provision_request # first request get success
         gateway.send_provision_request # second request get error
 
-        gateway.got_provision_response.should be_false
+        expect(gateway.got_provision_response).to eq false
 
         EM.stop
       end
@@ -341,7 +341,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -378,7 +378,7 @@ describe ProvisionerTests do
       mock_nats = nil
       provision_request = ""
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -431,7 +431,7 @@ describe ProvisionerTests do
       mock_nats = nil
       provision_request = ""
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         provisioner.get_all_handles.size.should == 0
@@ -497,7 +497,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -544,7 +544,7 @@ describe ProvisionerTests do
       mock_nats = nil
       provision_request = ""
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assgin mock nats to provisioner
@@ -601,7 +601,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -647,7 +647,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -694,7 +694,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -746,7 +746,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -792,7 +792,7 @@ describe ProvisionerTests do
       mock_nats = nil
       provision_request = ""
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -851,7 +851,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -903,7 +903,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -948,7 +948,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -993,7 +993,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -1070,7 +1070,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {
           :plan_management => {:plans => {:free => {:allow_over_provisioning => true}}},
           :cc_api_version  => version,
@@ -1117,7 +1117,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {
           :plan_management => {:plans => {:free => {:allow_over_provisioning => false}}},
           :cc_api_version  => version
@@ -1152,7 +1152,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -1213,7 +1213,7 @@ describe ProvisionerTests do
       gateway = nil
       mock_nats = nil
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
@@ -1245,7 +1245,7 @@ describe ProvisionerTests do
       purge_ins_list = []
       purge_bind_list = []
       EM.run do
-        mock_nats = mock("test_mock_nats")
+        mock_nats = double("test_mock_nats")
         options = {:cc_api_version => version}
         provisioner = ProvisionerTests.create_provisioner(options)
         # assign mock nats to provisioner
