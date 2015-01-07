@@ -12,7 +12,7 @@ describe BackupTest do
       end
       EM.add_timer(1) { Process.kill("TERM", pid) }
       EM.add_timer(5) do
-        backup.exit_invoked.should be_true
+        expect(backup.exit_invoked).to eq(true)
         EM.stop
       end
     end
@@ -24,8 +24,8 @@ describe BackupTest do
       errback_called = true
     end
     res = CMDHandle.execute("echo", 1, on_err)
-    res.should be_true
-    errback_called.should be_false
+    expect(res).to eq(true)
+    expect(errback_called).to eq(false)
   end
 
   it "should handle errors if the executable is not found or execution fails" do
@@ -35,8 +35,8 @@ describe BackupTest do
         errback_called = true
       end
       res = CMDHandle.execute(cmd, 1, on_err)
-      res.should be_false
-      errback_called.should be_true
+      expect(res).to eq(false)
+      expect(errback_called).to eq(true)
     end
   end
 end
