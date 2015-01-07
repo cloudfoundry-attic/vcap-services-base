@@ -285,7 +285,7 @@ describe ProvisionerTests do
 
         gateway.send_provision_request
 
-        expect(nats_request).to eq "Test.provision.node-1"
+        expect(nats_request).to eq("Test.provision.node-1")
 
         EM.stop
       end
@@ -330,7 +330,7 @@ describe ProvisionerTests do
         gateway.send_provision_request # first request get success
         gateway.send_provision_request # second request get error
 
-        expect(gateway.got_provision_response).to eq false
+        expect(gateway.got_provision_response).to eq(false)
 
         EM.stop
       end
@@ -364,9 +364,9 @@ describe ProvisionerTests do
 
         gateway.send_provision_request("error_plan")
 
-        gateway.provision_response.should be_false
-        gateway.error_msg['status'].should == 400
-        gateway.error_msg['msg']['code'].should == 30003
+        expect(gateway.provision_response).to eq(false)
+        expect(gateway.error_msg['status']).to eq(400)
+        expect(gateway.error_msg['msg']['code']).to eq(30003)
 
         EM.stop
       end
@@ -397,8 +397,7 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).twice.with(any_args()).\
-        and_return { |*args, &cb|
+        mock_nats.should_receive(:request).twice.with(any_args) do |*args, &cb|
             provision_request = args[0]
             if provision_request == "Test.provision.node-1"
               response = VCAP::Services::Internal::ProvisionResponse.new
@@ -413,14 +412,14 @@ describe ProvisionerTests do
             end
             cb.call(response.encode)
             "5"
-        }
+        end
         mock_nats.should_receive(:unsubscribe).twice.with(any_args())
 
         gateway.send_provision_request
-        provision_request.should == "Test.provision.node-1"
+        expect(provision_request).to eq("Test.provision.node-1")
 
         gateway.send_unprovision_request
-        provision_request.should == "Test.unprovision.node-1"
+        expect(provision_request).to eq("Test.unprovision.node-1")
 
         EM.stop
       end
@@ -451,8 +450,7 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).exactly(3).times.with(any_args()).\
-        and_return { |*args, &cb|
+        mock_nats.should_receive(:request).exactly(3).times.with(any_args) do |*args, &cb|
             provision_request = args[0]
             if provision_request == "Test.provision.node-1"
               response = VCAP::Services::Internal::ProvisionResponse.new
@@ -473,20 +471,20 @@ describe ProvisionerTests do
             end
             cb.call(response.encode)
             "5"
-        }
-        mock_nats.should_receive(:unsubscribe).exactly(3).times.with(any_args())
+        end
+        mock_nats.should_receive(:unsubscribe).exactly(3).times.with(any_args)
 
         gateway.send_provision_request
-        provision_request.should == "Test.provision.node-1"
+        expect(provision_request).to eq("Test.provision.node-1")
 
         gateway.send_bind_request
-        provision_request.should == "Test.bind.node-1"
+        expect(provision_request).to eq("Test.bind.node-1")
 
         gateway.send_unprovision_request
-        provision_request.should == "Test.unprovision.node-1"
+        expect(provision_request).to eq("Test.unprovision.node-1")
 
         current_cache = provisioner.get_all_handles
-        current_cache.size.should == 0
+        expect(current_cache.size).to eq(0)
 
         EM.stop
       end
@@ -516,23 +514,23 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
+        mock_nats.should_receive(:request).with(any_args) do |*args, &cb|
             response = VCAP::Services::Internal::SimpleResponse.new
             response.success = false
             response.error = ServiceError.new(ServiceError::INTERNAL_ERROR).\
                                           to_hash
             cb.call(response.encode)
             "5"
-        }
-        mock_nats.should_receive(:unsubscribe).with(any_args())
+        end
+        mock_nats.should_receive(:unsubscribe).with(any_args)
 
         ProvisionerTests.setup_fake_instance_by_id(gateway, provisioner, "node-1")
 
         gateway.send_unprovision_request
 
-        gateway.unprovision_response.should be_false
-        gateway.error_msg['status'].should == 500
-        gateway.error_msg['msg']['code'].should == 30500
+        expect(gateway.unprovision_response).to eq(false)
+        expect(gateway.error_msg['status']).to eq(500)
+        expect(gateway.error_msg['msg']['code']).to eq(30500)
 
         EM.stop
       end
@@ -563,8 +561,7 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).twice.with(any_args()).\
-        and_return { |*args, &cb|
+        mock_nats.should_receive(:request).twice.with(any_args) do |*args, &cb|
             provision_request = args[0]
             if provision_request == "Test.provision.node-1"
               response = VCAP::Services::Internal::ProvisionResponse.new
@@ -583,14 +580,14 @@ describe ProvisionerTests do
             end
             cb.call(response.encode)
             "5"
-        }
-        mock_nats.should_receive(:unsubscribe).twice.with(any_args())
+        end
+        mock_nats.should_receive(:unsubscribe).twice.with(any_args)
 
         gateway.send_provision_request
-        gateway.got_provision_response.should be_true
+        expect(gateway.got_provision_response).to eq(true)
 
         gateway.send_bind_request
-        gateway.got_bind_response.should be_true
+        expect(gateway.got_bind_response).to eq(true)
 
         EM.stop
       end
@@ -620,23 +617,23 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).with(any_args).and_return { |*args, &cb|
+        mock_nats.should_receive(:request).with(any_args) do |*args, &cb|
             response = VCAP::Services::Internal::BindResponse.new
             response.success = false
             response.error = ServiceError.new(ServiceError::INTERNAL_ERROR).\
                                           to_hash
             cb.call(response.encode)
             "5"
-        }
-        mock_nats.should_receive(:unsubscribe).with(any_args())
+        end
+        mock_nats.should_receive(:unsubscribe).with(any_args)
 
         ProvisionerTests.setup_fake_instance_by_id(gateway, provisioner, "node-1")
 
         gateway.send_bind_request
 
-        gateway.bind_response.should be_false
-        gateway.error_msg['status'].should == 500
-        gateway.error_msg['msg']['code'].should == 30500
+        expect(gateway.bind_response).to eq(false)
+        expect(gateway.error_msg['status']).to eq(500)
+        expect(gateway.error_msg['msg']['code']).to eq(30500)
 
         EM.stop
       end
@@ -666,24 +663,23 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).with(any_args()).\
-        and_return { |*args, &cb|
+        mock_nats.should_receive(:request).with(any_args) do |*args, &cb|
             response = VCAP::Services::Internal::SimpleResponse.new
             response.success = false
             response.error = ServiceError.new(ServiceError::INTERNAL_ERROR).\
                                           to_hash
             cb.call(response.encode)
             "5"
-        }
+        end
         mock_nats.should_receive(:unsubscribe).with(any_args())
 
         ProvisionerTests.setup_fake_instance_by_id(gateway, provisioner, "node-1")
         ProvisionerTests.setup_fake_binding_by_id(gateway, provisioner, "node-1")
         gateway.send_unbind_request
 
-        gateway.unbind_response.should be_false
-        gateway.error_msg['status'].should == 500
-        gateway.error_msg['msg']['code'].should == 30500
+        expect(gateway.unbind_response).to eq(false)
+        expect(gateway.error_msg['status']).to eq(500)
+        expect(gateway.error_msg['msg']['code']).to eq(30500)
 
         EM.stop
       end
@@ -713,8 +709,7 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).twice.with(any_args()).\
-        and_return { |*args, &cb|
+        mock_nats.should_receive(:request).twice.with(any_args) do |*args, &cb|
             provision_request = args[0]
             if provision_request == "Test.provision.node-1"
               response = VCAP::Services::Internal::ProvisionResponse.new
@@ -729,13 +724,13 @@ describe ProvisionerTests do
             end
             cb.call(response.encode)
             "5"
-        }
+        end
         mock_nats.should_receive(:unsubscribe).twice.with(any_args())
 
         gateway.send_provision_request
         gateway.send_restore_request
 
-        gateway.got_restore_response.should be_true
+        expect(gateway.got_restore_response).to eq(true)
 
         EM.stop
       end
@@ -765,22 +760,22 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
+        mock_nats.should_receive(:request).with(any_args) do |*args, &cb|
             response = VCAP::Services::Internal::SimpleResponse.new
             response.success = false
             response.error = ServiceError.new(ServiceError::INTERNAL_ERROR).\
                                           to_hash
             cb.call(response.encode)
             "5"
-        }
-        mock_nats.should_receive(:unsubscribe).with(any_args())
+        end
+        mock_nats.should_receive(:unsubscribe).with(any_args)
 
         ProvisionerTests.setup_fake_instance_by_id(gateway, provisioner, "node-1")
 
         gateway.send_restore_request
 
-        gateway.error_msg['status'].should == 500
-        gateway.error_msg['msg']['code'].should == 30500
+        expect(gateway.error_msg['status']).to eq(500)
+        expect(gateway.error_msg['msg']['code']).to eq(30500)
 
         EM.stop
       end
@@ -811,8 +806,7 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).at_least(:twice).with(any_args()).\
-        and_return { |*args, &cb|
+        mock_nats.should_receive(:request).at_least(:twice).with(any_args) do |*args, &cb|
             provision_request = args[0]
             if provision_request == "Test.provision.node-1"
               response = VCAP::Services::Internal::ProvisionResponse.new
@@ -834,13 +828,13 @@ describe ProvisionerTests do
             end
             cb.call(response.encode)
             "5"
-        }
-        mock_nats.should_receive(:unsubscribe).at_least(:twice).with(any_args())
+        end
+        mock_nats.should_receive(:unsubscribe).at_least(:twice).with(any_args)
 
         gateway.send_provision_request
         gateway.send_recover_request
 
-        gateway.got_recover_response.should be_true
+        expect(gateway.got_recover_response).to eq(true)
 
         EM.stop
       end
@@ -870,8 +864,7 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).at_least(:twice).with(any_args()).\
-        and_return { |*args, &cb|
+        mock_nats.should_receive(:request).at_least(:twice).with(any_args) do |*args, &cb|
             provision_request = args[0]
             if provision_request == "Test.provision.node-1"
               response = VCAP::Services::Internal::ProvisionResponse.new
@@ -886,13 +879,13 @@ describe ProvisionerTests do
             end
             cb.call(response.encode)
             "5"
-        }
-        mock_nats.should_receive(:unsubscribe).at_least(:twice).with(any_args())
+        end
+        mock_nats.should_receive(:unsubscribe).at_least(:twice).with(any_args)
 
         gateway.send_provision_request
         gateway.send_migrate_request("node-1")
 
-        gateway.got_migrate_response.should be_true
+        expect(gateway.got_migrate_response).to eq(true)
 
         EM.stop
       end
@@ -922,22 +915,22 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
+        mock_nats.should_receive(:request).with(any_args) do |*args, &cb|
             response = VCAP::Services::Internal::SimpleResponse.new
             response.success = false
             response.error = ServiceError.new(ServiceError::INTERNAL_ERROR).\
                                           to_hash
             cb.call(response.encode)
             "5"
-        }
+        end
         mock_nats.should_receive(:unsubscribe).with(any_args)
 
         ProvisionerTests.setup_fake_instance_by_id(gateway, provisioner, "node-1")
 
         gateway.send_migrate_request("node-1")
 
-        gateway.error_msg['status'].should == 500
-        gateway.error_msg['msg']['code'].should == 30500
+        expect(gateway.error_msg['status']).to eq(500)
+        expect(gateway.error_msg['msg']['code']).to eq(30500)
 
         EM.stop
       end
@@ -967,7 +960,7 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
+        mock_nats.should_receive(:request).with(any_args) do |*args, &cb|
             response = VCAP::Services::Internal::ProvisionResponse.new
             response.success = true
             response.credentials = {
@@ -976,13 +969,13 @@ describe ProvisionerTests do
             }
             cb.call(response.encode)
             "5"
-        }
-        mock_nats.should_receive(:unsubscribe).with(any_args())
+        end
+        mock_nats.should_receive(:unsubscribe).with(any_args)
 
         gateway.send_provision_request
         gateway.send_instances_request("node-1")
 
-        gateway.got_instances_response.should be_true
+        expect(gateway.got_instances_response).to eq(true)
 
         EM.stop
       end
@@ -1012,21 +1005,21 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
+        mock_nats.should_receive(:request).with(any_args) do |*args, &cb|
             response = VCAP::Services::Internal::SimpleResponse.new
             response.success = false
             response.error = ServiceError.new(ServiceError::INTERNAL_ERROR).\
                                           to_hash
             cb.call(response.encode)
             "5"
-        }
-        mock_nats.should_receive(:unsubscribe).with(any_args())
+        end
+        mock_nats.should_receive(:unsubscribe).with(any_args)
 
         ProvisionerTests.setup_fake_instance_by_id(gateway, provisioner, "node-1")
         gateway.send_migrate_request("node-1")
 
-        gateway.error_msg['status'].should == 500
-        gateway.error_msg['msg']['code'].should == 30500
+        expect(gateway.error_msg['status']).to eq(500)
+        expect(gateway.error_msg['msg']['code']). to eq(30500)
 
         EM.stop
       end
@@ -1060,9 +1053,9 @@ describe ProvisionerTests do
         }
         Do.at(12) { EM.stop }
       end
-      varz_invoked_before.should be_false
-      varz_invoked_after.should be_true
-      prov_svcs_before.should == prov_svcs_after
+      expect(varz_invoked_before).to eq(false)
+      expect(varz_invoked_after).to eq(true)
+      expect(prov_svcs_before).to eq(prov_svcs_after)
     end
 
     it "should allow over provisioning when it is configured so" do
@@ -1092,7 +1085,7 @@ describe ProvisionerTests do
         }
         provisioner.nodes = mock_nodes
 
-        mock_nats.should_receive(:request).with(any_args()).and_return { |*args, &cb|
+        mock_nats.should_receive(:request).with(any_args) do |*args, &cb|
             response = VCAP::Services::Internal::ProvisionResponse.new
             response.success = true
             response.credentials = {
@@ -1101,12 +1094,12 @@ describe ProvisionerTests do
             }
             cb.call(response.encode)
             "5"
-        }
-        mock_nats.should_receive(:unsubscribe).with(any_args())
+        end
+        mock_nats.should_receive(:unsubscribe).with(any_args)
 
         gateway.send_provision_request
 
-        gateway.got_provision_response.should be_true
+        expect(gateway.got_provision_response).to eq(true)
 
         EM.stop
       end
@@ -1141,7 +1134,7 @@ describe ProvisionerTests do
 
         gateway.send_provision_request
 
-        gateway.got_provision_response.should be_false
+        expect(gateway.got_provision_response).to eq(false)
 
         EM.stop
       end
@@ -1195,14 +1188,14 @@ describe ProvisionerTests do
 
         gateway.send_double_check_orphan_request
 
-        provisioner.staging_orphan_instances["node-2"].count.should == 2
-        provisioner.staging_orphan_instances["node-3"].count.should == 2
-        provisioner.final_orphan_instances["node-2"].count.should == 1
-        provisioner.final_orphan_instances["node-3"].count.should == 2
-        provisioner.staging_orphan_bindings["node-2"].count.should == 1
-        provisioner.staging_orphan_bindings["node-3"].count.should == 2
-        provisioner.final_orphan_bindings["node-2"].count.should == 1
-        provisioner.final_orphan_bindings["node-3"].count.should == 2
+        expect(provisioner.staging_orphan_instances["node-2"].count).to eq(2)
+        expect(provisioner.staging_orphan_instances["node-3"].count).to eq(2)
+        expect(provisioner.final_orphan_instances["node-2"].count).to eq(1)
+        expect(provisioner.final_orphan_instances["node-3"].count).to eq(2)
+        expect(provisioner.staging_orphan_bindings["node-2"].count).to eq(1)
+        expect(provisioner.staging_orphan_bindings["node-3"].count).to eq(2)
+        expect(provisioner.final_orphan_bindings["node-2"].count).to eq(1)
+        expect(provisioner.final_orphan_bindings["node-3"].count).to eq(2)
 
         EM.stop
       end
@@ -1231,8 +1224,8 @@ describe ProvisionerTests do
         # mock nats subscribe callback function only can be invoked manually
         provisioner.on_node_handles(node.encode, nil)
 
-        provisioner.staging_orphan_instances["node-1"].should be_nil
-        provisioner.final_orphan_instances["node-1"].should be_nil
+        expect(provisioner.staging_orphan_instances["node-1"]).to eq(nil)
+        expect(provisioner.final_orphan_instances["node-1"]).to eq(nil)
 
         EM.stop
       end
@@ -1254,17 +1247,16 @@ describe ProvisionerTests do
                                                   1024 * 128, \
                                                   1024 * 16)
 
-        mock_nats.should_receive(:publish).at_least(:once).with(any_args).\
-        and_return { |*args, &cb|
+        mock_nats.should_receive(:publish).at_least(:once).with(any_args) do |*args, &cb|
             req = VCAP::Services::Internal::PurgeOrphanRequest.decode(args[1])
             purge_ins_list.concat(req.orphan_ins_list)
             purge_bind_list.concat(req.orphan_binding_list)
-        }
+        end
         gateway.send_purge_orphan_request
 
-        gateway.got_purge_orphan_response.should be_true
-        purge_ins_list.count.should == 1024 * 128
-        purge_bind_list.count.should == 1024 * 16
+        expect(gateway.got_purge_orphan_response).to eq(true)
+        expect(purge_ins_list.count).to eq(1024 * 128)
+        expect(purge_bind_list.count).to eq(1024 * 16)
 
         EM.stop
       end
@@ -1284,9 +1276,9 @@ describe ProvisionerTests do
         provisioner.update_handles(handle)
         metadata = provisioner.snapshot_metadata('foo')
 
-        metadata[:plan].should == 'free'
-        metadata[:provider].should == 'myprovider'
-        metadata[:service_version].should == '1.0'
+        expect(metadata[:plan]).to eq('free')
+        expect(metadata[:provider]).to eq('myprovider')
+        expect(metadata[:service_version]).to eq('1.0')
 
         EM.stop
       end
@@ -1313,9 +1305,9 @@ describe ProvisionerTests do
         provisioner.update_handles(handle)
         metadata = provisioner.snapshot_metadata('foo')
 
-        metadata[:plan].should == 'free'
-        metadata[:provider].should == 'myprovider'
-        metadata[:service_version].should == '1.0'
+        expect(metadata[:plan]).to eq('free')
+        expect(metadata[:provider]).to eq('myprovider')
+        expect(metadata[:service_version]).to eq('1.0')
 
         EM.stop
       end
@@ -1363,8 +1355,8 @@ describe ProvisionerTests do
         provisioner = setup_required_snapshot_config(service_id)
 
         provisioner.create_snapshot_v2(service_id, name) do |msg|
-          msg['success'].should be_true
-          msg['response'].should == snapshot
+          expect(msg['success']).to eq(true)
+          expect(msg['response']).to eq(snapshot)
         end
         EM.stop
       end
@@ -1378,8 +1370,8 @@ describe ProvisionerTests do
         provisioner = setup_required_snapshot_config(service_id)
 
         provisioner.enumerate_snapshots_v2(service_id) do |msg|
-          msg['success'].should be_true
-          msg['response'].should == snapshots
+          expect(msg['success']).to eq(true)
+          expect(msg['response']).to eq(snapshots)
         end
         EM.stop
       end
