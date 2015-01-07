@@ -2,7 +2,7 @@ require "helper/spec_helper"
 require "base/snapshot_v2/snapshot_client"
 
 describe VCAP::Services::Base::SnapshotV2::SnapshotClient do
-  let(:redis_mock) { mock("redis") }
+  let(:redis_mock) { double("redis") }
   before(:each) do
     Redis.stub(:new).with(kind_of(Hash)).and_return redis_mock
     redis_mock.stub(:setnx)
@@ -313,7 +313,7 @@ describe VCAP::Services::Base::SnapshotV2::SnapshotClient do
           with(service_id, hash_including("name" => name)).
           and_return([])
         redis_mock.should_receive(:multi).and_yield
-        expect(subject).to be_true
+        expect(subject).to eq(true)
       end
     end
   end

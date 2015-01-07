@@ -143,23 +143,23 @@ module VCAP::Services
       let(:service_nil) { Service.new(options.merge('label' => nil, 'provider' => 'core', 'version' => 1, 'unique_id' => 'a')) }
 
       it 'is true when label, provider, and version are equal' do
-        service_reference.same_tuple?(service_same_tuple).should be_true
+        expect(service_reference.same_tuple?(service_same_tuple)).to eq(true)
       end
 
       it 'is false if any label, provider, or version is nil' do
-        service_nil.same_tuple?(service_reference).should be_false
+        expect(service_nil.same_tuple?(service_reference)).to eq(false)
       end
 
       it 'is false when label is not equal' do
-        service_reference.same_tuple?(service_diff_label).should be_false
+        expect(service_reference.same_tuple?(service_diff_label)).to eq(false)
       end
 
       it 'is false when provider is not equal' do
-        service_reference.same_tuple?(service_diff_provider).should be_false
+        expect(service_reference.same_tuple?(service_diff_provider)).to eq(false)
       end
 
       it 'is false when version is not equal' do
-        service_reference.same_tuple?(service_diff_version).should be_false
+        expect(service_reference.same_tuple?(service_diff_version)).to eq(false)
       end
 
     end
