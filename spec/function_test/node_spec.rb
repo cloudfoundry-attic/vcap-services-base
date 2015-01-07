@@ -17,7 +17,7 @@ describe NodeTests do
         stop_event_machine_when { node.varz_invoked }
       }
     end
-    node.varz_invoked.should be_true
+    expect(node.varz_invoked).to eq(true)
   end
 
   it "should report healthz ok" do
@@ -31,7 +31,7 @@ describe NodeTests do
         stop_event_machine_when { node.healthz_ok == "ok\n" }
       }
     end
-    node.healthz_ok.should == "ok\n"
+    expect(node.healthz_ok).to eq("ok\n")
   end
 
   it "should announce on identical plan" do
@@ -46,7 +46,7 @@ describe NodeTests do
         stop_event_machine_when { provisioner.got_announcement_by_plan == true }
       }
     end
-    provisioner.got_announcement_by_plan.should be_true
+    expect(provisioner.got_announcement_by_plan).to eq(true)
   end
 
   it "should not announce on different plan" do
@@ -59,7 +59,7 @@ describe NodeTests do
       Do.at(2) { provisioner.send_discover_by_plan("nonfree") }
       Do.at(3) { EM.stop }
     end
-    provisioner.got_announcement_by_plan.should be_false
+    expect(provisioner.got_announcement_by_plan).to eq(false)
   end
 
   it "should not announce if not ready" do
@@ -71,7 +71,7 @@ describe NodeTests do
       Do.at(1) { provisioner = NodeTests.create_provisioner }
       Do.at(2) { EM.stop }
     end
-    provisioner.got_announcement.should be_false
+    expect(provisioner.got_announcement).to eq(false)
   end
 
   it "should handle error in node provision" do
@@ -86,8 +86,8 @@ describe NodeTests do
         stop_event_machine_when { node.provision_invoked && provisioner.response =~ /Service unavailable/ }
       }
     end
-    node.provision_invoked.should be_true
-    provisioner.response.should =~ /Service unavailable/
+    expect(node.provision_invoked).to eq(true)
+    expect(provisioner.response =~ /Service unavailable/).not_to be(nil)
   end
 
   it "should decrease capacity after successful provision" do
@@ -102,7 +102,7 @@ describe NodeTests do
         stop_event_machine_when { (original_capacity - node.capacity) > 0 }
       }
     end
-    (original_capacity - node.capacity).should > 0
+    expect(original_capacity - node.capacity).to be > 0
   end
 
   it "should not decrease capacity after erroneous provision" do
@@ -117,7 +117,7 @@ describe NodeTests do
         stop_event_machine_when { (original_capacity - node.capacity) == 0}
       }
     end
-    (original_capacity - node.capacity).should == 0
+    expect(original_capacity - node.capacity).to eq(0)
   end
 
   it "should support unprovision" do
@@ -132,7 +132,7 @@ describe NodeTests do
         stop_event_machine_when { node.unprovision_invoked }
       }
     end
-    node.unprovision_invoked.should be_true
+    expect(node.unprovision_invoked).to eq(true)
   end
 
   it "should handle error in unprovision" do
@@ -149,8 +149,8 @@ describe NodeTests do
         }
       }
     end
-    node.unprovision_invoked.should be_true
-    provisioner.response.should =~ /Service unavailable/
+    expect(node.unprovision_invoked).to eq(true)
+    expect(provisioner.response =~ /Service unavailable/).not_to be(nil)
   end
 
   it "should increase capacity after successful unprovision" do
@@ -165,7 +165,7 @@ describe NodeTests do
         stop_event_machine_when { (original_capacity - node.capacity) < 0 }
       }
     end
-    (original_capacity - node.capacity).should < 0
+    expect(original_capacity - node.capacity).to be < 0
   end
 
   it "should not increase capacity after erroneous unprovision" do
@@ -180,7 +180,7 @@ describe NodeTests do
         stop_event_machine_when { (original_capacity - node.capacity) == 0 }
       }
     end
-    (original_capacity - node.capacity).should == 0
+    expect(original_capacity - node.capacity).to eq(0)
   end
 
   it "should support bind" do
@@ -195,7 +195,7 @@ describe NodeTests do
         stop_event_machine_when { node.bind_invoked }
       }
     end
-    node.bind_invoked.should be_true
+    expect(node.bind_invoked).to eq(true)
   end
 
   it "should handle error in bind" do
@@ -212,8 +212,8 @@ describe NodeTests do
         }
       }
     end
-    node.bind_invoked.should be_true
-    provisioner.response.should =~ /Service unavailable/
+    expect(node.bind_invoked).to eq(true)
+    expect(provisioner.response =~ /Service unavailable/).not_to be(nil)
   end
 
   it "should support unbind" do
@@ -228,7 +228,7 @@ describe NodeTests do
         stop_event_machine_when { node.unbind_invoked }
       }
     end
-    node.unbind_invoked.should be_true
+    expect(node.unbind_invoked).to eq(true)
   end
 
   it "should handle error in unbind" do
@@ -245,8 +245,8 @@ describe NodeTests do
         }
       }
     end
-    node.unbind_invoked.should be_true
-    provisioner.response.should =~ /Service unavailable/
+    expect(node.unbind_invoked).to be(true)
+    expect(provisioner.response =~ /Service unavailable/).not_to be(nil)
   end
 
   it "should support restore" do
@@ -262,7 +262,7 @@ describe NodeTests do
       }
       Do.at(20) { EM.stop }
     end
-    node.restore_invoked.should be_true
+    expect(node.restore_invoked).to eq(true)
   end
 
   it "should handle error in restore" do
@@ -279,8 +279,8 @@ describe NodeTests do
         }
       }
     end
-    node.restore_invoked.should be_true
-    provisioner.response.should =~ /Service unavailable/
+    expect(node.restore_invoked).to eq(true)
+    expect(provisioner.response =~ /Service unavailable/).not_to be(nil)
   end
 
   it "should support disable instance" do
@@ -295,7 +295,7 @@ describe NodeTests do
         stop_event_machine_when { node.disable_invoked }
       }
     end
-    node.disable_invoked.should be_true
+    expect(node.disable_invoked).to eq(true)
   end
 
   it "should handle error in disable instance" do
@@ -312,8 +312,8 @@ describe NodeTests do
         }
       }
     end
-    node.disable_invoked.should be_true
-    provisioner.response.should =~ /Service unavailable/
+    expect(node.disable_invoked).to eq(true)
+    expect(provisioner.response =~ /Service unavailable/).not_to be(nil)
   end
 
   it "should support enable instance" do
@@ -328,7 +328,7 @@ describe NodeTests do
         stop_event_machine_when { node.enable_invoked }
       }
     end
-    node.enable_invoked.should be_true
+    expect(node.enable_invoked).to eq(true)
   end
 
   it "should handle error in enable instance" do
@@ -345,8 +345,8 @@ describe NodeTests do
         }
       }
     end
-    node.enable_invoked.should be_true
-    provisioner.response.should =~ /Service unavailable/
+    expect(node.enable_invoked).to eq(true)
+    expect(provisioner.response =~ /Service unavailable/).not_to eq(nil)
   end
 
   it "should support import instance" do
@@ -361,7 +361,7 @@ describe NodeTests do
         stop_event_machine_when { node.import_invoked }
       }
     end
-    node.import_invoked.should be_true
+    expect(node.import_invoked).to eq(true)
   end
 
   it "should handle error in import instance" do
@@ -378,8 +378,8 @@ describe NodeTests do
         }
       }
     end
-    node.import_invoked.should be_true
-    provisioner.response.should =~ /Service unavailable/
+    expect(node.import_invoked).to eq(true)
+    expect(provisioner.response =~ /Service unavailable/).not_to be(nil)
   end
 
   it "should support update instance" do
@@ -394,7 +394,7 @@ describe NodeTests do
         stop_event_machine_when { node.update_invoked }
       }
     end
-    node.update_invoked.should be_true
+    expect(node.update_invoked).to eq(true)
   end
 
   it "should handle error in update instance" do
@@ -411,8 +411,8 @@ describe NodeTests do
         }
       }
     end
-    node.update_invoked.should be_true
-    provisioner.response.should =~ /Service unavailable/
+    expect(node.update_invoked).to eq(true)
+    expect(provisioner.response =~ /Service unavailable/).not_to be(nil)
   end
 
   it "should support cleanupnfs instance" do
@@ -427,7 +427,7 @@ describe NodeTests do
         stop_event_machine_when { provisioner.got_cleanupnfs_response }
       }
     end
-    provisioner.got_cleanupnfs_response.should be_true
+    expect(provisioner.got_cleanupnfs_response).to eq(true)
   end
 
   it "should decrease capacity after successful migration" do
@@ -442,7 +442,7 @@ describe NodeTests do
         stop_event_machine_when { (original_capacity - node.capacity) == 1 }
       }
     end
-    (original_capacity - node.capacity).should == 1
+    expect(original_capacity - node.capacity).to eq(1)
   end
 
   it "should not decrease capacity after erroneous migration" do
@@ -457,7 +457,7 @@ describe NodeTests do
         stop_event_machine_when { (original_capacity - node.capacity) == 0 }
       }
     end
-    (original_capacity - node.capacity).should == 0
+    expect(original_capacity - node.capacity).to eq(0)
   end
 
   it "should support check_orphan when no handles" do
@@ -475,8 +475,8 @@ describe NodeTests do
         }
       }
     end
-    provisioner.ins_hash[TEST_NODE_ID].count.should == 0
-    provisioner.bind_hash[TEST_NODE_ID].count.should == 0
+    expect(provisioner.ins_hash[TEST_NODE_ID].count).to eq(0)
+    expect(provisioner.bind_hash[TEST_NODE_ID].count).to eq(0)
   end
 
   it "should support check_orphan when node has massive instances" do
@@ -494,8 +494,8 @@ describe NodeTests do
         }
       }
     end
-    provisioner.ins_hash[TEST_NODE_ID].count.should == 1024 * 128
-    provisioner.bind_hash[TEST_NODE_ID].count.should == 1024
+    expect(provisioner.ins_hash[TEST_NODE_ID].count).to eq(1024 * 128)
+    expect(provisioner.bind_hash[TEST_NODE_ID].count).to eq(1024)
   end
 
   it "should support check_orphan when node has massive bindings" do
@@ -513,8 +513,8 @@ describe NodeTests do
         }
       }
     end
-    provisioner.ins_hash[TEST_NODE_ID].count.should == 1024
-    provisioner.bind_hash[TEST_NODE_ID].count.should == 1024 * 64
+    expect(provisioner.ins_hash[TEST_NODE_ID].count).to eq(1024)
+    expect(provisioner.bind_hash[TEST_NODE_ID].count).to eq(1024 * 64)
   end
 
   it "should support check_orphan when node has massive handles" do
@@ -532,8 +532,8 @@ describe NodeTests do
         }
       }
     end
-    provisioner.ins_hash[TEST_NODE_ID].count.should == 1024 * 128
-    provisioner.bind_hash[TEST_NODE_ID].count.should == 1024 * 16
+    expect(provisioner.ins_hash[TEST_NODE_ID].count).to eq(1024 * 128)
+    expect(provisioner.bind_hash[TEST_NODE_ID].count).to eq(1024 * 16)
   end
 
   it "should support purge_orphan" do
@@ -550,7 +550,7 @@ describe NodeTests do
         }
       }
     end
-    node.unprovision_count.should == 2
-    node.unbind_count.should == 2
+    expect(node.unprovision_count).to eq(2)
+    expect(node.unbind_count).to eq(2)
   end
 end
