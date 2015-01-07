@@ -20,8 +20,8 @@ describe AsyncGatewayTests do
         )
       }
     end
-    gateway.check_orphan_invoked.should be_true
-    gateway.double_check_orphan_invoked.should be_true
+    expect(gateway.check_orphan_invoked).to eq(true)
+    expect(gateway.double_check_orphan_invoked).to eq(true)
   end
 
   it "should be able to purge_orphan" do
@@ -57,9 +57,9 @@ describe AsyncGatewayTests do
       Do.at(2) { gateway.send_check_orphan_request }
       Do.at(10) { cc.stop; gateway.stop; EM.stop }
     end
-    gateway.check_orphan_invoked.should be_true
-    gateway.double_check_orphan_invoked.should be_true
-    gateway.check_orphan_http_code.should == 200
+    expect(gateway.check_orphan_invoked).to eq(true)
+    expect(gateway.double_check_orphan_invoked).to eq(true)
+    expect(gateway.check_orphan_http_code).to eq(200)
   end
 
   it "should be able to return error when check_orphan failed" do
@@ -71,9 +71,9 @@ describe AsyncGatewayTests do
       Do.at(2) { gateway.send_check_orphan_request }
       Do.at(10) { cc.stop; gateway.stop; EM.stop }
     end
-    gateway.check_orphan_invoked.should be_true
-    gateway.double_check_orphan_invoked.should be_false
-    gateway.check_orphan_http_code.should == 500
+    expect(gateway.check_orphan_invoked).to eq(true)
+    expect(gateway.double_check_orphan_invoked).to eq(false)
+    expect(gateway.check_orphan_http_code).to eq(500)
   end
 
   it "should be able to provision" do
