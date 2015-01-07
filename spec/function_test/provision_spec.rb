@@ -55,9 +55,9 @@ describe ProvisionerTests do
         Do.at(3) { gateway.send_provision_request }
         Do.at(4) { EM.stop }
       end
-      gateway.got_provision_response.should be_true
-      provisioner.get_all_instance_handles.size.should == 1
-      provisioner.get_all_binding_handles.size.should == 0
+      expect(gateway.got_provision_response).to eq(true)
+      expect(provisioner.get_all_instance_handles.size).to eq(1)
+      expect(provisioner.get_all_binding_handles.size).to eq(0)
     end
 
     it "should handle error in provision (#{version})" do
@@ -74,12 +74,12 @@ describe ProvisionerTests do
         Do.at(3) { gateway.send_provision_request }
         Do.at(4) { EM.stop }
       end
-      node.got_provision_request.should be_true
-      provisioner.get_all_instance_handles.size.should == 0
-      provisioner.get_all_binding_handles.size.should == 0
-      gateway.provision_response.should be_false
-      gateway.error_msg['status'].should == 500
-      gateway.error_msg['msg']['code'].should == 30500
+      expect(node.got_provision_request).to eq(true)
+      expect(provisioner.get_all_instance_handles.size).to eq(0)
+      expect(provisioner.get_all_binding_handles.size).to eq(0)
+      expect(gateway.provision_response).to eq(false)
+      expect(gateway.error_msg['status']).to eq(500)
+      expect(gateway.error_msg['msg']['code']).to eq(30500)
     end
 
     it "should pick the best node when provisioning (#{version})" do
@@ -98,8 +98,8 @@ describe ProvisionerTests do
         Do.at(4) { gateway.send_provision_request }
         Do.at(5) { EM.stop }
       end
-      node1.got_provision_request.should be_false
-      node2.got_provision_request.should be_true
+      expect(node1.got_provision_request).to eq(false)
+      expect(node2.got_provision_request).to eq(true)
     end
 
     it "should avoid over provision when provisioning (#{version})" do
@@ -119,10 +119,10 @@ describe ProvisionerTests do
         Do.at(10) { gateway.send_provision_request }
         Do.at(15) { EM.stop }
       end
-      node1.got_provision_request.should be_true
-      node2.got_provision_request.should be_true
-      provisioner.get_all_instance_handles.size.should == 2
-      provisioner.get_all_binding_handles.size.should == 0
+      expect(node1.got_provision_request).to eq(true)
+      expect(node2.got_provision_request).to eq(true)
+      expect(provisioner.get_all_instance_handles.size).to eq(2)
+      expect(provisioner.get_all_binding_handles.size).to eq(0)
     end
 
     it "should raise error on provisioning error plan (#{version})" do
@@ -139,10 +139,10 @@ describe ProvisionerTests do
         Do.at(3) { gateway.send_provision_request("error_plan") }
         Do.at(4) { EM.stop }
       end
-      node.got_provision_request.should be_false
-      gateway.provision_response.should be_false
-      gateway.error_msg['status'].should == 400
-      gateway.error_msg['msg']['code'].should == 30003
+      expect(node.got_provision_request).to eq(false)
+      expect(gateway.provision_response).to eq(false)
+      expect(gateway.error_msg['status']).to eq(400)
+      expect(gateway.error_msg['msg']['code']).to eq(30003)
     end
 
 
@@ -161,9 +161,9 @@ describe ProvisionerTests do
         Do.at(4) { gateway.send_unprovision_request }
         Do.at(5) { EM.stop }
       end
-      node.got_unprovision_request.should be_true
-      provisioner.get_all_instance_handles.size.should == 0
-      provisioner.get_all_binding_handles.size.should == 0
+      expect(node.got_unprovision_request).to eq(true)
+      expect(provisioner.get_all_instance_handles.size).to eq(0)
+      expect(provisioner.get_all_binding_handles.size).to eq(0)
     end
 
     it "should delete instance handles in cache after unprovision (#{version})" do
@@ -182,10 +182,10 @@ describe ProvisionerTests do
         Do.at(5) { gateway.send_unprovision_request }
         Do.at(6) { EM.stop }
       end
-      node.got_provision_request.should be_true
-      node.got_bind_request.should be_true
-      node.got_unprovision_request.should be_true
-      provisioner.get_all_handles.size.should == 0
+      expect(node.got_provision_request).to eq(true)
+      expect(node.got_bind_request).to eq(true)
+      expect(node.got_unprovision_request).to eq(true)
+      expect(provisioner.get_all_handles.size).to eq(0)
     end
 
     it "should handle error in unprovision (#{version})" do
@@ -203,13 +203,13 @@ describe ProvisionerTests do
         Do.at(4) { gateway.send_unprovision_request }
         Do.at(5) { EM.stop }
       end
-      node.got_unprovision_request.should be_true
-      gateway.unprovision_response.should be_false
-      provisioner.get_all_instance_handles.size.should == 0
-      provisioner.get_all_binding_handles.size.should == 0
-      gateway.error_msg.should_not == nil
-      gateway.error_msg['status'].should == 500
-      gateway.error_msg['msg']['code'].should == 30500
+      expect(node.got_unprovision_request).to eq(true)
+      expect(gateway.unprovision_response).to eq(false)
+      expect(provisioner.get_all_instance_handles.size).to eq(0)
+      expect(provisioner.get_all_binding_handles.size).to eq(0)
+      expect(gateway.error_msg).not_to eq(nil)
+      expect(gateway.error_msg['status']).to eq(500)
+      expect(gateway.error_msg['msg']['code']).to eq(30500)
     end
 
     it "should support bind (#{version})" do
@@ -227,10 +227,10 @@ describe ProvisionerTests do
         Do.at(4) { gateway.send_bind_request }
         Do.at(5) { EM.stop }
       end
-      gateway.got_provision_response.should be_true
-      gateway.got_bind_response.should be_true
-      provisioner.get_all_instance_handles.size.should == 1
-      provisioner.get_all_binding_handles.size.should == 1
+      expect(gateway.got_provision_response).to eq(true)
+      expect(gateway.got_bind_response).to eq(true)
+      expect(provisioner.get_all_instance_handles.size).to eq(1)
+      expect(provisioner.get_all_binding_handles.size).to eq(1)
     end
 
     it "should handle error in bind (#{version})" do
@@ -248,12 +248,12 @@ describe ProvisionerTests do
         Do.at(4) { gateway.send_bind_request }
         Do.at(5) { EM.stop }
       end
-      node.got_bind_request.should be_true
-      provisioner.get_all_instance_handles.size.should == 1
-      provisioner.get_all_binding_handles.size.should == 0
-      gateway.bind_response.should be_false
-      gateway.error_msg['status'].should == 500
-      gateway.error_msg['msg']['code'].should == 30500
+      expect(node.got_bind_request).to eq(true)
+      expect(provisioner.get_all_instance_handles.size).to eq(1)
+      expect(provisioner.get_all_binding_handles.size).to eq(0)
+      expect(gateway.bind_response).to eq(false)
+      expect(gateway.error_msg['status']).to eq(500)
+      expect(gateway.error_msg['msg']['code']).to eq(30500)
     end
 
     it "should handle error in unbind (#{version})" do
@@ -274,12 +274,12 @@ describe ProvisionerTests do
         Do.at(5) { gateway.send_unbind_request }
         Do.at(6) { EM.stop }
       end
-      node.got_unbind_request.should be_true
-      provisioner.get_all_instance_handles.size.should == 1
-      provisioner.get_all_binding_handles.size.should == 0
-      gateway.unbind_response.should be_false
-      gateway.error_msg['status'].should == 500
-      gateway.error_msg['msg']['code'].should == 30500
+      expect(node.got_unbind_request).to eq(true)
+      expect(provisioner.get_all_instance_handles.size).to eq(1)
+      expect(provisioner.get_all_binding_handles.size).to eq(0)
+      expect(gateway.unbind_response).to eq(false)
+      expect(gateway.error_msg['status']).to eq(500)
+      expect(gateway.error_msg['msg']['code']).to eq(30500)
     end
 
     it "should support restore (#{version})" do
@@ -297,7 +297,7 @@ describe ProvisionerTests do
         Do.at(4) { gateway.send_restore_request }
         Do.at(5) { EM.stop }
       end
-      gateway.got_restore_response.should be_true
+      expect(gateway.got_restore_response).to eq(true)
     end
 
     it "should handle error in restore (#{version})" do
@@ -315,9 +315,9 @@ describe ProvisionerTests do
         Do.at(4) { gateway.send_restore_request }
         Do.at(5) { EM.stop }
       end
-      node.got_restore_request.should be_true
-      gateway.error_msg['status'].should == 500
-      gateway.error_msg['msg']['code'].should == 30500
+      expect(node.got_restore_request).to eq(true)
+      expect(gateway.error_msg['status']).to eq(500)
+      expect(gateway.error_msg['msg']['code']).to eq(30500)
     end
 
     it "should support recover (#{version})" do
@@ -335,7 +335,7 @@ describe ProvisionerTests do
         Do.at(4) { gateway.send_recover_request }
         Do.at(10) { EM.stop }
       end
-      gateway.got_recover_response.should be_true
+      expect(gateway.got_recover_response).to eq(true)
     end
 
     it "should support migration (#{version})" do
@@ -353,7 +353,7 @@ describe ProvisionerTests do
         Do.at(4) { gateway.send_migrate_request("node-1") }
         Do.at(10) { EM.stop }
       end
-      gateway.got_migrate_response.should be_true
+      expect(gateway.got_migrate_response).to eq(true)
     end
 
     it "should handle error in migration (#{version})" do
@@ -371,9 +371,9 @@ describe ProvisionerTests do
         Do.at(4) { gateway.send_migrate_request("node-1") }
         Do.at(5) { EM.stop }
       end
-      node.got_migrate_request.should be_true
-      gateway.error_msg['status'].should == 500
-      gateway.error_msg['msg']['code'].should == 30500
+      expect(node.got_migrate_request).to eq(true)
+      expect(gateway.error_msg['status']).to eq(500)
+      expect(gateway.error_msg['msg']['code']).to eq(30500)
     end
 
     it "should support get instance id list (#{version})" do
@@ -391,7 +391,7 @@ describe ProvisionerTests do
         Do.at(4) { gateway.send_instances_request("node-1") }
         Do.at(5) { EM.stop }
       end
-      gateway.got_instances_response.should be_true
+      expect(gateway.got_instances_response).to eq(true)
     end
 
     it "should handle error in getting instance id list (#{version})" do
@@ -409,8 +409,8 @@ describe ProvisionerTests do
         Do.at(4) { gateway.send_migrate_request("node-1") }
         Do.at(5) { EM.stop }
       end
-      gateway.error_msg['status'].should == 500
-      gateway.error_msg['msg']['code'].should == 30500
+      expect(gateway.error_msg['status']).to eq(500)
+      expect(gateway.error_msg['msg']['code']).to eq(30500)
     end
 
     it "should allow over provisioning when it is configured so (#{version})" do
@@ -430,9 +430,9 @@ describe ProvisionerTests do
         Do.at(3) { gateway.send_provision_request }
         Do.at(4) { EM.stop }
       end
-      node.got_provision_request.should be_true
-      provisioner.get_all_instance_handles.size.should == 1
-      provisioner.get_all_binding_handles.size.should == 0
+      expect(node.got_provision_request).to eq(true)
+      expect(provisioner.get_all_instance_handles.size).to eq(1)
+      expect(provisioner.get_all_binding_handles.size).to eq(0)
     end
 
     it "should not allow over provisioning when it is not configured so (#{version})" do
@@ -452,9 +452,9 @@ describe ProvisionerTests do
         Do.at(3) { gateway.send_provision_request }
         Do.at(4) { EM.stop }
       end
-      node.got_provision_request.should be_false
-      provisioner.get_all_instance_handles.size.should == 0
-      provisioner.get_all_binding_handles.size.should == 0
+      expect(node.got_provision_request).to eq(false)
+      expect(provisioner.get_all_instance_handles.size).to eq(0)
+      expect(provisioner.get_all_binding_handles.size).to eq(0)
     end
 
     it "should support check orphan (#{version})" do
@@ -473,14 +473,14 @@ describe ProvisionerTests do
         Do.at(8) { gateway.send_double_check_orphan_request }
         Do.at(10) { EM.stop }
       end
-      provisioner.staging_orphan_instances["node-2"].count.should == 2
-      provisioner.staging_orphan_instances["node-3"].count.should == 2
-      provisioner.final_orphan_instances["node-2"].count.should == 1
-      provisioner.final_orphan_instances["node-3"].count.should == 2
-      provisioner.staging_orphan_bindings["node-2"].count.should == 1
-      provisioner.staging_orphan_bindings["node-3"].count.should == 2
-      provisioner.final_orphan_bindings["node-2"].count.should == 1
-      provisioner.final_orphan_bindings["node-3"].count.should == 2
+      expect(provisioner.staging_orphan_instances["node-2"].count).to eq(2)
+      expect(provisioner.staging_orphan_instances["node-3"].count).to eq(2)
+      expect(provisioner.final_orphan_instances["node-2"].count).to eq(1)
+      expect(provisioner.final_orphan_instances["node-3"].count).to eq(2)
+      expect(provisioner.staging_orphan_bindings["node-2"].count).to eq(1)
+      expect(provisioner.staging_orphan_bindings["node-3"].count).to eq(2)
+      expect(provisioner.final_orphan_bindings["node-2"].count).to eq(1)
+      expect(provisioner.final_orphan_bindings["node-3"].count).to eq(2)
     end
 
     it "should handle error in check orphan (#{version})" do
@@ -497,9 +497,9 @@ describe ProvisionerTests do
         Do.at(3) { gateway.send_check_orphan_request }
         Do.at(4) { EM.stop }
       end
-      node.got_check_orphan_request.should be_true
-      provisioner.staging_orphan_instances["node-1"].should be_nil
-      provisioner.final_orphan_instances["node-1"].should be_nil
+      expect(node.got_check_orphan_request).to eq(true)
+      expect(provisioner.staging_orphan_instances["node-1"]).to eq(nil)
+      expect(provisioner.final_orphan_instances["node-1"]).to eq(nil)
     end
 
     it "should support purging massive orphans (#{version})" do
@@ -522,10 +522,10 @@ describe ProvisionerTests do
           end
         }
       end
-      node.got_purge_orphan_request.should be_true
-      gateway.got_purge_orphan_response.should be_true
-      node.purge_ins_list.count.should == 1024 * 128
-      node.purge_bind_list.count.should == 1024 * 16
+      expect(node.got_purge_orphan_request).to eq(true)
+      expect(gateway.got_purge_orphan_response).to eq(true)
+      expect(node.purge_ins_list.count).to eq(1024 * 128)
+      expect(node.purge_bind_list.count).to eq(1024 * 16)
     end
 
   end
