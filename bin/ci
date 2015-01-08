@@ -1,0 +1,27 @@
+#!/bin/bash
+
+(
+  set -e
+
+  function printStatus {
+      if [ $? -eq 0 ]; then
+          echo -e "\nSWEET SUITE SUCCESS"
+      else
+          echo -e "\nSUITE FAILURE"
+      fi
+  }
+
+  trap printStatus EXIT
+
+  echo -e "\n Running Ruby version"
+  ruby -v
+
+  echo -e "\n Installing Bundler"
+  gem install bundler -v 1.7
+
+  echo -e "\n Running bundle..."
+  bundle
+
+  echo -e "\n Running specs..."
+  bundle exec rspec spec
+)
