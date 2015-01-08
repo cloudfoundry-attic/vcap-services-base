@@ -5,8 +5,8 @@ describe HTTPHandler do
 
   let(:logger) { Logger.new('/tmp/vcap_services_base.log') }
 
-  let(:unauthorized_request) { stub("unauthorized", response_header: stub(status: 401)) }
-  let(:authorized_request) { stub("unauthorized", response_header: stub(status: 200)) }
+  let(:unauthorized_request) { double("unauthorized", response_header: double(status: 401)) }
+  let(:authorized_request) { double("unauthorized", response_header: double(status: 200)) }
   subject(:http_handler) { described_class.new(logger: logger,
                                                uaa_endpoint: 'http://uaa.example.com',
                                                uaa_client_auth_credentials: {username: "ben ginger"},
@@ -65,7 +65,7 @@ describe HTTPHandler do
   end
 
   describe 'generate_cc_advertise_offering_request' do
-    it 'generates the correct request' do
+    xit 'generates the correct request' do
       pending 'Need test'
     end
   end
