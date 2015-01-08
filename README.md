@@ -1,4 +1,6 @@
-# WARNING! THIS CODE HAS BEEN DEPRECATED.[![Build Status](https://travis-ci.org/cloudfoundry/vcap-services-base.svg?branch=master)](https://travis-ci.org/cloudfoundry/vcap-services-base#)
+# WARNING! THIS CODE HAS BEEN DEPRECATED.
+
+Travis build status [![Build Status](https://travis-ci.org/cloudfoundry/vcap-services-base.svg?branch=master)](https://travis-ci.org/cloudfoundry/vcap-services-base#)
 
 **All code pertaining to the 'v1' broker API, including vcap-services-base, has been deprecated but will be supported until Cloud Controller API v3 is released.**
 
