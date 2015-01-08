@@ -3,7 +3,7 @@ require 'base/catalog_manager_v2'
 
 describe VCAP::Services::CatalogManagerV2 do
   let(:logger) { Logger.new('/tmp/vcap_services_base.log') }
-  let(:http_handler) { mock('http_handler', cc_http_request: nil, cc_req_hdrs: {}) }
+  let(:http_handler) { double('http_handler', cc_http_request: nil, cc_req_hdrs: {}) }
 
   let(:config) do
     {
@@ -36,7 +36,7 @@ describe VCAP::Services::CatalogManagerV2 do
   describe "#update_catalog" do
     let(:manager) { described_class.new(config) }
     let(:catalog_loader) { ->{} }
-    let(:registered_services) { mock('registered service', load_registered_services: {}) }
+    let(:registered_services) { double('registered service', load_registered_services: {}) }
 
     before do
       VCAP::Services::CloudControllerServices.stub(:new => registered_services)
@@ -61,7 +61,7 @@ describe VCAP::Services::CatalogManagerV2 do
 
     it "updates the stats" do
       manager.update_catalog(true, catalog_loader)
-      manager.instance_variable_get(:@gateway_stats)[:refresh_catalog_requests].should == 1
+      expect(manager.instance_variable_get(:@gateway_stats)[:refresh_catalog_requests]).to eq(1)
     end
   end
 end

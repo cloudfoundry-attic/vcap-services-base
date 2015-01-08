@@ -11,7 +11,7 @@ describe BaseTests do
       Do.at(0) { base = BaseTests.create_base }
       Do.at(1) { EM.stop }
     end
-    base.node_mbus_connected.should be_true
+    expect(base.node_mbus_connected).to eq(true)
   end
 
 end

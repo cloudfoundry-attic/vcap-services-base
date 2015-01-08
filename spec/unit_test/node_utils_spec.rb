@@ -28,7 +28,7 @@ describe "Service node utilities test" do
   it "should return a new port from port set" do
     @test.init_ports([10000])
     @test.new_port.should == 10000
-    @test.free_ports.empty?.should be_true
+    expect(@test.free_ports.empty?).to eq(true)
   end
 
   it "should raise exception when return a new port from empty port set" do
@@ -45,7 +45,7 @@ describe "Service node utilities test" do
   it "should recycle the unused port into port set" do
     @test.init_ports([10000])
     @test.new_port
-    @test.free_ports.empty?.should be_true
+    expect(@test.free_ports.empty?).to eq(true)
     @test.free_port(10000)
     @test.free_ports.size.should == 1
   end
@@ -82,8 +82,8 @@ describe "Service node utilities test" do
       Do.at(0) { @test.warden_node_init(:m_actions => ["restart"]) }
       Do.at(1) { @test.monitor_all_instances; EM.stop }
     end
-    failed_instance.failed_times.should == 1
-    failed_instance.running?.should be_true
+    expect(failed_instance.failed_times).to eq(1)
+    expect(failed_instance.running?).to eq(true)
     @test.service_instances.each { |instance| instance.stop }
   end
 
@@ -98,8 +98,8 @@ describe "Service node utilities test" do
     end
     @test.init_ports(ports)
     @test.start_instances(instances)
-    @test.free_ports.empty?.should be_true
-    instances.each { |instance| instance.running?.should be_true }
+    expect(@test.free_ports.empty?).to eq(true)
+    instances.each { |instance| expect(instance.running?).to eq(true) }
   end
 
   it "should be able to stop multiple instances" do
@@ -114,7 +114,7 @@ describe "Service node utilities test" do
     @test.init_ports(ports)
     @test.start_instances(instances)
     @test.stop_instances(instances)
-    instances.each { |instance| instance.running?.should be_false }
+    instances.each { |instance| expect(instance.running?).to eq(false) }
   end
 
   it "should record monitor status in varz details" do

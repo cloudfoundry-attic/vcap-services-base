@@ -37,7 +37,7 @@ end
 describe VCAP::Services::Base::AsyncJob::Snapshot::BaseCreateSnapshotJob do
   describe "#perform" do
     before(:each) do
-      VCAP::Services::Base::AsyncJob::Config.stub(:logger => mock("logger").as_null_object)
+      VCAP::Services::Base::AsyncJob::Config.stub(:logger => double("logger").as_null_object)
       VCAP::Services::Base::AsyncJob::Snapshot.stub(:redis_connect)
     end
 

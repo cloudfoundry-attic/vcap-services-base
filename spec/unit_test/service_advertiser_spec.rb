@@ -4,7 +4,7 @@ require 'base/service'
 
 module VCAP::Services
   describe ServiceAdvertiser do
-    it 'advertises all services' do
+    xit 'advertises all services' do
       pending "needs a test"
     end
 
@@ -63,7 +63,7 @@ module VCAP::Services
             http_handler: mock_http_handler
           )
 
-          mock_http_handler.should_receive(:cc_http_request).with do |options|
+          mock_http_handler.should_receive(:cc_http_request).with(any_args) do |options|
             options[:uri].should == '/v2/services/someguid90dsf9j'
             options[:method].should == 'put'
 
@@ -209,7 +209,7 @@ module VCAP::Services
           )
 
           expected_payload = service_in_catalog.to_hash.tap { |h| h.delete("plans") }
-          mock_http_handler.should_receive(:cc_http_request).with do |options|
+          mock_http_handler.should_receive(:cc_http_request).with(any_args) do |options|
             options[:uri].should == "/v2/services"
             options[:method].should == 'post'
             Yajl::Parser.parse(options[:body]).should == expected_payload
@@ -234,7 +234,7 @@ module VCAP::Services
           )
           mock_http_handler.should_receive(:cc_http_request).with(hash_including({ uri: '/v2/services', method: 'post'})).and_yield(FakeCCHttp.new(error: nil, status: 201, response: {"metadata" => {"guid" => "new_service_guid"}}.to_json))
 
-          mock_http_handler.should_receive(:cc_http_request).with do |options|
+          mock_http_handler.should_receive(:cc_http_request).with(any_args) do |options|
             options[:uri].should == "/v2/service_plans"
             options[:method].should == "post"
 
