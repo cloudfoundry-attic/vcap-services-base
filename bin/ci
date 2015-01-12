@@ -23,5 +23,5 @@
   bundle
 
   echo -e "\n Running specs..."
-  bundle exec rspec spec
+  bundle exec rake spec
 )
