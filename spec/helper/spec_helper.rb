@@ -8,8 +8,6 @@ require 'rspec'
 require 'logger'
 require "rack/test"
 
-require 'rspec/active_model/mocks'
-
 require "base_spec_helper"
 require "node_spec_helper"
 require "provision_spec_helper"
