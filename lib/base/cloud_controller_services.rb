@@ -56,18 +56,23 @@ module VCAP::Services
 
       while !url.nil? do
         logger.debug("#{self.class.name}: Fetching #{description} from: #{url}")
-        @http_client.call(:uri => url,
-                          :method => "get",
-                          :head => @headers,
-                          :need_raise => true) do |http|
-          result = nil
-          if (200..299) === http.response_header.status
-            result = JSON.parse(http.response)
-          else
-            raise "CCNG Catalog Manager: - Multiple page fetch via: #{url} failed: (#{http.response_header.status}) - #{http.response}"
+        wait = 1
+        begin
+          options = { uri: url, method: "get", head: @headers, need_raise: true }
+          @http_client.call(options) do |http|
+            result = nil
+            if (200..299) === http.response_header.status
+              result = JSON.parse(http.response)
+            else
+              raise "CCNG Catalog Manager: - Multiple page fetch via: #{url} failed: (#{http.response_header.status}) - #{http.response}"
+            end
+            result.fetch("resources").each { |r| block.yield r }
+            url = result["next_url"]
           end
-          result.fetch("resources").each { |r| block.yield r }
-          url = result["next_url"]
+        rescue e
+          raise e unless wait > 64
+          sleep wait *= 2
+          retry
         end
       end
     end
