@@ -423,7 +423,7 @@ class VCAP::Services::Base::Provisioner < VCAP::Services::Base::Base
               # credentials is not necessary in cache
               prov_req.credentials = nil
               credential = response.credentials
-              svc = {:configuration => prov_req.dup, :service_id => credential['name'], :credentials => credential}
+              svc = {:configuration => request.extract.dup, :service_id => credential['name'], :credentials => credential}
               @logger.debug("Provisioned: #{svc.inspect}")
               add_instance_handle(svc)
               blk.call(success(svc))
